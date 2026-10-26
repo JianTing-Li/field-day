@@ -15,7 +15,7 @@ Add newest entries at the bottom. One entry per task or work session.
 ## 2026-10-26 — Setup (S-01 to S-12)
 - **Done:** Next.js 16 stack, contracts in `src/contracts/`, Case 1 + Case 2 fixtures, placeholder parks and
   workout templates, stubs for all agents, tools, rules, orchestrator, store, lifecycle service and API routes.
-  CLAUDE.md, TASKS.md, README, decisions, CI, PR template, CODEOWNERS, GitHub issues.
+  CLAUDE.md, TASKS.md, README, decisions, CI, PR template, GitHub issues.
 - **Decisions:** see D-001 to D-010 in `docs/decisions.md`.
 - **Interfaces others depend on:** all of `src/contracts/`; stub API at `/api/events/**` seeded with
   `evt-case-01` (ready for approval) and `evt-case-02` (blocked); `RuleFn` for workout rules; `AgentImpl` +
