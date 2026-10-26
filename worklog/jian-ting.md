@@ -20,7 +20,14 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Interfaces others depend on:** all of `src/contracts/`; stub API at `/api/events/**` seeded with
   `evt-case-01` (ready for approval) and `evt-case-02` (blocked); `RuleFn` for workout rules; `AgentImpl` +
   `index.ts` switch for agents.
-- **Unfinished / next:** branch protection (manual), setup PR review, then JT-01 runner and JT-02 tools.
+- **Unfinished / next:** setup PR review, then JT-01 runner and JT-02 tools.
 - **Gotchas:** `npm run typecheck` runs `next typegen` first so `RouteContext` / `LayoutProps` exist.
   `npm run dev` keeps the in-memory store per server process; restarting resets it.
 - **Requests:** Yadan: add your `git config user.name` to CLAUDE.md (YT-00a).
+
+## 2026-10-26 — S-11: Branch protection
+- **Done:** Rulesets "protect develop" (refs/heads/develop) and "protect main" (refs/heads/main): no deletion,
+  no force-push, PR with 1 approval, stale approvals dismissed, review threads resolved. Removed CODEOWNERS.
+- **Gotchas:** "protect main" used to target the default branch; making `develop` the default left `main`
+  unprotected. It now targets `refs/heads/main` by name.
+- **Unfinished / next:** optionally require the CI check once it has run on PR #39.

@@ -17,7 +17,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [x] **S-08** Stubs: 4 agents, 5 tools, check_plan + placeholder rules, orchestrator, in-memory store, lifecycle service, all API routes
 - [x] **S-09** GitHub Actions: test, typecheck, lint, build on PRs into develop
 - [x] **S-10** PR template
-- [ ] **S-11** Branch protection on develop (JT sets up manually) (#2)
+- [x] **S-11** Branch protection on develop and main (rulesets) (#2)
 - [x] **S-12** GitHub Issues + labels from this file
 - [ ] **S-13** PR feature/project-setup → develop, reviewed by Yadan
 
