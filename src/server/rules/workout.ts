@@ -8,5 +8,6 @@ import { notImplementedCheck } from "./placeholder";
 export const workoutRules: RuleFn = (input) => [
   notImplementedCheck(input, "equipment.available", "equipment", "YT-04"),
   notImplementedCheck(input, "duration.fits", "duration", "YT-04"),
-  notImplementedCheck(input, "space_surface.template_needs", "space_surface", "YT-04"),
+  notImplementedCheck(input, "space_surface.space", "space_surface", "YT-04"),
+  notImplementedCheck(input, "space_surface.surface", "space_surface", "YT-04"),
 ];

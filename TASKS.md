@@ -23,7 +23,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 
 ## JT
 ### Do first (Tue AM)
-- [ ] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting (#3) · Tue AM · needs: S-06
+- [ ] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
 - [ ] **JT-02** Finish agent tools: time-window filtering and coverage gaps (stubs exist) (#4) · Tue AM
 
 ### Harness
@@ -32,7 +32,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-05** Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7) · Tue
 - [ ] **JT-06** check_plan: replace placeholder rules, decide critical vs non-critical checks (#8) · Tue · needs: JT-04, JT-05
 - [ ] **JT-07** Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9) · Tue–Wed
-- [ ] **JT-08** Store: hosted DB, drafts + finalized events, duplicate-save protection (#10) · Wed · needs: DB decision
+- [ ] **JT-08** Store: hosted DB, drafts + finalized events, duplicate-save protection (#10) · Wed · needs: JT-21
 - [ ] **JT-09** Final save gate (all 5 checks) (#11) · Wed · needs: JT-06, JT-07, JT-08
 - [ ] **JT-10** Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12) · Wed · needs: JT-01
 
@@ -47,7 +47,9 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-16** Fixtures for cases 3–12 with expected outputs (written before first run) (#18) · Wed
 - [ ] **JT-17** Eval runner + comparison: rules vs 1 agent vs 4 agents (#19) · Wed–Thu
 - [ ] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
-- [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM
+- [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20
+- [ ] **JT-20** Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40) · Tue
+- [ ] **JT-21** Decide the hosted database and record it in docs/decisions.md (#41) · Tue PM
 
 ## Yadan
 ### Setup (today)
@@ -61,7 +63,8 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Files:** `src/server/data/weather.ts`, `weather.test.ts`, `fixtures/sources/nws/*.json`
   - **Uses:** `FetchForecast`, `ConditionsRequest`, `AdapterResult` (`src/contracts/data.ts`); `EvidenceItem` (`src/contracts/evidence.ts`)
   - **Do:** live mode: `GET https://api.weather.gov/points/{lat},{lon}`, follow `properties.forecastHourly`,
-    send `User-Agent` from `NWS_USER_AGENT`. Convert each hourly period overlapping the event to
+    send `User-Agent` from `NWS_USER_AGENT`. Convert NWS timestamps with `toLocalDateTime` (`src/server/time.ts`).
+    Convert each hourly period overlapping the event to
     `EvidenceItem`s (metrics `temperature`, `precipitation_probability`, `wind_speed`; `evidence_type: "forecast"`;
     `applies_to.scope: "forecast_grid"`; units from the response). Fixture mode reads recorded responses from
     `fixtures/sources/nws/`. Record one real response and one failure response.
@@ -73,7 +76,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Files:** `src/server/data/air.ts`, `air.test.ts`, `fixtures/sources/airnow/*.json`
   - **Uses:** `FetchAirQuality` (`src/contracts/data.ts`); `EvidenceItem`
   - **Do:** pick the forecast and observation endpoints from AirNow's current docs; key from `AIRNOW_API_KEY`,
-    server-side only. Map to `EvidenceItem` with metric `aqi`, `value` = AQI, `category`, `pollutant`,
+    server-side only. Convert times with `toLocalDateTime` (`src/server/time.ts`). Map to `EvidenceItem` with metric `aqi`, `value` = AQI, `category`, `pollutant`,
     `applies_to.scope: "reporting_area"`, `area_label` = reporting area, `evidence_type` forecast or observation.
     Add the limitation "Regional reporting-area value, not a park-level measurement".
   - **Done when:** a future event uses forecasts only (an observation never stands in for a forecast); missing
@@ -89,10 +92,11 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **YT-04** Workout rules (JT waits on this) (#29) · Tue · needs: YT-03
   - **Files:** `src/server/rules/workout.ts`, `workout.test.ts`
   - **Uses:** `RuleFn`, `RuleInput`, `CheckResult` (`src/contracts/checks.ts`)
-  - **Do:** checks `equipment.available` (template + adaptation equipment ⊆ brief equipment),
-    `duration.fits` (template duration + adaptation deltas = brief duration),
-    `space_surface.template_needs` (required layout/surface: `pass` only with a matching organizer confirmation
-    or reference evidence for that exact park; otherwise `unknown`). Never look at heat or AQI here.
+  - **Do:** use only check IDs from `CheckId` (`src/contracts/common.ts`): `equipment.available`
+    (template + adaptation equipment ⊆ brief equipment), `duration.fits` (template duration + adaptation
+    deltas = brief duration), `space_surface.space` (the layout the session needs) and `space_surface.surface`.
+    Space/surface `pass` only with an organizer-confirmation evidence item for that exact park
+    (`confirms_check_id` + `applies_to.park_id`); otherwise `unknown`. Never look at heat or AQI here.
   - **Done when:** tests cover pass, fail and unknown for each check; unconfirmed space is `unknown`, never `pass`.
   - **Test:** `npm test -- workout`
 
@@ -104,7 +108,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
     `get_air_quality`, `get_workout_templates`, `check_plan`. Switch `index.ts` from the stub when tests pass.
   - **Done when:** against the Case 1 and Case 2 fixtures the output validates against `PlanningOutput`, cites
     only evidence IDs from the snapshot, and never reports a failed or unknown check as passing.
-  - **Test:** `npm test -- planning` (tests use a mocked runner; no Anthropic calls)
+  - **Test:** `npm test -- planning` (tests use JT's fake runner from JT-01; no Anthropic calls)
 - [ ] **YT-06** Workout Adaptation agent (JT waits on this) (#31) · Wed AM · needs: JT-01, YT-04
   - **Files:** `src/server/agents/workout/agent.ts`, `prompt.md`, `agent.test.ts`, `index.ts`
   - **Uses:** `SpecialistInput`, `WorkoutOutput`
@@ -120,7 +124,7 @@ API shapes: `src/contracts/api.ts`. Every fixture-backed value must be labeled a
 - [ ] **YT-08** Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33) · Tue
 - [ ] **YT-09** Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34) · Wed
 - [ ] **YT-10** Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35) · Wed
-- [ ] **YT-11** Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36) · Wed
+- [ ] **YT-11** Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36) · Wed
 - [ ] **YT-12** States: loading, data unavailable, stale version (409), fixture banner, save failed (#37) · Thu AM
 
 ### Evals

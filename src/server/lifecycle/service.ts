@@ -3,6 +3,7 @@ import type {
   ApiRequest,
   ApiResponse,
   CheckPlanResult,
+  CheckResult,
   EventBrief,
   EventSummary,
   EvidenceSnapshot,
@@ -309,15 +310,22 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   event.confirmations.push({
     id: newId("conf"),
     check_id: req.check_id,
+    park_id: req.park_id,
+    start_time: req.start_time,
     statement: req.statement,
     confirmed_by: "Organizer",
     confirmed_at: now(),
     note: req.note,
   });
-  // A confirmation resolves only the stated unknown check; it never overrides a failed one.
+  // A confirmation resolves only the stated unknown check at the stated park (and time, if given).
+  // It never overrides a failed check and never carries over to another park.
+  const matches = (c: CheckResult) =>
+    c.check_id === req.check_id &&
+    c.assessed.park_id === req.park_id &&
+    (req.start_time === null || c.assessed.start_time === req.start_time);
   if (v.checks && v.evidence_snapshot_id) {
     const checks = v.checks.checks.map((c) =>
-      c.check_id === req.check_id && c.status === "unknown"
+      matches(c) && c.status === "unknown"
         ? { ...c, status: "pass" as const, reason: `Organizer confirmed: ${req.statement}` }
         : c,
     );

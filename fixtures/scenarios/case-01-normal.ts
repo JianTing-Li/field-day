@@ -82,7 +82,7 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         value: true,
         source: "Organizer",
         park_id: PARK,
-        confirms_check_id: "space_surface.stationary_space",
+        confirms_check_id: "space_surface.space",
       }),
       evidence({
         id: "ev-c1-permit-confirm",
@@ -141,7 +141,7 @@ export function planningOutput(event_version: number): PlanningOutput {
       check(assessed, { check_id: "heat.max_temperature", area: "heat", status: "pass", reason: "62°F is below the 90°F fixture limit", evidence_ids: ["ev-c1-temp-0900"] }),
       check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "AQI 32 is below the 100 fixture limit", evidence_ids: ["ev-c1-aqi-0900"] }),
       check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
-      check(assessed, { check_id: "space_surface.stationary_space", area: "space_surface", status: "pass", reason: "Organizer confirmed stationary space", evidence_ids: ["ev-c1-space-confirm"] }),
+      check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "pass", reason: "Organizer confirmed stationary space", evidence_ids: ["ev-c1-space-confirm"] }),
       check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "pass", reason: "Organizer recorded permit review", evidence_ids: ["ev-c1-permit-confirm"], critical: false }),
     ]),
     concerns: [],

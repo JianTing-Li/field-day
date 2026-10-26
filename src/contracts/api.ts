@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Id } from "./common";
+import { CheckId, Id, LocalDateTime } from "./common";
 import { EventBrief } from "./brief";
 import { EvidenceSnapshot } from "./evidence";
 import { EventSummary, FieldDayEvent, GateCheck } from "./event";
@@ -99,13 +99,15 @@ export const Api = {
     request: z.object({ version: z.number().int().positive(), combined_option_id: Id }),
     response: EventResponse,
   },
-  /** POST /api/events/:id/confirmations — records a confirmation for one check. */
+  /** POST /api/events/:id/confirmations — records a confirmation for one check at one park (and time). */
   addConfirmation: {
     method: "POST",
     path: "/api/events/:id/confirmations",
     request: z.object({
       version: z.number().int().positive(),
-      check_id: z.string().min(1),
+      check_id: CheckId,
+      park_id: Id,
+      start_time: LocalDateTime.nullable(),
       statement: z.string().min(1),
       note: z.string().nullable(),
     }),

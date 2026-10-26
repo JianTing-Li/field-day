@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CheckStatus, Id, LocalDateTime } from "./common";
+import { CheckId, CheckStatus, Id, LocalDateTime } from "./common";
 import type { EventBrief } from "./brief";
 import type { EvidenceSnapshot } from "./evidence";
 import type { CandidatePlan } from "./plan";
@@ -18,8 +18,8 @@ export const PolicyArea = z.enum([
 export type PolicyArea = z.infer<typeof PolicyArea>;
 
 export const CheckResult = z.object({
-  /** Stable ID, e.g. "heat.max_temperature". Organizer confirmations and tasks reference it. */
-  check_id: z.string().min(1),
+  /** Organizer confirmations and tasks reference it, together with the assessed park/time. */
+  check_id: CheckId,
   area: PolicyArea,
   status: CheckStatus,
   /** Critical failed/unknown checks block finalization. */
@@ -46,7 +46,7 @@ export const CheckPlanResult = z.object({
   overall: CheckStatus,
   checks: z.array(CheckResult),
   /** check_ids of critical checks that failed or are unknown. */
-  blockers: z.array(z.string()),
+  blockers: z.array(CheckId),
 });
 export type CheckPlanResult = z.infer<typeof CheckPlanResult>;
 

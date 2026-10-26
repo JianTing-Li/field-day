@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Id } from "./common";
+import { CheckId, Id } from "./common";
 import { EventBrief } from "./brief";
 import { CheckPlanResult } from "./checks";
 import { CombinationCheck, CombinedOption, RevisionRequest, SpecialistOption } from "./options";
@@ -25,7 +25,7 @@ export type RunContext = z.infer<typeof RunContext>;
 export const Conflict = z.object({
   source: z.enum(["harness", "organizer"]),
   description: z.string().min(1),
-  check_ids: z.array(z.string()),
+  check_ids: z.array(CheckId),
 });
 export type Conflict = z.infer<typeof Conflict>;
 

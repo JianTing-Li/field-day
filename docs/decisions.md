@@ -85,8 +85,22 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - **Value:** heat max: TBD (fixtures: 90°F) · AQI max: TBD (fixtures: 100)
 - **Status:** proposed
 
+## D-011 — Fixed check IDs
+- **Date / owner:** 2026-10-26 · JT
+- **PRD section:** §3a check_plan, §3 "Validation Policies"
+- **Decision:** All checks use IDs from `CheckId` in `src/contracts/common.ts`. Space needs are one check
+  (`space_surface.space`) assessed per park/time/workout; the reason text names the layout.
+- **Status:** in use
+
+## D-012 — Confirmations are scoped to a park and time
+- **Date / owner:** 2026-10-26 · JT
+- **PRD section:** §3d Case 2, §4 "Organizer confirmation resolves only the stated check"
+- **Decision:** Organizer confirmations and tasks carry `park_id` and optional `start_time`. A confirmation
+  resolves only the matching check at that park (and time); Park A suitability never resolves Park B.
+- **Status:** in use
+
 ## Open decisions
-- Persistence: hosted database for Vercel (needed by JT-08, Wednesday)
+- Persistence: hosted database for Vercel (JT-21, Tuesday evening; needed by JT-08)
 - Curated parks (JT-11) and reviewed workout templates (YT-03)
 - Freshness limits per source (JT-03)
 - Acceptable confirmation records for space, surface and permission

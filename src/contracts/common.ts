@@ -29,3 +29,22 @@ export const DataOrigin = z.enum(["live", "fixture"]);
 export type DataOrigin = z.infer<typeof DataOrigin>;
 
 export const Id = z.string().min(1);
+
+/**
+ * Every check check_plan can return. Rules, confirmations, tasks and blockers must use these IDs.
+ * Add a new ID here (additive contract change) before a rule emits it.
+ */
+export const CheckId = z.enum([
+  "event_constraints.start_window",
+  "event_constraints.allowed_park",
+  "equipment.available",
+  "duration.fits",
+  "heat.max_temperature",
+  "air_quality.max_aqi",
+  "freshness.conditions",
+  /** The space layout the session needs (running lane, stationary area, …) at the assessed park. */
+  "space_surface.space",
+  "space_surface.surface",
+  "permissions.permit_review",
+]);
+export type CheckId = z.infer<typeof CheckId>;

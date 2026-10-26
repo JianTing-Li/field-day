@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Id, LocalDateTime, TimeZone } from "./common";
+import { CheckId, Id, LocalDateTime, TimeZone } from "./common";
 
 /** A park + time + workout combination. Null fields are unknown, never guessed. */
 export const CandidatePlan = z.object({
@@ -29,7 +29,7 @@ export const Concern = z.object({
   id: Id,
   description: z.string().min(1),
   blocking: z.boolean(),
-  related_check_ids: z.array(z.string()),
+  related_check_ids: z.array(CheckId),
 });
 export type Concern = z.infer<typeof Concern>;
 
@@ -38,7 +38,10 @@ export const OrganizerTask = z.object({
   id: Id,
   description: z.string().min(1),
   /** The single check this task resolves, if any. */
-  resolves_check_id: z.string().nullable(),
+  resolves_check_id: CheckId.nullable(),
+  /** Where the check applies. A confirmation for one park or time never resolves another. */
+  park_id: Id.nullable(),
+  start_time: LocalDateTime.nullable(),
 });
 export type OrganizerTask = z.infer<typeof OrganizerTask>;
 

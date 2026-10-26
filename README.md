@@ -10,9 +10,20 @@ books, files permits, or messages anyone.
 
 **Demo:** not deployed yet.
 
+## How we work
+<!-- Owner: shared -->
+- **Rules for Claude:** [CLAUDE.md](CLAUDE.md) — ownership, PRD rules, done checklist. Claude Code reads it automatically.
+- **Tasks:** [TASKS.md](TASKS.md) — one section per person, each task linked to a GitHub issue.
+- **Work logs:** [worklog/](worklog/) — read the other person's log before touching or depending on their work.
+- **Decisions:** [docs/decisions.md](docs/decisions.md).
+- **Flow:** branch from `develop` → one task per PR → the other person reviews → merge. `develop` → `main` once tested.
+
+**First time setup (Yadan):** install Node 24 (`nvm use` reads `.nvmrc`), run the commands below, add your
+`git config user.name` to CLAUDE.md (YT-00a), then start Claude Code in this folder and ask for your next task.
+
 ## Getting started
 <!-- Owner: JT -->
-Requires Node 24.
+Requires Node 24 (see `.nvmrc`).
 
 ```bash
 npm install

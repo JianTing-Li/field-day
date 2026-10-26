@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DataOrigin, Id, LocalDateTime, Timestamp } from "./common";
+import { CheckId, DataOrigin, Id, LocalDateTime, Timestamp } from "./common";
 
 /**
  * Common evidence contract (PRD §3 "Common evidence contract").
@@ -76,8 +76,8 @@ export const EvidenceItem = z
     applies_to: EvidenceApplicability,
     freshness: Freshness,
     limitations: z.array(z.string()),
-    /** Organizer confirmations only: the single check this confirmation resolves. */
-    confirms_check_id: z.string().nullable(),
+    /** Organizer confirmations only: the single check this confirmation resolves (at applies_to.park_id). */
+    confirms_check_id: CheckId.nullable(),
   })
   .refine((e) => e.value !== null || e.missing_reason !== null, {
     message: "Evidence with no value must give a missing_reason",

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Id, Timestamp } from "./common";
+import { CheckId, Id, LocalDateTime, Timestamp } from "./common";
 import { EventBrief } from "./brief";
 import { CheckPlanResult } from "./checks";
 import { ReviewerOutput } from "./agents";
@@ -36,10 +36,16 @@ export const PlanVersion = z.object({
 });
 export type PlanVersion = z.infer<typeof PlanVersion>;
 
-/** Organizer confirmation: resolves exactly one check, never proves permission by itself. */
+/**
+ * Organizer confirmation: resolves exactly one check at one park (and time, if given).
+ * It never proves permission by itself and never applies to a different park.
+ */
 export const OrganizerConfirmation = z.object({
   id: Id,
-  check_id: z.string().min(1),
+  check_id: CheckId,
+  park_id: Id,
+  /** Null = applies at this park for any time; otherwise only to that start time. */
+  start_time: LocalDateTime.nullable(),
   statement: z.string().min(1),
   confirmed_by: z.string().min(1),
   confirmed_at: Timestamp,

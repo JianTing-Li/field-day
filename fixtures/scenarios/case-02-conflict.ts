@@ -107,7 +107,7 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         value: false,
         source: "Organizer",
         park_id: "park-a",
-        confirms_check_id: "space_surface.running_lane",
+        confirms_check_id: "space_surface.space",
         limitations: ["Organizer report: Park A running lane is unusable"],
       }),
     ],
@@ -144,10 +144,10 @@ function checksFor(
     check(assessed, { check_id: "heat.max_temperature", area: "heat", status: hot ? "fail" : "pass", reason: hot ? "93°F exceeds the 90°F fixture limit" : "82°F is below the 90°F fixture limit", evidence_ids: [tempId] }),
     check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "Regional AQI 45 is below the 100 fixture limit", evidence_ids: ["ev-c2-aqi"] }),
     adapted
-      ? check(assessed, { check_id: "space_surface.stationary_space", area: "space_surface", status: "unknown", reason: `Stationary space at ${parkName} is not confirmed` })
+      ? check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "unknown", reason: `Stationary space at ${parkName} is not confirmed` })
       : c.park_id === "park-a"
-        ? check(assessed, { check_id: "space_surface.running_lane", area: "space_surface", status: "fail", reason: "Organizer reported Park A's running lane is unusable", evidence_ids: ["ev-c2-lane-unusable"] })
-        : check(assessed, { check_id: "space_surface.running_lane", area: "space_surface", status: "unknown", reason: "Running lane at Park B is not confirmed" }),
+        ? check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "fail", reason: "Organizer reported Park A's running lane is unusable", evidence_ids: ["ev-c2-lane-unusable"] })
+        : check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "unknown", reason: "Running lane at Park B is not confirmed" }),
     check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "unknown", reason: "Group of 18 is close to the 20-person permit-review flag; permit status not recorded", critical: false }),
   ];
   return checkResult(event_version, SNAPSHOT_ID, checks);
@@ -166,7 +166,7 @@ export function planningOutput(event_version: number): PlanningOutput {
     rule_checks: checksFor(event_version, A_1000, false),
     concerns: [
       { id: "concern-heat", description: "10 a.m. fails the heat policy", blocking: true, related_check_ids: ["heat.max_temperature"] },
-      { id: "concern-lane", description: "Running intervals need a running lane; Park A's is unusable", blocking: true, related_check_ids: ["space_surface.running_lane"] },
+      { id: "concern-lane", description: "Running intervals need a running lane; Park A's is unusable", blocking: true, related_check_ids: ["space_surface.space"] },
     ],
     organizer_tasks: [],
   };
@@ -209,7 +209,7 @@ export function logisticsOutput(event_version: number): LogisticsOutput {
       },
     ],
     concerns: [
-      { id: "concern-log-dep", description: "Both options assume the running workout; a stationary adaptation changes space needs", blocking: false, related_check_ids: ["space_surface.running_lane"] },
+      { id: "concern-log-dep", description: "Both options assume the running workout; a stationary adaptation changes space needs", blocking: false, related_check_ids: ["space_surface.space"] },
     ],
     organizer_tasks: [],
   };
@@ -287,8 +287,8 @@ export function reviewerOutput(event_version: number): ReviewerOutput {
       "Stationary space is unverified at both Park A and Park B; a specialist revision cannot resolve this",
     ],
     organizer_tasks: [
-      { id: "task-space-a", description: "Confirm there is open stationary space for 18 people at Park A at 8 a.m.", resolves_check_id: "space_surface.stationary_space" },
-      { id: "task-space-b", description: "Confirm there is open stationary space and a suitable surface at Park B at 8 a.m.", resolves_check_id: "space_surface.stationary_space" },
+      { id: "task-space-a", description: "Confirm there is open stationary space for 18 people at Park A at 8 a.m.", resolves_check_id: "space_surface.space", park_id: "park-a", start_time: A_0800.start_time },
+      { id: "task-space-b", description: "Confirm there is open stationary space and a suitable surface at Park B at 8 a.m.", resolves_check_id: "space_surface.space", park_id: "park-b", start_time: B_0800.start_time },
     ],
   };
 }

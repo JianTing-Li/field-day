@@ -1,4 +1,4 @@
-import type { CheckResult, PolicyArea, RuleInput } from "@/contracts";
+import type { CheckId, CheckResult, PolicyArea, RuleInput } from "@/contracts";
 
 /**
  * Placeholder check used by rule modules that are not implemented yet.
@@ -6,7 +6,7 @@ import type { CheckResult, PolicyArea, RuleInput } from "@/contracts";
  */
 export function notImplementedCheck(
   input: RuleInput,
-  check_id: string,
+  check_id: CheckId,
   area: PolicyArea,
   task: string,
 ): CheckResult {

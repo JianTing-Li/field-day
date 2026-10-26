@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { case01 } from "@fixtures/scenarios";
-import type { CheckResult } from "@/contracts";
+import type { CheckId, CheckResult } from "@/contracts";
 import { checkPlan, summarizeChecks } from "./check-plan";
 
 const assessed = { park_id: "park-a", start_time: "2026-10-29T09:00", workout_template_id: "t" };
-const c = (status: CheckResult["status"], critical = true): CheckResult => ({
-  check_id: `x.${status}.${critical}`,
+const c = (status: CheckResult["status"], critical = true, check_id: CheckId = "heat.max_temperature"): CheckResult => ({
+  check_id,
   area: "heat",
   status,
   critical,
@@ -20,9 +20,9 @@ describe("summarizeChecks", () => {
     expect(summarizeChecks(1, "s", [c("pass"), c("fail", false)]).overall).toBe("pass");
   });
   it("is unknown when a critical check is unknown", () => {
-    const r = summarizeChecks(1, "s", [c("pass"), c("unknown")]);
+    const r = summarizeChecks(1, "s", [c("pass"), c("unknown", true, "air_quality.max_aqi")]);
     expect(r.overall).toBe("unknown");
-    expect(r.blockers).toEqual(["x.unknown.true"]);
+    expect(r.blockers).toEqual(["air_quality.max_aqi"]);
   });
   it("fails when any critical check fails", () => {
     expect(summarizeChecks(1, "s", [c("unknown"), c("fail")]).overall).toBe("fail");

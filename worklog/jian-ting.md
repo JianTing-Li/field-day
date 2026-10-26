@@ -31,3 +31,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Gotchas:** "protect main" used to target the default branch; making `develop` the default left `main`
   unprotected. It now targets `refs/heads/main` by name.
 - **Unfinished / next:** optionally require the CI check once it has run on PR #39.
+
+## 2026-10-26 — Setup review fixes
+- **Done:** fixed check ID list (`CheckId`), confirmations/tasks scoped to park + time, shared time helper
+  `src/server/time.ts`, Node 24 pinned (`.nvmrc`, `engines`), README "How we work", CI required on both rulesets.
+  Added JT-20 (early deploy) and JT-21 (database decision); JT-01 now includes a fake runner for tests.
+- **Decisions:** D-011, D-012.
+- **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
+  `toLocalDateTime` / `fromLocalDateTime`.

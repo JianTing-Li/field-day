@@ -1,5 +1,6 @@
 import type {
   CheckPlanResult,
+  CheckId,
   CheckResult,
   CheckStatus,
   EvidenceItem,
@@ -43,7 +44,7 @@ interface EvidenceArgs {
   valid_from?: string | null;
   valid_to?: string | null;
   limitations?: string[];
-  confirms_check_id?: string | null;
+  confirms_check_id?: CheckId | null;
 }
 
 export function evidence(a: EvidenceArgs): EvidenceItem {
@@ -101,7 +102,7 @@ export function referenceEvidence(): EvidenceItem[] {
 }
 
 interface CheckArgs {
-  check_id: string;
+  check_id: CheckId;
   area: PolicyArea;
   status: CheckStatus;
   reason: string;
