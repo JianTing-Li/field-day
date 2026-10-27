@@ -72,7 +72,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
     periods gives a `coverage_gaps` entry (never a guessed value); an HTTP failure returns empty items plus a
     gap instead of throwing.
   - **Test:** `npm test -- weather` (fixtures only; no live calls in tests)
-- [ ] **YT-02** AirNow adapter (#27) · Tue
+- [x] **YT-02** AirNow adapter (#27) · Tue
   - **Files:** `src/server/data/air.ts`, `air.test.ts`, `fixtures/sources/airnow/*.json`
   - **Uses:** `FetchAirQuality` (`src/contracts/data.ts`); `EvidenceItem`
   - **Do:** pick the forecast and observation endpoints from AirNow's current docs; key from `AIRNOW_API_KEY`,

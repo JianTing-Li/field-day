@@ -35,3 +35,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** live mode is only exercised through recorded responses (tests never call live APIs). YT-02 AirNow next.
 - **Gotchas:** NWS hourly periods repeat 01:00 local on the night clocks fall back (Nov 1), so evidence IDs use the UTC start time.
 - **Requests:** JT: fixture scenarios that want real weather need event times inside 2026-10-27T13:00 to 2026-11-03T00:00 (park coordinates are still null in `parks.json`).
+
+## 2026-10-27 — YT-02: AirNow adapter
+- **Done:** `src/server/data/air.ts` now fetches AirNow's daily forecast and current reading for the park's location and turns them into `aqi` evidence (value, category, pollutant, reporting area). Recorded 5 real responses in `fixtures/sources/airnow/` (forecast, observation, retired-service 410, invalid-key 401, and an error sent as HTTP 200). 15 tests in `air.test.ts`. Also ran one live check with my key: 1 forecast + 2 observations, key absent from the output.
+- **Decisions:** D-015 (new AirNow services; observations only for the hour they measured; AQI -1 is missing; 200-with-error is a failure; key never in evidence).
+- **Interfaces others depend on:** `fetchAirQuality` keeps the `FetchAirQuality` contract. Also exports `fetchAirQualityWith(req, mode, fetcher)` for tests.
+- **Unfinished / next:** YT-03 workout templates.
+- **Gotchas:** AirNow's forecast only reaches about 1-2 days ahead (the recording has 2026-10-27 and 10-28, PM2.5 only), so most events further out get a coverage gap. Rate limit is 500 requests per hour per key.
+- **Requests:** JT: fixture scenarios that want real AirNow data need an event on 2026-10-27 or 2026-10-28. D-013 and D-014 were already taken on develop when I rebased, so this is D-015.
