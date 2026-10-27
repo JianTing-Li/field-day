@@ -39,3 +39,15 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Decisions:** D-011, D-012.
 - **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
   `toLocalDateTime` / `fromLocalDateTime`.
+
+## 2026-10-27 — JT-05: Logistics rules
+- **Done:** replaced the placeholder `logisticsRules` in `src/server/rules/logistics.ts` with real
+  `event_constraints.start_window`, `event_constraints.allowed_park` and `permissions.permit_review` checks;
+  tests in `logistics.test.ts` (incl. Case 1 and Case 2 fixtures).
+- **Decisions:** D-013 (permit flag ≥ 20, non-critical; unknown without an organizer record at any group size).
+- **Interfaces others depend on:** `logisticsRules` (same export); also exports `startWindowCheck`,
+  `allowedParkCheck`, `permitReviewCheck`, `LOGISTICS_POLICY`.
+- **Unfinished / next:** JT-06 decides which checks are critical (start window / allowed park are critical for now).
+- **Gotchas:** permit confirmations match on `applies_to.park_id`; when `valid_from`/`valid_to` are set, the plan's
+  start time must fall inside them. Plan and brief time zones are both fixed to New York by the contracts.
+- **Requests:** none

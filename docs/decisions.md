@@ -99,6 +99,19 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   resolves only the matching check at that park (and time); Park A suitability never resolves Park B.
 - **Status:** in use
 
+## D-013 — Logistics rules and permit-review warning
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3 "Validation Policies" (event constraints, permissions)
+- **Decision:** `src/server/rules/logistics.ts` checks the allowed park, the start window (event date and
+  inclusive earliest–latest, New York time) and the permit-review warning. A null park or start time is unknown.
+  The permit-review check is non-critical and passes only on an organizer `permission_confirmation` for the same
+  park (and time, when the record has a valid period); a recorded "no" fails. With no record it is unknown at any
+  group size: 20 or more raises the review flag, under 20 says permit status is not recorded, since group size
+  alone does not show whether permission is needed. Start-window and allowed-park checks are critical for now;
+  JT-06 decides the final critical set.
+- **Value:** permit-review flag: group size ≥ 20 (source: NYC Parks permit guidance) · policy version `logistics-rules-v1`
+- **Status:** in use
+
 ## Open decisions
 - Persistence: hosted database for Vercel (JT-21, Tuesday evening; needed by JT-08)
 - Curated parks (JT-11) and reviewed workout templates (YT-03)

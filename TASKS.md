@@ -29,7 +29,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 ### Harness
 - [ ] **JT-03** Evidence snapshot builder + freshness/coverage rules (#5) · Tue
 - [ ] **JT-04** Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6) · Tue · needs: JT-03
-- [ ] **JT-05** Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7) · Tue
+- [x] **JT-05** Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7) · Tue
 - [ ] **JT-06** check_plan: replace placeholder rules, decide critical vs non-critical checks (#8) · Tue · needs: JT-04, JT-05
 - [ ] **JT-07** Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9) · Tue–Wed
 - [ ] **JT-08** Store: hosted DB, drafts + finalized events, duplicate-save protection (#10) · Wed · needs: JT-21
