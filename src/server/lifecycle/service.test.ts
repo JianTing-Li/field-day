@@ -29,13 +29,13 @@ describe("stub lifecycle service", () => {
       }),
     ).rejects.toMatchObject({ code: "blocked" });
 
-    // A confirmation for Park B must not resolve the Park A check.
+    // A confirmation for Astoria Park must not resolve the McCarren Park check.
     ({ event } = await svc.addConfirmation(event.id, {
       version: event.current_version,
       check_id: "space_surface.space",
-      park_id: "park-b",
+      park_id: "park-q004",
       start_time: null,
-      statement: "Park B lawn is open",
+      statement: "Astoria Park lawn is open",
       note: null,
     }));
     expect(event.versions.at(-1)!.status).toBe("needs_verification");
@@ -43,7 +43,7 @@ describe("stub lifecycle service", () => {
     ({ event } = await svc.addConfirmation(event.id, {
       version: event.current_version,
       check_id: "space_surface.space",
-      park_id: "park-a",
+      park_id: "park-b058",
       start_time: "2026-07-16T08:00",
       statement: "Open lawn fits 18 people",
       note: null,

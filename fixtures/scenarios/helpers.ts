@@ -19,7 +19,7 @@ import workouts from "@/server/content/workouts.json";
 export const FIXTURE_RETRIEVED_AT = "2026-10-28T12:00:00Z";
 export const FIXTURE_POLICY_VERSION = "fixture-policy-v0";
 
-export const placeholderParks = parks as ParkCandidate[];
+export const curatedParks = parks as ParkCandidate[];
 export const placeholderTemplates = workouts as WorkoutTemplate[];
 
 export function template(id: string): WorkoutTemplate {
@@ -73,18 +73,18 @@ export function evidence(a: EvidenceArgs): EvidenceItem {
   };
 }
 
-/** Reference evidence records for the placeholder parks and templates. */
+/** Reference evidence records for the curated parks and placeholder templates. */
 export function referenceEvidence(): EvidenceItem[] {
   return [
-    ...placeholderParks.map((p) =>
+    ...curatedParks.map((p) =>
       evidence({
         id: p.evidence_id,
         metric: "park_record",
         evidence_type: "reference",
         value: p.name,
-        source: "Placeholder park list",
+        source: "NYC Parks Open Data — Parks Properties (fixture)",
         park_id: p.id,
-        limitations: ["Placeholder record; does not prove space, capacity or permission"],
+        limitations: ["Park record; does not prove space, capacity or permission"],
       }),
     ),
     ...placeholderTemplates.map((t) =>

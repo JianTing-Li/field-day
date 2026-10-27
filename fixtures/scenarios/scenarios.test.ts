@@ -20,6 +20,15 @@ describe("content files match contracts", () => {
   it("workouts.json", () => {
     for (const t of workouts) expect(() => WorkoutTemplate.parse(t)).not.toThrow();
   });
+  it("every park a scenario uses is a curated park", () => {
+    const curated = new Set(parks.map((p) => p.id));
+    for (const c of [case01, case02]) {
+      const snap = c.snapshot("evt", 1);
+      expect(snap.park_candidates.map((p) => p.id).sort()).toEqual([...c.brief.allowed_park_ids].sort());
+      for (const id of c.brief.allowed_park_ids) expect(curated).toContain(id);
+      for (const t of snap.park_time_candidates) expect(curated).toContain(t.park_id);
+    }
+  });
 });
 
 describe("Case 1 fixture", () => {

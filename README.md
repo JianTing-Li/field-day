@@ -83,7 +83,7 @@ npm run dev                  # http://localhost:3000
 <!-- Each person edits only their own sources. Status: proposed · tested · live · fixture-backed -->
 | Source | Owner | Status |
 |---|---|---|
-| NYC Parks Open Data | JT | proposed; placeholder parks in use |
+| NYC Parks Open Data | JT | in use: 10 curated parks (D-013); fixture recorded 2026-10-27, live mode untested in CI |
 | National Weather Service | Yadan | proposed; fixture-backed |
 | AirNow | Yadan | proposed; fixture-backed |
 | Workout templates | Yadan | placeholder, not instructor-reviewed |

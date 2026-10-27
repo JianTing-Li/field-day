@@ -105,3 +105,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - Freshness limits per source (JT-03)
 - Acceptable confirmation records for space, surface and permission
 - Ranking priorities for equally valid alternatives
+
+## D-013 — Curated parks
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §2 MVP Scope ("3–5 park candidates"), Data Sources "NYC Parks Open Data"
+- **Decision:** Use 10 curated parks instead of the PRD's 3–5, so the Logistics agent has real alternatives
+  and parks outside the allowed list to stay away from. Two per borough, chosen for variety (size, track vs
+  lawn, waterfront, spread across forecast grid cells). Supersedes the PRD's 3–5; needs Yadan's agreement.
+- **Value:** M047 Thomas Jefferson, M088 Tompkins Square, B058 McCarren, B032 Fort Greene, Q004 Astoria,
+  Q102 Juniper Valley, X010 Crotona, X104 Williamsbridge Oval, R005 Clove Lakes, R031 Wolfe's Pond.
+  Park IDs are `park-<Parks property ID>`. Each coordinate is the centroid of the Parks Properties boundary,
+  rounded to 4 decimals and checked to lie inside the boundary (McCarren moved to 40.7207, -73.9518 because
+  the rounded centroid fell in a street between parcels). Coordinates reviewed by JT on 2026-10-27. They are
+  for NWS/AirNow lookups, not meeting points. Space, surface, capacity and permits stay unknown.
+  Resolves the "Curated parks (JT-11)" open decision.
+- **Status:** in use

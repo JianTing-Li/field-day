@@ -37,7 +37,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-10** Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12) · Wed · needs: JT-01
 
 ### Data and agents
-- [ ] **JT-11** NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13) · Tue
+- [x] **JT-11** NYC Parks adapter + curated parks with reviewed coordinates (replace placeholder parks; 10 parks, see D-013) (#13) · Tue
 - [ ] **JT-12** Event Logistics agent (#14) · Wed · needs: JT-01, JT-02
 - [ ] **JT-13** Independent Reviewer agent (#15) · Wed · needs: JT-01, JT-02
 

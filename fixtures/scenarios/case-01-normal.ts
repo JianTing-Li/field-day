@@ -3,7 +3,7 @@ import {
   check,
   checkResult,
   evidence,
-  placeholderParks,
+  curatedParks,
   placeholderTemplates,
   referenceEvidence,
 } from "./helpers";
@@ -16,7 +16,7 @@ import {
  */
 
 export const SNAPSHOT_ID = "snap-case-01";
-const PARK = "park-a";
+const PARK = "park-b058";
 const START = "2026-10-29T09:00";
 const END = "2026-10-29T09:45";
 const TEMPLATE = "tpl-bodyweight-45";
@@ -44,7 +44,7 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
     event_version,
     created_at: "2026-10-28T12:00:00Z",
     origin: "fixture",
-    park_candidates: placeholderParks.filter((p) => p.id === PARK),
+    park_candidates: curatedParks.filter((p) => p.id === PARK),
     park_time_candidates: [{ id: "cand-a-0900", park_id: PARK, start_time: START, end_time: END }],
     workout_templates: placeholderTemplates,
     items: [
@@ -128,7 +128,7 @@ export function planningOutput(event_version: number): PlanningOutput {
         missing_reason: null,
       },
       {
-        claim: "Organizer confirmed stationary workout space at Park A",
+        claim: "Organizer confirmed stationary workout space at McCarren Park",
         status: "verified",
         evidence_ids: ["ev-c1-space-confirm"],
         missing_reason: null,
