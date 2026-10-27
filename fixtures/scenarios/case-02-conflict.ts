@@ -16,6 +16,7 @@ import {
   placeholderTemplates,
   referenceEvidence,
 } from "./helpers";
+import type { ExpectedOutcome } from "./expected";
 
 /**
  * PRD eval Case 2 — Conflicting conditions and workout requirements.
@@ -27,6 +28,26 @@ import {
  */
 
 export const SNAPSHOT_ID = "snap-case-02";
+
+export const expected: ExpectedOutcome = {
+  case_number: 2,
+  title: "Conflicting conditions and workout requirements",
+  known_feasible: false,
+  specialists_run: true,
+  final_status: "needs_verification",
+  overall: "unknown",
+  checks: { "heat.max_temperature": "pass", "space_surface.space": "unknown" },
+  finalize: "blocked",
+  gate_failures: ["hard_constraints", "required_confirmations"],
+  required_gaps: [],
+  max_revision_rounds: 1,
+  agent_error: null,
+  notes: [
+    "Park A suitability is never reused as evidence for Park B",
+    "Individually passing proposals are not treated as proof of combined feasibility",
+    "The 10 a.m. heat block stays fail under the stationary adaptation",
+  ],
+};
 const RUN = "tpl-run-intervals-45";
 const ADAPT = "adapt-stationary-circuit";
 const A_0800 = { id: "cand-a-0800", park_id: "park-a", start_time: "2026-07-16T08:00", end_time: "2026-07-16T08:45" };

@@ -44,7 +44,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 ### Integration, evals, deploy
 - [ ] **JT-14** API routes on the real harness (snapshot builder, orchestrator, save gate) (#16) · Wed · needs: JT-09, JT-10
 - [ ] **JT-15** End-to-end integration with Yadan's agents, adapters and UI (#17) · Wed
-- [ ] **JT-16** Fixtures for cases 3–12 with expected outputs (written before first run) (#18) · Wed
+- [x] **JT-16** Fixtures for cases 3–12 with expected outputs (written before first run) (#18) · Wed
 - [ ] **JT-17** Eval runner + comparison: rules vs 1 agent vs 4 agents (#19) · Wed–Thu
 - [ ] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
 - [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20

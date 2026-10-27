@@ -39,3 +39,19 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Decisions:** D-011, D-012.
 - **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
   `toLocalDateTime` / `fromLocalDateTime`.
+
+## 2026-10-27 — JT-16: Fixtures for eval cases 3–12
+- **Done:** `fixtures/scenarios/case-03` to `case-12` (brief, snapshot, expected agent outputs, `expected`
+  outcome), `expected.ts` (`ExpectedOutcome`), `expected` added to cases 1–2, registry + `evalCases` in
+  `index.ts`, helpers for per-case retrieval time, fixture-only templates and plans. `scenarios.test.ts` now
+  checks all 12 cases: contracts, fixture labels, ID references, template/adaptation IDs, confirmation scoping,
+  and agreement between fixture outputs and `expected`.
+- **Decisions:** D-015 (case definitions; numbered 015 because open branches already use 013 and 014).
+- **Interfaces others depend on:** `evalCases` and `ExpectedOutcome` (for JT-17); `case03.refreshed` is the
+  snapshot-B registry entry; `case11.malformedOutputs`; `case12.INJECTED_TEXT`.
+- **Unfinished / next:** JT-17 eval runner grades against `expected`. Case 3 gate failures and case 11
+  rejection are asserted by the harness/runner later, not by these fixture tests.
+- **Gotchas:** organizer confirmations do not say which layout they confirm (running lane vs stationary);
+  fixtures put it in `limitations` ("Layout: …"). Rules may need an additive contract field for this.
+  Cases 1, 2, 4, 5, 8, 10–12 still read placeholder templates from `workouts.json`.
+- **Requests:** Yadan: review the expected outcomes for cases 6 and 7 (workout substitution and duration).
