@@ -39,3 +39,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Decisions:** D-011, D-012.
 - **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
   `toLocalDateTime` / `fromLocalDateTime`.
+
+## 2026-10-27 — JT-02: Finish agent tools (#4)
+- **Done:** Updated `src/server/tools/index.ts` so `get_forecast` and `get_air_quality` filter `EvidenceItem`s by park (`park_id` or regional `null`), metric, and overlapping `[start_time, end_time]` interval (using `fromLocalDateTime` / `toLocalDateTime`), and compute `coverage_gaps` for missing metrics, `null`-value items (`missing_reason`), partially uncovered time sub-intervals, and relevant snapshot-level gaps. Added unit tests in `src/server/tools/tools.test.ts`.
+- **Decisions:** none (follows PRD §3a and `ToolRegistry` contract).
+- **Interfaces others depend on:** `tools` (`ToolRegistry` in `src/server/tools/index.ts`) — contract unchanged, now returns time-filtered items and accurate `coverage_gaps` for Planning (YT-05), Workout Adaptation (YT-06), and Event Logistics (JT-12).
+- **Unfinished / next:** JT-01 (agent runner) and JT-03 (evidence snapshot builder + freshness).
+- **Gotchas:** Fixture snapshots in Case 1 and Case 2 only include `temperature` (not `precipitation_probability` or `wind_speed`); `get_forecast` requires `temperature` coverage and also checks interval coverage for `precipitation_probability` and `wind_speed` whenever those metrics are present in the snapshot.
+- **Requests:** none
