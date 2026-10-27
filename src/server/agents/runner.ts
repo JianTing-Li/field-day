@@ -27,6 +27,9 @@ import {
 /** Default model ID used when ANTHROPIC_MODEL is not set (see D-013 in docs/decisions.md). */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5";
 
+/** Maximum model turns per single agent execution, including the optional repair turn. */
+export const MAX_TURNS_PER_EXECUTION = 8;
+
 const DEFAULT_MAX_TOKENS = 4096;
 
 const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
@@ -45,7 +48,10 @@ const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
 /** Minimal Anthropic Messages client interface used by the runner. */
 export interface AnthropicMessageClient {
   messages: {
-    create: (params: MessageCreateParamsNonStreaming) => Promise<Message>;
+    create: (
+      params: MessageCreateParamsNonStreaming,
+      options?: { timeout?: number },
+    ) => Promise<Message>;
   };
 }
 
@@ -126,7 +132,7 @@ function resolveDefaultClient(): AnthropicMessageClient {
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
   }
-  return new Anthropic({ apiKey });
+  return new Anthropic({ apiKey, maxRetries: 1 });
 }
 
 /**
@@ -168,6 +174,24 @@ export function createRunner(options: RunnerOptions = {}): RunAgent {
     const callModel = async (): Promise<
       { ok: true; message: Message } | { ok: false; result: AgentResult<N> }
     > => {
+      if (usage.model_requests >= MAX_TURNS_PER_EXECUTION) {
+        return {
+          ok: false,
+          result: fail(
+            "budget_exhausted",
+            `Per-execution turn limit (${MAX_TURNS_PER_EXECUTION}) exceeded in ${definition.name}`,
+          ),
+        };
+      }
+
+      const remainingMs = deps.budget.limits.elapsed_ms - deps.budget.used().elapsed_ms;
+      if (remainingMs <= 0) {
+        return {
+          ok: false,
+          result: fail("budget_exhausted", `Elapsed time budget exhausted before calling ${definition.name}`),
+        };
+      }
+
       if (!deps.budget.record({ model_requests: 1 })) {
         return {
           ok: false,
@@ -187,7 +211,7 @@ export function createRunner(options: RunnerOptions = {}): RunAgent {
           messages: [...messages],
           ...(anthropicTools.length > 0 ? { tools: anthropicTools } : {}),
         };
-        response = await client.messages.create(params);
+        response = await client.messages.create(params, { timeout: remainingMs });
       } catch (err) {
         const elapsedMs = Math.max(0, now() - startMs);
         usage.elapsed_ms += elapsedMs;
@@ -234,6 +258,13 @@ export function createRunner(options: RunnerOptions = {}): RunAgent {
       const step = await callModel();
       if (!step.ok) return step.result;
       currentMessage = step.message;
+
+      if (currentMessage.stop_reason === "max_tokens") {
+        return fail(
+          "invalid_output",
+          `Model response truncated at max_tokens in ${definition.name}`,
+        );
+      }
 
       const toolUses = currentMessage.content.filter(
         (block): block is ToolUseBlock => block.type === "tool_use",
@@ -307,6 +338,10 @@ export function createRunner(options: RunnerOptions = {}): RunAgent {
     const validateMessageOutput = (
       msg: Message,
     ): { ok: true; data: AgentIO[N]["output"] } | { ok: false; reason: string } => {
+      if (msg.stop_reason === "max_tokens") {
+        return { ok: false, reason: `Model response truncated at max_tokens in ${definition.name}` };
+      }
+
       const unexpectedToolUse = msg.content.some((block) => block.type === "tool_use");
       if (unexpectedToolUse) {
         return { ok: false, reason: "Model requested tool_use during output repair instead of returning JSON" };

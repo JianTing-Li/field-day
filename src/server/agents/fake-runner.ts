@@ -91,6 +91,8 @@ export interface FakeToolCallStep {
   toolCalls?: FakeToolCallSpec[];
   /** Optional text block accompanying the tool calls. */
   text?: string;
+  /** Optional override for stop_reason (defaults to "tool_use"). */
+  stop_reason?: Message["stop_reason"];
   /** Optional token/time usage for this turn. */
   usage?: FakeUsageSpec;
 }
@@ -100,6 +102,8 @@ export interface FakeOutputStep {
   output?: unknown;
   /** Raw text output (useful for testing malformed JSON or fenced code blocks). */
   text?: string;
+  /** Optional override for stop_reason (defaults to "end_turn"). */
+  stop_reason?: Message["stop_reason"];
   /** Optional token/time usage for this turn. */
   usage?: FakeUsageSpec;
 }
@@ -118,6 +122,8 @@ export interface RecordedModelCall {
   turn: number;
   /** Raw parameters passed to `client.messages.create`. */
   params: MessageCreateParamsNonStreaming;
+  /** Request options (such as per-request `timeout`) passed to `client.messages.create`. */
+  options?: { timeout?: number };
 }
 
 export type FakeStep =
@@ -170,9 +176,12 @@ export function createFakeRunner(steps: FakeStep[], options: FakeRunnerOptions =
 
   const client: AnthropicMessageClient = {
     messages: {
-      create: async (params: MessageCreateParamsNonStreaming): Promise<Message> => {
+      create: async (
+        params: MessageCreateParamsNonStreaming,
+        requestOptions?: { timeout?: number },
+      ): Promise<Message> => {
         const turn = calls.length;
-        const recorded: RecordedModelCall = { turn, params };
+        const recorded: RecordedModelCall = { turn, params, options: requestOptions };
         calls.push(recorded);
 
         const rawStep = steps[stepCursor++];
@@ -228,7 +237,12 @@ export function createFakeRunner(steps: FakeStep[], options: FakeRunnerOptions =
           });
         }
 
-        const stopReason = toolCalls && toolCalls.length > 0 ? "tool_use" : "end_turn";
+        const stopReason =
+          "stop_reason" in step && step.stop_reason !== undefined
+            ? step.stop_reason
+            : toolCalls && toolCalls.length > 0
+              ? "tool_use"
+              : "end_turn";
 
         return {
           id: `msg_fake_${turn}`,

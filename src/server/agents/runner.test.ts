@@ -10,7 +10,12 @@ import {
 import { createBudget, DEFAULT_LIMITS } from "@/server/orchestrator/budget";
 import { tools as realTools } from "@/server/tools";
 import { createFakeRunner } from "./fake-runner";
-import { createRunner, DEFAULT_ANTHROPIC_MODEL, runAgent } from "./runner";
+import {
+  createRunner,
+  DEFAULT_ANTHROPIC_MODEL,
+  MAX_TURNS_PER_EXECUTION,
+  runAgent,
+} from "./runner";
 
 const testPlanningDef: AgentDefinition<"planning"> = {
   name: "planning",
@@ -290,6 +295,28 @@ describe("agent runner (JT-01)", () => {
       expect(fake.calls).toHaveLength(2);
       expect(res.usage.model_requests).toBe(2);
     });
+
+    it("returns invalid_output immediately without a repair attempt when stop_reason is max_tokens", async () => {
+      const deps = makeDeps();
+      const fake = createFakeRunner([
+        {
+          text: '{"event_version": 1, "incomplete": ',
+          stop_reason: "max_tokens",
+        },
+        // Must not be called for repair
+        { output: case01.planningOutput(1) },
+      ]);
+
+      const res = await fake(testPlanningDef, makeInput(), deps);
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.kind).toBe("invalid_output");
+        expect(res.error.message).toContain("max_tokens");
+      }
+      expect(fake.calls).toHaveLength(1);
+      expect(res.usage.model_requests).toBe(1);
+    });
   });
 
   describe("stale context rejection", () => {
@@ -410,6 +437,49 @@ describe("agent runner (JT-01)", () => {
         expect(res.error.kind).toBe("budget_exhausted");
       }
       expect(res.usage.input_tokens).toBe(160);
+    });
+
+    it("passes remaining elapsed_ms as per-request timeout and returns budget_exhausted when no time remains", async () => {
+      const budget = createBudget({ ...DEFAULT_LIMITS, elapsed_ms: 100 });
+      budget.record({ elapsed_ms: 40 });
+      const fake = createFakeRunner([
+        { output: case01.planningOutput(1), usage: { elapsed_ms: 60 } },
+      ]);
+
+      const res1 = await fake(testPlanningDef, makeInput(), makeDeps({ budget }));
+      expect(res1.ok).toBe(true);
+      expect(fake.calls[0].options).toEqual({ timeout: 60 });
+
+      // Now elapsed_ms is 100/100 (0 remaining): next call must fail before calling the client
+      const fake2 = createFakeRunner([{ output: case01.planningOutput(1) }]);
+      const res2 = await fake2(testPlanningDef, makeInput(), makeDeps({ budget }));
+      expect(res2.ok).toBe(false);
+      if (!res2.ok) {
+        expect(res2.error.kind).toBe("budget_exhausted");
+      }
+      expect(fake2.calls).toHaveLength(0);
+    });
+
+    it("returns budget_exhausted when exceeding MAX_TURNS_PER_EXECUTION (counting repair)", async () => {
+      // 7 tool-call turns + 1 invalid output turn = 8 turns; the 9th turn (repair) exceeds MAX_TURNS_PER_EXECUTION (8)
+      const toolTurns = Array.from({ length: MAX_TURNS_PER_EXECUTION - 1 }, () => ({
+        tool_calls: [{ name: "get_park_candidates", input: { park_ids: ["park-a"] } }],
+      }));
+      const fake = createFakeRunner([
+        ...toolTurns,
+        { text: "{ invalid json on turn 8" },
+        { output: case01.planningOutput(1) },
+      ]);
+
+      const res = await fake(testPlanningDef, makeInput(), makeDeps());
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.kind).toBe("budget_exhausted");
+        expect(res.error.message).toContain(String(MAX_TURNS_PER_EXECUTION));
+      }
+      expect(fake.calls).toHaveLength(MAX_TURNS_PER_EXECUTION);
+      expect(res.usage.model_requests).toBe(MAX_TURNS_PER_EXECUTION);
     });
   });
 
