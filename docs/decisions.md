@@ -99,6 +99,28 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   resolves only the matching check at that park (and time); Park A suitability never resolves Park B.
 - **Status:** in use
 
+## D-013 — Lifecycle transitions and confirmation carry-forward
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §2 "Event lifecycle", §3 "Shared state and ownership", §3c, §4 acceptance criteria
+- **Decision:** Status lives on each plan version; the event's status is its current version's status.
+  Allowed status changes are listed once in `src/server/lifecycle/transitions.ts`; anything else is
+  `invalid_request` (approving `needs_verification` is `blocked` with the blockers). Brief edits, generate,
+  applied options and a recheck that gets a new snapshot ID each create a new version; old versions are kept.
+  Approval is tied to version + snapshot ID and is cleared by any new version, a new confirmation or a
+  reported change (the approved version returns to `ready_for_approval`). Requests or agent results naming an
+  outdated version or snapshot, or finishing after the event changed, are rejected with `stale_version`.
+  Confirmations are re-applied to later versions only for the same check at the same park (and time, if
+  given), and a brief edit retires them. A recheck with an unchanged snapshot ID leaves the plan as is.
+- **Status:** in use
+
+## D-014 — Finalize idempotency
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3c "Draft persistence and duplicate-save protection"
+- **Decision:** A finalize request for the already-finalized version returns the saved record whatever its
+  key, even after a newer draft exists. The key is stored on `FinalizedRecord.idempotency_key`; reusing it for
+  a different version is `invalid_request`.
+- **Status:** in use
+
 ## Open decisions
 - Persistence: hosted database for Vercel (JT-21, Tuesday evening; needed by JT-08)
 - Curated parks (JT-11) and reviewed workout templates (YT-03)
