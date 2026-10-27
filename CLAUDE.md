@@ -27,7 +27,7 @@ If `git config user.name` is not in this table, ask your human before editing an
 | Person | git user.name | GitHub |
 |---|---|---|
 | JT | Jian Ting Li | @JianTing-Li |
-| Yadan | <TBD — Yadan fills this in> | @Tainobuilds |
+| Yadan | Yadan Taino | @Tainobuilds |
 
 ## Ownership
 | Path | Owner |

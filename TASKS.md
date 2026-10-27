@@ -53,7 +53,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 
 ## Yadan
 ### Setup (today)
-- [ ] **YT-00a** Add your `git config user.name` to the table in `CLAUDE.md` (small PR) (#22) · Mon
+- [x] **YT-00a** Add your `git config user.name` to the table in `CLAUDE.md` (small PR) (#22) · Mon
 - [ ] **YT-00b** Review and approve the setup PR (S-13) (#23) · Mon
 - [ ] **YT-00c** Copy `.env.example` to `.env.local` and add your own Anthropic API key (#24) · Mon
 - [ ] **YT-00d** Register an AirNow API key (needed for live mode and deploy) (#25) · Tue
