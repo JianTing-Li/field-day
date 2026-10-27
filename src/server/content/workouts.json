@@ -1,0 +1,46 @@
+[
+  {
+    "id": "tpl-bodyweight-45",
+    "name": "Bodyweight circuit (placeholder)",
+    "duration_minutes": 45,
+    "intensity": "moderate",
+    "exercises": [
+      { "name": "Warm-up walk and mobility", "minutes": 8, "intensity": "low" },
+      { "name": "Bodyweight circuit", "minutes": 30, "intensity": "moderate" },
+      { "name": "Cool-down stretch", "minutes": 7, "intensity": "low" }
+    ],
+    "equipment": [],
+    "space": { "layout": "stationary", "min_area_sq_m": null },
+    "surfaces": ["grass", "paved"],
+    "group_size": { "min": 1, "max": 30 },
+    "permitted_adaptations": [],
+    "review": { "status": "placeholder", "reviewer": null, "reviewed_at": null },
+    "evidence_id": "ev-tpl-bodyweight-45"
+  },
+  {
+    "id": "tpl-run-intervals-45",
+    "name": "Running intervals (placeholder)",
+    "duration_minutes": 45,
+    "intensity": "high",
+    "exercises": [
+      { "name": "Easy jog warm-up", "minutes": 10, "intensity": "low" },
+      { "name": "Running intervals", "minutes": 28, "intensity": "high" },
+      { "name": "Cool-down walk", "minutes": 7, "intensity": "low" }
+    ],
+    "equipment": [],
+    "space": { "layout": "running_lane", "min_area_sq_m": null },
+    "surfaces": ["paved"],
+    "group_size": { "min": 1, "max": 30 },
+    "permitted_adaptations": [
+      {
+        "id": "adapt-stationary-circuit",
+        "description": "Replace running intervals with a stationary circuit",
+        "effect": "Removes the need for a running lane; needs open stationary space instead",
+        "resulting_layout": "stationary",
+        "duration_delta_minutes": 0
+      }
+    ],
+    "review": { "status": "placeholder", "reviewer": null, "reviewed_at": null },
+    "evidence_id": "ev-tpl-run-intervals-45"
+  }
+]
