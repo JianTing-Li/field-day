@@ -1,0 +1,37 @@
+{
+  "url": "https://www.airnowapi.org/aq/observation/current/ziplatlong/?format=application/json&latitude=40.7812&longitude=-73.9665",
+  "status": 200,
+  "retrieved_at": "2026-10-27T19:22:14Z",
+  "body": [
+    {
+      "dateObserved": "2026-10-27",
+      "hourObserved": "15:00",
+      "localTimeZone": "EDT",
+      "reportingAreaName": "New York City Region",
+      "siteID": "360050110",
+      "siteName": "Bronx - IS52",
+      "parameterName": "PM2.5",
+      "nowcastAQI": 19,
+      "aqiCategoryName": "Good",
+      "reportingAgency": "New York Dept. of Environmental Conservation",
+      "lookupBehavior": "Closest Reading By Pollutant",
+      "consideredMonitors": "All",
+      "lookupBoundary": "Reporting Area"
+    },
+    {
+      "dateObserved": "2026-10-27",
+      "hourObserved": "15:00",
+      "localTimeZone": "EDT",
+      "reportingAreaName": "New York City Region",
+      "siteID": "360050110",
+      "siteName": "Bronx - IS52",
+      "parameterName": "OZONE",
+      "nowcastAQI": 26,
+      "aqiCategoryName": "Good",
+      "reportingAgency": "New York Dept. of Environmental Conservation",
+      "lookupBehavior": "Closest Reading By Pollutant",
+      "consideredMonitors": "All",
+      "lookupBoundary": "Reporting Area"
+    }
+  ]
+}

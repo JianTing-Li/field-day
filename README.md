@@ -86,7 +86,7 @@ npm run dev                  # http://localhost:3000
 |---|---|---|
 | NYC Parks Open Data | JT | proposed; placeholder parks in use |
 | National Weather Service | Yadan | tested; fixture-backed (live mode needs `NWS_USER_AGENT`) |
-| AirNow | Yadan | proposed; fixture-backed |
+| AirNow | Yadan | tested live; fixture-backed (live mode needs `AIRNOW_API_KEY`) |
 | Workout templates | Yadan | placeholder, not instructor-reviewed |
 
 ## UI and screens

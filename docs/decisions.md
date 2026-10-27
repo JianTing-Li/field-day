@@ -108,6 +108,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   get a coverage gap. Provider error text is never copied into gaps; only the HTTP status is.
 - **Status:** in use
 
+## D-015 — AirNow adapter: which services, and when observations count
+- **Date / owner:** 2026-10-27 · Yadan
+- **PRD section:** §3 "Common evidence contract"
+- **Decision:** Use AirNow's June 2026 services: `/aq/forecast/current/` (daily forecast per pollutant) and
+  `/aq/observation/current/ziplatlong/` (current NowCast reading). The older lat/long and zip services were retired
+  on 2026-10-01 and return HTTP 410. Forecasts cover whole days (00:00 to 00:00); each event day without one is a
+  coverage gap. An observation is kept only when the hour it measured overlaps the event, so a current reading
+  never stands in for a later event. A category-only forecast (AQI -1) becomes a missing value, not a guess. AirNow
+  also sends some errors as HTTP 200 with a `WebServiceError` body; those are treated as failures. The API key is
+  added only inside the live fetcher and never appears in evidence URLs or gaps.
+- **Status:** in use
+
 ## Open decisions
 - Persistence: hosted database for Vercel (JT-21, Tuesday evening; needed by JT-08)
 - Curated parks (JT-11) and reviewed workout templates (YT-03)
