@@ -47,3 +47,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** JT-01 (agent runner) and JT-03 (evidence snapshot builder + freshness).
 - **Gotchas:** Fixture snapshots in Case 1 and Case 2 only include `temperature` (not `precipitation_probability` or `wind_speed`); `get_forecast` requires `temperature` coverage and also checks interval coverage for `precipitation_probability` and `wind_speed` whenever those metrics are present in the snapshot.
 - **Requests:** none
+
+## 2026-10-27 — JT-02: Audit fixes (#4)
+- **Done:** Tightened `get_forecast` / `get_air_quality` after review: snapshot gaps filtered by whole park ID and domain (no `park-ab` vs `park-a` leaks, no park-record/template gaps); inverted or zero-length windows and non-candidate parks return no items plus an explicit gap; only `forecast` items count as coverage (observations never do); null-value gaps name the evidence ID and its own period. Scenario AQI days now end at next-day `00:00`. Added tests for each case.
+- **Decisions:** D-013.
+- **Interfaces others depend on:** gap strings from the condition tools changed wording for null-value items and the new invalid-window / unknown-park cases.
+- **Unfinished / next:** JT-03 should write snapshot gaps that name the park ID and source (NWS / AirNow) so D-013 filtering works.
+- **Gotchas:** A snapshot gap naming a park ID that is nowhere in the snapshot is treated as regional.
+- **Requests:** Yadan (YT-01/YT-02): mark AirNow current values `observation`, use half-open periods ending at the next period's start, and include the park ID and source name in adapter gaps (current placeholders already do).

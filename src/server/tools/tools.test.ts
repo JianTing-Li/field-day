@@ -4,6 +4,32 @@ import { case01, case02 } from "../../../fixtures/scenarios";
 import { evidence } from "../../../fixtures/scenarios/helpers";
 import { tools } from "./index";
 
+const temp = (id: string, valid_from: string | null, valid_to: string | null) =>
+  evidence({
+    id,
+    metric: "temperature",
+    value: 60,
+    unit: "F",
+    source: "NWS (fixture)",
+    park_id: "park-a",
+    scope: "forecast_grid",
+    valid_from,
+    valid_to,
+  });
+
+const aqiObservation = (id: string, valid_from: string, valid_to: string) =>
+  evidence({
+    id,
+    metric: "aqi",
+    evidence_type: "observation",
+    value: 30,
+    source: "AirNow (fixture)",
+    park_id: null,
+    scope: "reporting_area",
+    valid_from,
+    valid_to,
+  });
+
 function makeCtx(snapshot: EvidenceSnapshot, brief = case02.brief, event_version = 1): ToolContext {
   return { snapshot, brief, event_version };
 }
@@ -177,7 +203,7 @@ describe("agent tools (JT-02)", () => {
       );
       expect(out.items.map((e) => e.id)).toEqual(["ev-c1-temp-0900", "ev-c1-wind-missing"]);
       expect(out.coverage_gaps).toEqual([
-        "wind_speed missing for park-a (2026-10-29T09:00 to 2026-10-29T09:45): NWS wind sensor offline",
+        "wind_speed missing for park-a (ev-c1-wind-missing, 2026-10-29T09:00 to 2026-10-29T10:00): NWS wind sensor offline",
       ]);
     });
 
@@ -199,6 +225,89 @@ describe("agent tools (JT-02)", () => {
         ctx,
       );
       expect(out.coverage_gaps).toEqual(["NWS forecast for park-a partially degraded"]);
+    });
+
+    it("excludes an hour that ends exactly when the window starts", async () => {
+      const ctx = makeCtx(case01.snapshot("evt-1", 1), case01.brief);
+      // ev-c1-temp-0900 covers 09:00..10:00 (half-open), so it does not apply at 10:00
+      const out = await tools.get_forecast(
+        { park_id: "park-a", start_time: "2026-10-29T10:00", end_time: "2026-10-29T10:45" },
+        ctx,
+      );
+      expect(out.items).toEqual([]);
+      expect(out.coverage_gaps).toEqual([
+        "No temperature evidence for park-a covering 2026-10-29T10:00 to 2026-10-29T10:45",
+      ]);
+    });
+
+    it("reports the uncovered hour when a window spans a missing hourly period (Case 2)", async () => {
+      const ctx = makeCtx(case02.snapshot("evt-2", 1));
+      const out = await tools.get_forecast(
+        { park_id: "park-a", start_time: "2026-07-16T08:00", end_time: "2026-07-16T10:45" },
+        ctx,
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["ev-c2-temp-0800-park-a", "ev-c2-temp-1000-park-a"]);
+      expect(out.coverage_gaps).toEqual([
+        "Missing temperature coverage for park-a from 2026-07-16T09:00 to 2026-07-16T10:00 (requested 2026-07-16T08:00 to 2026-07-16T10:45)",
+      ]);
+    });
+
+    it("returns park-b's own forecast on Case 2", async () => {
+      const ctx = makeCtx(case02.snapshot("evt-2", 1));
+      const out = await tools.get_forecast(
+        { park_id: "park-b", start_time: "2026-07-16T08:00", end_time: "2026-07-16T08:45" },
+        ctx,
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["ev-c2-temp-0800-park-b"]);
+      expect(out.coverage_gaps).toEqual([]);
+    });
+
+    it("returns timeless and open-ended items but does not count them as coverage", async () => {
+      const snap = case01.snapshot("evt-1", 1);
+      snap.items = snap.items.filter((e) => e.metric !== "temperature");
+      snap.items.push(temp("t-timeless", null, null), temp("t-open", "2026-10-29T08:00", null));
+      const out = await tools.get_forecast(
+        { park_id: "park-a", start_time: "2026-10-29T09:00", end_time: "2026-10-29T09:45" },
+        makeCtx(snap, case01.brief),
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["t-timeless", "t-open"]);
+      expect(out.coverage_gaps).toEqual([
+        "Missing temperature coverage for park-a from 2026-10-29T09:00 to 2026-10-29T09:45 (requested 2026-10-29T09:00 to 2026-10-29T09:45)",
+      ]);
+    });
+
+    it.each([
+      ["inverted", "2026-10-29T09:45", "2026-10-29T09:00"],
+      ["zero-length", "2026-10-29T09:00", "2026-10-29T09:00"],
+    ])("returns no items and an explicit gap for a %s window", async (_label, start_time, end_time) => {
+      const ctx = makeCtx(case01.snapshot("evt-1", 1), case01.brief);
+      const out = await tools.get_forecast({ park_id: "park-a", start_time, end_time }, ctx);
+      expect(out.items).toEqual([]);
+      expect(out.coverage_gaps).toEqual([
+        `Invalid window for park-a: end_time ${end_time} is not after start_time ${start_time}`,
+      ]);
+    });
+
+    it("does not leak snapshot gaps from look-alike park IDs or non-condition domains", async () => {
+      const snap = case02.snapshot("evt-2", 1);
+      snap.park_time_candidates.push({
+        id: "cand-ab-0800",
+        park_id: "park-ab",
+        start_time: "2026-07-16T08:00",
+        end_time: "2026-07-16T08:45",
+      });
+      snap.coverage_gaps = [
+        "NWS forecast for park-ab not available",
+        "Space at park-a and park-b not confirmed",
+        "Parks record for park-a missing acreage",
+        "Workout template tpl-run not instructor-reviewed",
+        "NWS hourly forecast unavailable for grid OKX/33,35",
+      ];
+      const out = await tools.get_forecast(
+        { park_id: "park-a", start_time: "2026-07-16T08:00", end_time: "2026-07-16T08:45" },
+        makeCtx(snap),
+      );
+      expect(out.coverage_gaps).toEqual(["NWS hourly forecast unavailable for grid OKX/33,35"]);
     });
   });
 
@@ -232,6 +341,89 @@ describe("agent tools (JT-02)", () => {
       expect(out.coverage_gaps).toEqual([
         "No aqi evidence for park-a covering 2026-07-17T08:00 to 2026-07-17T08:45",
       ]);
+    });
+
+    it("does not count AQI observations as coverage for a future window", async () => {
+      const snap = case01.snapshot("evt-1", 1);
+      snap.items = snap.items.filter((e) => e.metric !== "aqi");
+      snap.items.push(aqiObservation("aqi-obs-hour", "2026-10-29T09:00", "2026-10-29T10:00"));
+      const out = await tools.get_air_quality(
+        { park_id: "park-a", start_time: "2026-10-29T09:00", end_time: "2026-10-29T09:45" },
+        makeCtx(snap, case01.brief),
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["aqi-obs-hour"]);
+      expect(out.coverage_gaps).toEqual([
+        "No aqi forecast for park-a covering 2026-10-29T09:00 to 2026-10-29T09:45; observations do not count as forecast coverage",
+      ]);
+    });
+
+    it("returns a point-in-time observation inside the window without treating it as coverage", async () => {
+      const snap = case01.snapshot("evt-1", 1);
+      snap.items.push(aqiObservation("aqi-obs-point", "2026-10-29T09:00", "2026-10-29T09:00"));
+      const out = await tools.get_air_quality(
+        { park_id: "park-a", start_time: "2026-10-29T09:00", end_time: "2026-10-29T09:45" },
+        makeCtx(snap, case01.brief),
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["ev-c1-aqi-0900", "aqi-obs-point"]);
+      expect(out.coverage_gaps).toEqual([]);
+    });
+
+    it("rejects an inverted window even when a daily item spans both ends", async () => {
+      const ctx = makeCtx(case01.snapshot("evt-1", 1), case01.brief);
+      const out = await tools.get_air_quality(
+        { park_id: "park-a", start_time: "2026-10-29T18:00", end_time: "2026-10-29T08:00" },
+        ctx,
+      );
+      expect(out.items).toEqual([]);
+      expect(out.coverage_gaps).toEqual([
+        "Invalid window for park-a: end_time 2026-10-29T08:00 is not after start_time 2026-10-29T18:00",
+      ]);
+    });
+
+    it("returns no regional evidence for a park that is not a candidate", async () => {
+      const ctx = makeCtx(case01.snapshot("evt-1", 1), case01.brief);
+      const out = await tools.get_air_quality(
+        { park_id: "park-zzz", start_time: "2026-10-29T09:00", end_time: "2026-10-29T09:45" },
+        ctx,
+      );
+      expect(out.items).toEqual([]);
+      expect(out.coverage_gaps).toEqual(["park-zzz is not a park candidate in this evidence snapshot"]);
+    });
+
+    it("keeps air-quality snapshot gaps and drops forecast ones", async () => {
+      const snap = case02.snapshot("evt-2", 1);
+      snap.coverage_gaps = [
+        "AirNow data for park-a not available",
+        "AirNow data for park-b not available",
+        "NWS weather forecast unavailable near Fairmount",
+      ];
+      const out = await tools.get_air_quality(
+        { park_id: "park-a", start_time: "2026-07-16T08:00", end_time: "2026-07-16T08:45" },
+        makeCtx(snap),
+      );
+      expect(out.coverage_gaps).toEqual(["AirNow data for park-a not available"]);
+    });
+
+    it("covers a window crossing midnight with consecutive daily AQI forecasts", async () => {
+      const snap = case02.snapshot("evt-2", 1);
+      snap.items.push(
+        evidence({
+          id: "ev-c2-aqi-next-day",
+          metric: "aqi",
+          value: 40,
+          source: "AirNow (fixture)",
+          park_id: null,
+          scope: "reporting_area",
+          valid_from: "2026-07-17T00:00",
+          valid_to: "2026-07-18T00:00",
+        }),
+      );
+      const out = await tools.get_air_quality(
+        { park_id: "park-a", start_time: "2026-07-16T23:30", end_time: "2026-07-17T00:30" },
+        makeCtx(snap),
+      );
+      expect(out.items.map((e) => e.id)).toEqual(["ev-c2-aqi", "ev-c2-aqi-next-day"]);
+      expect(out.coverage_gaps).toEqual([]);
     });
   });
 
