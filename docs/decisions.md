@@ -99,6 +99,15 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   resolves only the matching check at that park (and time); Park A suitability never resolves Park B.
 - **Status:** in use
 
+## D-013 — NWS adapter: wind ranges and the fixture recording
+- **Date / owner:** 2026-10-27 · Yadan
+- **PRD section:** §3 "Common evidence contract"
+- **Decision:** When NWS gives a wind range ("5 to 10 mph"), the evidence uses the higher value and says so in
+  `limitations`. Fixture mode always answers with one real recording (Central Park, grid OKX/34,45, retrieved
+  2026-10-27, covering 2026-10-27T13:00 to 2026-11-03T00:00), so fixture events must fall in that window or they
+  get a coverage gap. Provider error text is never copied into gaps; only the HTTP status is.
+- **Status:** in use
+
 ## Open decisions
 - Persistence: hosted database for Vercel (JT-21, Tuesday evening; needed by JT-08)
 - Curated parks (JT-11) and reviewed workout templates (YT-03)

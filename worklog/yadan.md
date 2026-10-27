@@ -19,3 +19,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** YT-00c (.env.local + Anthropic key), YT-00d (AirNow key), then YT-01 NWS adapter.
 - **Gotchas:** none
 - **Requests:** none
+
+## 2026-10-27 — YT-01: NWS weather adapter
+- **Done:** `src/server/data/weather.ts` now does the real NWS lookup (points -> hourly forecast) and turns each hour that overlaps the event into temperature, precipitation-probability and wind-speed evidence. Recorded one real Central Park response and one real HTTP 404 in `fixtures/sources/nws/`. 14 tests in `weather.test.ts`.
+- **Decisions:** D-013 (wind ranges use the higher value; fixture mode uses one recording; provider error text is not passed on).
+- **Interfaces others depend on:** `fetchForecast` keeps the `FetchForecast` contract. Also exports `fetchForecastWith(req, mode, fetcher)` for tests.
+- **Unfinished / next:** live mode is only exercised through recorded responses (tests never call live APIs). YT-02 AirNow next.
+- **Gotchas:** NWS hourly periods repeat 01:00 local on the night clocks fall back (Nov 1), so evidence IDs use the UTC start time.
+- **Requests:** JT: fixture scenarios that want real weather need event times inside 2026-10-27T13:00 to 2026-11-03T00:00 (park coordinates are still null in `parks.json`).
