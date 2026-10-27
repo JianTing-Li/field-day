@@ -133,6 +133,8 @@ async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
  * Saves the event. `base` is the updated_at the request loaded; if the stored event has
  * changed since (another request or a slower agent run), the write is rejected so a stale
  * result never overwrites newer state. Pass null for a new event.
+ * Every save moves updated_at past `base`, even within the same millisecond, so a change is
+ * always detectable.
  */
 async function commit(store: EventStore, event: FieldDayEvent, base: string | null): Promise<FieldDayEvent> {
   if (base !== null) {
@@ -141,7 +143,8 @@ async function commit(store: EventStore, event: FieldDayEvent, base: string | nu
       throw new ServiceError("stale_version", "The event changed while this request was running; reload and retry");
     }
   }
-  event.updated_at = now();
+  const t = Date.now();
+  event.updated_at = new Date(base === null ? t : Math.max(t, Date.parse(base) + 1)).toISOString();
   await store.saveEvent(event);
   return event;
 }

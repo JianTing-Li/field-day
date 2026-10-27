@@ -50,6 +50,7 @@ let svc: typeof import("./service");
 beforeEach(async () => {
   // Fresh store and freshly seeded events for every test.
   hooks.snapshot = hooks.checks = hooks.review = null;
+  vi.useRealTimers();
   delete (globalThis as { __fieldDayStore?: unknown }).__fieldDayStore;
   vi.resetModules();
   svc = await import("./service");
@@ -338,7 +339,8 @@ describe("stale-result rejection", () => {
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
   });
 
-  it("rejects a result that finishes after the event changed", async () => {
+  it("rejects a result that finishes after the event changed, even within the same millisecond", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-28T12:00:00Z") });
     const { brief } = (await svc.getEvent("evt-case-02")).event;
     // Another request creates version 3 while the review of version 2 is still running.
     hooks.review = async (r) => {
