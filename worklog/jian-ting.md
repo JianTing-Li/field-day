@@ -39,3 +39,15 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Decisions:** D-011, D-012.
 - **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
   `toLocalDateTime` / `fromLocalDateTime`.
+
+## 2026-10-27 — JT-01: Agent runner and fake runner (#3)
+- **Done:** Implemented `runAgent` and `createRunner` in `src/server/agents/runner.ts` (Anthropic Messages API call, `allowed_tools` JSON Schema conversion, multi-turn tool loop with `ToolSchemas` validation, final JSON output validation with at most 1 budget-counted repair attempt, `stale_context` rejection on `event_version` / `evidence_snapshot_id` mismatch, `deps.budget.record` usage tracking, and non-throwing `model_error` / `tool_error` handling). Added scripted test runner in `src/server/agents/fake-runner.ts` and unit tests in `src/server/agents/runner.test.ts`. Added `ANTHROPIC_MODEL` to `.env.example` and `README.md`.
+- **Decisions:** D-013 (`ANTHROPIC_MODEL` defaults to `claude-haiku-5-5`), D-014 (fail fast with `tool_error` on disallowed tools, invalid tool input, or thrown tool errors).
+- **Interfaces others depend on:**
+  - `runAgent(definition, input, deps)` in `src/server/agents/runner.ts` (implements `RunAgent`).
+  - `createFakeRunner(steps, options?)` in `src/server/agents/fake-runner.ts` for agent tests (YT-05, YT-06, JT-12, JT-13) with no network calls:
+    - Pass an array of steps: `{ tool_calls: [{ name, input }] }`, `{ output: jsonObject }`, `{ error: new Error(...) }`, or `(call, turn) => step`.
+    - Call `await fake(definition, input, deps)` directly (or `const restore = fake.install()` around `agent.run(input, deps)`), and inspect `fake.calls` for recorded requests.
+- **Unfinished / next:** JT-02 (finish agent tools: time-window filtering and coverage gaps).
+- **Gotchas:** None.
+- **Requests:** `CLAUDE.md` needs an ownership row/entry assigning `src/server/agents/fake-runner.ts` to JT (to be done in a separate small PR).

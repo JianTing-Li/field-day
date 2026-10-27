@@ -23,7 +23,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 
 ## JT
 ### Do first (Tue AM)
-- [ ] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
+- [x] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
 - [ ] **JT-02** Finish agent tools: time-window filtering and coverage gaps (stubs exist) (#4) · Tue AM
 
 ### Harness
