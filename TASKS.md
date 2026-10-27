@@ -59,7 +59,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [x] **YT-00d** Register an AirNow API key (needed for live mode and deploy) (#25) · Tue
 
 ### Data and content
-- [ ] **YT-01** NWS weather adapter (port of weather.py) (#26) · Tue AM
+- [x] **YT-01** NWS weather adapter (port of weather.py) (#26) · Tue AM
   - **Files:** `src/server/data/weather.ts`, `weather.test.ts`, `fixtures/sources/nws/*.json`
   - **Uses:** `FetchForecast`, `ConditionsRequest`, `AdapterResult` (`src/contracts/data.ts`); `EvidenceItem` (`src/contracts/evidence.ts`)
   - **Do:** live mode: `GET https://api.weather.gov/points/{lat},{lon}`, follow `properties.forecastHourly`,
