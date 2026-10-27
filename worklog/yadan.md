@@ -19,3 +19,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** YT-00c (.env.local + Anthropic key), YT-00d (AirNow key), then YT-01 NWS adapter.
 - **Gotchas:** none
 - **Requests:** none
+
+## 2026-10-27 — YT-00b, YT-00c: setup PR review and local env
+- **Done:** Reviewed and approved JT's setup PR (#39, merged). Created `.env.local` from `.env.example` and added my own Anthropic API key (checked: the API accepts it). `.env.local` is git-ignored.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-00d (AirNow key), YT-02 AirNow adapter.
+- **Gotchas:** none
+- **Requests:** none
