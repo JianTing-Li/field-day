@@ -102,7 +102,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Test:** `npm test -- workout`
 
 ### Agents
-- [x] **YT-05** Planning agent (critical path, JT waits on this) (#30) · Tue PM · needs: JT-01
+- [ ] **YT-05** Planning agent (critical path, JT waits on this) (#30) · Tue PM · needs: JT-01
   - **Files:** `src/server/agents/planning/agent.ts`, `prompt.md`, `agent.test.ts`, `index.ts`
   - **Uses:** `PlanningInput`, `PlanningOutput` (`src/contracts/agents.ts`); `AgentDefinition`, `AgentImpl`, `runAgent`
   - **Do:** follow the agent convention in CLAUDE.md. Allowed tools: `get_park_candidates`, `get_forecast`,

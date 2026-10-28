@@ -219,6 +219,17 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## YT-05 — Planning agent (critical path, JT waits on this) (#30)
 
+### D-024 — Planning output: the harness has the last word
+- **Date / owner:** 2026-10-28 · Yadan
+- **PRD section:** §3b Planning Agent, §3a check_plan
+- **Decision:** After the model answers, the Planning agent re-runs `check_plan` on the model's final plan and
+  uses that result as `rule_checks` (the prompt asks the model to send `null`). Evidence IDs that aren't in the
+  snapshot are removed; a "verified" claim left with no evidence becomes "unverified" and a non-blocking concern
+  is added. Every blocker gets a blocking concern. A `draft` whose checks aren't all `pass` becomes
+  `needs_verification`; the agent never upgrades a status. The model gets the exact output JSON Schema in its
+  user message.
+- **Status:** in use
+
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
 
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
