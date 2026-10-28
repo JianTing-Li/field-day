@@ -75,10 +75,10 @@ npm run dev                  # http://localhost:3000
 | Persistence | JT | in-memory stub |
 | Event Logistics agent | JT | stub |
 | Independent Reviewer agent | JT | stub |
-| Planning agent | Yadan | stub |
+| Planning agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout Adaptation agent | Yadan | stub |
-| Workout rules | Yadan | placeholder |
-| Workout templates | Yadan | placeholder |
+| Workout rules | Yadan | done (equipment, duration, space, surface) |
+| Workout templates | Yadan | 3 beginner templates, pending instructor review |
 | UI | Yadan | not started |
 
 ## Data sources
@@ -88,7 +88,7 @@ npm run dev                  # http://localhost:3000
 | NYC Parks Open Data | JT | in use: 10 curated parks (D-020); eval scenarios use fixture parks; live mode untested in CI |
 | National Weather Service | Yadan | tested; fixture-backed (live mode needs `NWS_USER_AGENT`) |
 | AirNow | Yadan | tested live; fixture-backed (live mode needs `AIRNOW_API_KEY`) |
-| Workout templates | Yadan | placeholder, not instructor-reviewed |
+| Workout templates | Yadan | 3 beginner templates, pending instructor review |
 
 ## UI and screens
 <!-- Owner: Yadan -->
