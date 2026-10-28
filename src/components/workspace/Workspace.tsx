@@ -8,7 +8,7 @@ import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
 import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
 import { Alternatives } from "./Alternatives";
-import { ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
+import { aboutCurrentPlan, ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
 import { availableActions, currentVersion, finalizeKey } from "./logic";
 import { BlockersCard, ChecksList, EvidenceList, PlanCard, StatusBar } from "./sections";
 
@@ -204,7 +204,12 @@ export function Workspace({ eventId }: { eventId: string }) {
         version={v}
         snapshot={snapshot}
         taskAction={(t) =>
-          actions.confirm && confirmable(t) ? (
+          actions.confirm && confirmable(t) && !aboutCurrentPlan(t, v.plan) ? (
+            <p className="mt-2 text-xs font-bold text-ink-2">
+              This is about a different park or time than the current plan. Confirm it after you choose an option
+              there; a confirmation only counts for the plan it was made for.
+            </p>
+          ) : actions.confirm && confirmable(t) ? (
             confirming === t.id ? (
               <ConfirmTaskForm
                 task={t}

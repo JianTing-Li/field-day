@@ -154,6 +154,14 @@ the file. Entries above the task sections are earlier history.
 - **Gotchas:** v3 (from apply-option) still shows the v2 facts ("10 a.m. is 93°F"), which no longer describe the plan. Lifecycle data, not UI.
 - **Requests:** JT: should `apply_option` drop or refresh `facts` from the previous version? Also the gate's `current_evidence` and `required_confirmations` are still stubs (JT-09); the UI shows their "Stub:" reasons as they are.
 
+### 2026-10-28 — YT-11: Confirm only tasks about the current plan
+- **Done:** After JT-22 (#73), a confirmation for a different park/time than the current plan is saved with no layout and resolves nothing. The to-do list now shows **Confirm** only for tasks at the current plan's park (and time, when the task names one); other tasks explain that a confirmation only counts for the plan it was made for. `aboutCurrentPlan` in `workspace/ApprovalFlow.tsx`, 3 new tests. Checked on Case 2 after applying option 1 (Park A, 8 a.m.): Park A task has Confirm, Park B task shows the note; confirming Park A moves v3 to ready for approval (layout recorded as stationary).
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** none
+- **Gotchas:** the built-in browser pane was hidden, so React never revealed the page; verified with headless Playwright instead.
+- **Requests:** none
+
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
 
 ### 2026-10-28 — YT-12: States

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CheckId, EvidenceSnapshot, FieldDayEvent, GateCheck, OrganizerTask, PlanVersion } from "@/contracts";
+import type { CandidatePlan, CheckId, EvidenceSnapshot, FieldDayEvent, GateCheck, OrganizerTask, PlanVersion } from "@/contracts";
 import { formatUpdated } from "../format";
 import { Alert, Button, Card, fieldClass } from "../ui";
 import { approveBlockedReason, checkName, formatLocal, parkName } from "./logic";
@@ -27,6 +27,16 @@ export interface ConfirmationInput {
 /** Only tasks that name a check and a park can be confirmed; the confirmation applies there and nowhere else. */
 export function confirmable(t: OrganizerTask): t is OrganizerTask & { resolves_check_id: CheckId; park_id: string } {
   return t.resolves_check_id !== null && t.park_id !== null;
+}
+
+/**
+ * Whether a task is about the current plan's park and time. The harness only resolves a confirmation
+ * for the plan it was given (D-JT22-1); one for another park or time is saved but changes nothing,
+ * so the UI only offers Confirm for tasks about the current plan.
+ */
+export function aboutCurrentPlan(t: OrganizerTask, plan: CandidatePlan | null): boolean {
+  if (!plan || t.park_id !== plan.park_id) return false;
+  return t.start_time === null || t.start_time === plan.start_time;
 }
 
 export function ConfirmTaskForm({
