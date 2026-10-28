@@ -164,6 +164,27 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-13 — Independent Reviewer agent (#15)
 
+### 2026-10-28 — JT-13: Independent Reviewer agent
+- **Done:** `src/server/agents/reviewer/agent.ts`: `reviewerDefinition` (only check_plan: the Reviewer cannot
+  retrieve new evidence) and `reviewerAgentImpl`, which runs the agent and then `enforceReviewerResults`. The user
+  message includes both proposals, the harness's combination checks and `revision_available`. Tests in
+  `agent.test.ts` use the fake runner, including every eval fixture's Reviewer output.
+- **Decisions:** the harness drops a combination that cites an option nobody proposed, whose plan isn't its
+  candidate, or whose park/time or workout comes from neither a cited specialist option nor the original plan.
+  Checks always come from check_plan. A recommendation is kept only when every critical check of that combination
+  passes; otherwise it becomes null and its blockers are added to blocking_issues. Revision requests are kept only
+  while the round is available and only for options that specialist proposed. Status is only ever made more
+  cautious: a draft with no passing recommendation, or a revision request with no valid request left, becomes
+  needs_verification, and "no feasible option" becomes needs_verification while any combination is not a
+  demonstrated fail (missing evidence is not infeasibility).
+- **Interfaces others depend on:** `reviewerAgentImpl`, `reviewerDefinition`, `enforceReviewerResults`. The
+  orchestrator (JT-10) must pass `combination_checks` and the run context's `revision_available`.
+- **Unfinished / next:** live run through the orchestrator (JT-10); evals (JT-17/18).
+- **Gotchas:** a combined option may take its park/time from the Logistics option and its workout from the Workout
+  option even when the Workout option was assessed at another time (Case 2, combo-1); the combined plan is checked
+  as a whole.
+- **Requests:** none
+
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
 
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
