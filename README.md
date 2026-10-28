@@ -64,7 +64,7 @@ npm run dev                  # http://localhost:3000
 |---|---|---|
 | Contracts | Shared | done (v0) |
 | Agent runner | JT | done |
-| Agent tools | JT | stub |
+| Agent tools | JT | done |
 | Evidence snapshots, freshness | JT | placeholder |
 | Heat / AQI policies | JT | placeholder |
 | Logistics rules | JT | placeholder |

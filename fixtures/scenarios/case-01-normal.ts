@@ -100,7 +100,7 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         scope: "reporting_area",
         area_label: "New York City",
         valid_from: "2026-10-29T00:00",
-        valid_to: "2026-10-29T23:59",
+        valid_to: "2026-10-30T00:00",
         limitations: ["Regional reporting-area value, not a park-level measurement"],
       }),
       evidence({
