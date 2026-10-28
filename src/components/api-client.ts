@@ -8,7 +8,14 @@ import { ApiError } from "@/contracts";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; status: number | null; code: ApiError["error"]["code"] | "network" | "bad_response"; message: string };
+  | {
+      ok: false;
+      status: number | null;
+      code: ApiError["error"]["code"] | "network" | "bad_response";
+      message: string;
+      /** Extra information from the API, e.g. the blocking check IDs for "blocked". */
+      details?: unknown;
+    };
 
 export function apiGet<S extends z.ZodType>(path: string, schema: S): Promise<ApiResult<z.infer<S>>> {
   return apiRequest(path, schema);
@@ -46,7 +53,13 @@ async function apiRequest<S extends z.ZodType>(path: string, schema: S, init: Re
   if (!res.ok) {
     const err = ApiError.safeParse(body);
     return err.success
-      ? { ok: false, status: res.status, code: err.data.error.code, message: err.data.error.message }
+      ? {
+          ok: false,
+          status: res.status,
+          code: err.data.error.code,
+          message: err.data.error.message,
+          ...(err.data.error.details === undefined ? {} : { details: err.data.error.details }),
+        }
       : { ok: false, status: res.status, code: "bad_response", message: `The server answered with HTTP ${res.status}` };
   }
 

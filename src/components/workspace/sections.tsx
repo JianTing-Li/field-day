@@ -1,4 +1,4 @@
-import type { CheckPlanResult, EvidenceItem, EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
+import type { CheckPlanResult, EvidenceItem, EvidenceSnapshot, FieldDayEvent, OrganizerTask, PlanVersion } from "@/contracts";
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Card, Pill } from "../ui";
@@ -45,7 +45,16 @@ export function StatusBar({ event, version }: { event: FieldDayEvent; version: P
   );
 }
 
-export function BlockersCard({ version, snapshot }: { version: PlanVersion; snapshot: EvidenceSnapshot | null }) {
+export function BlockersCard({
+  version,
+  snapshot,
+  taskAction,
+}: {
+  version: PlanVersion;
+  snapshot: EvidenceSnapshot | null;
+  /** Optional control under each organizer task, e.g. the Confirm button (YT-11). */
+  taskAction?: (task: OrganizerTask) => React.ReactNode;
+}) {
   const blocking = version.concerns.filter((c) => c.blocking);
   const other = version.concerns.filter((c) => !c.blocking);
   if (blocking.length === 0 && other.length === 0 && version.organizer_tasks.length === 0) return null;
@@ -93,6 +102,7 @@ export function BlockersCard({ version, snapshot }: { version: PlanVersion; snap
                     {t.resolves_check_id && ` · resolves “${checkName(t.resolves_check_id)}”`}
                   </span>
                 )}
+                {taskAction?.(t)}
               </li>
             ))}
           </ul>

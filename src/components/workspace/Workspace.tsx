@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
-import { Api, ChangeReport, type EvidenceSnapshot, type FieldDayEvent } from "@/contracts";
+import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { Alert, Button, buttonClass, Card } from "../ui";
 import { Alternatives } from "./Alternatives";
-import { approveBlockedReason, availableActions, currentVersion } from "./logic";
+import { ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
+import { availableActions, currentVersion, finalizeKey } from "./logic";
 import { BlockersCard, ChecksList, EvidenceList, PlanCard, StatusBar } from "./sections";
 
-/** Event workspace (GET /api/events/:id). Owner: Yadan, task YT-09. */
+/** Event workspace (GET /api/events/:id). Owner: Yadan, tasks YT-09 to YT-12. */
 
 type Loaded = { event: FieldDayEvent; snapshot: EvidenceSnapshot | null };
 
@@ -20,6 +21,9 @@ export function Workspace({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showChange, setShowChange] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [gate, setGate] = useState<GateCheck[] | null>(null);
+  const [blockedDetails, setBlockedDetails] = useState<CheckId[]>([]);
   const base = `/api/events/${encodeURIComponent(eventId)}`;
 
   const load = useCallback(async () => {
@@ -48,9 +52,16 @@ export function Workspace({ eventId }: { eventId: string }) {
   async function act<S extends z.ZodType>(label: string, path: string, body: object, schema: S): Promise<ApiResult<z.infer<S>>> {
     setBusy(label);
     setActionError(null);
+    setBlockedDetails([]);
     const r = await apiSend("POST", `${base}/${path}`, body, schema);
-    if (r.ok) await load();
-    else setActionError(`${label} didn't work: ${r.message}. Nothing was changed.`);
+    if (r.ok) {
+      setGate(null);
+      await load();
+    } else {
+      setActionError(`${label} didn't work: ${r.message}. Nothing was changed.`);
+      const ids = CheckId.array().safeParse(r.details);
+      if (r.code === "blocked" && ids.success) setBlockedDetails(ids.data);
+    }
     setBusy(null);
     return r;
   }
@@ -76,7 +87,6 @@ export function Workspace({ eventId }: { eventId: string }) {
   const v = currentVersion(event);
   const actions = availableActions(v);
   const version = { version: v.version };
-  const blockedApprove = approveBlockedReason(v);
 
   return (
     <div className="space-y-5">
@@ -125,18 +135,7 @@ export function Workspace({ eventId }: { eventId: string }) {
               Request review
             </Button>
           )}
-          <Button
-            variant="primary"
-            disabled={!!busy || !actions.approve || !v.evidence_snapshot_id}
-            title={blockedApprove ?? undefined}
-            onClick={() =>
-              act("Approve", "approve", { ...version, evidence_snapshot_id: v.evidence_snapshot_id }, Api.approve.response)
-            }
-          >
-            Approve v{v.version}
-          </Button>
         </div>
-        {blockedApprove && <p className="mt-2 text-sm text-stone-600">{blockedApprove}</p>}
         {showChange && (
           <ChangeForm
             disabled={!!busy}
@@ -149,7 +148,31 @@ export function Workspace({ eventId }: { eventId: string }) {
         )}
       </Card>
 
-      <BlockersCard version={v} snapshot={snapshot} />
+      <BlockersCard
+        version={v}
+        snapshot={snapshot}
+        taskAction={(t) =>
+          actions.confirm && confirmable(t) ? (
+            confirming === t.id ? (
+              <ConfirmTaskForm
+                task={t}
+                snapshot={snapshot}
+                busy={!!busy}
+                onCancel={() => setConfirming(null)}
+                onSubmit={async (c) => {
+                  const r = await act("Record confirmation", "confirmations", { ...version, ...c }, Api.addConfirmation.response);
+                  if (r.ok) setConfirming(null);
+                }}
+              />
+            ) : (
+              <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming(t.id)}>
+                Confirm
+              </Button>
+            )
+          ) : null
+        }
+      />
+      <ConfirmationsList event={event} snapshot={snapshot} />
       <Alternatives
         version={v}
         snapshot={snapshot}
@@ -163,6 +186,25 @@ export function Workspace({ eventId }: { eventId: string }) {
         <PlanCard version={v} snapshot={snapshot} />
         <ChecksList checks={v.checks} />
       </div>
+      <ApprovalPanel
+        event={event}
+        version={v}
+        busy={!!busy}
+        gate={gate}
+        blockedDetails={blockedDetails}
+        onApprove={() =>
+          act("Approve", "approve", { ...version, evidence_snapshot_id: v.evidence_snapshot_id }, Api.approve.response)
+        }
+        onFinalize={async () => {
+          const r = await act(
+            "Finalize",
+            "finalize",
+            { ...version, idempotency_key: finalizeKey(event.id, v.version) },
+            Api.finalize.response,
+          );
+          if (r.ok && !r.data.finalized) setGate(r.data.gate);
+        }}
+      />
       <EvidenceList snapshot={snapshot} />
     </div>
   );

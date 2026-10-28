@@ -130,6 +130,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
 
+### 2026-10-28 — YT-11: Confirmations, approve and finalize
+- **Done:** `workspace/ApprovalFlow.tsx`. Each organizer task that names a check and a park gets **Confirm**, which opens a form locked to that task's check, park and time (shown, not editable) and posts `POST .../confirmations`; recorded confirmations are listed with who/when. **Approve and finalize** card: step 1 approves the exact version + evidence snapshot (button explains why it's unavailable; a `blocked` response lists the blocking checks); step 2 finalizes with a stable idempotency key per version (`finalize-<event>-v<n>`), shows the 5-item gate checklist, and if the gate fails says "Not finalized" with the failing items. Approve moved out of the Actions card into this card. `apiGet`/`apiSend` now pass on API error `details`. Checked on Case 2 v3: empty confirmation rejected, confirmation -> ready_for_approval with all checks passing, approve, finalize, and a repeat finalize returned the same record. 2 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-12 states.
+- **Gotchas:** v3 (from apply-option) still shows the v2 facts ("10 a.m. is 93°F"), which no longer describe the plan. Lifecycle data, not UI.
+- **Requests:** JT: should `apply_option` drop or refresh `facts` from the previous version? Also the gate's `current_evidence` and `required_confirmations` are still stubs (JT-09); the UI shows their "Stub:" reasons as they are.
+
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
 
 ## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
