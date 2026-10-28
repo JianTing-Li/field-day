@@ -331,11 +331,13 @@ async function review(
   if (result.ok) {
     requireMatchingResult("Review", result.review, v.version, v.evidence_snapshot_id);
     v.alternatives = result.review;
+    if (result.revision_rounds > 0) steps.push("Specialists revised their options");
     steps.push("Independent review complete");
   } else {
     steps.push(`Review could not complete: ${result.message}`);
   }
-  event.last_run = run(result.ok ? "completed" : "failed", steps);
+  const status = result.ok ? "completed" : result.kind === "budget_exhausted" ? "budget_exhausted" : "failed";
+  event.last_run = { ...run(status, steps, result.usage), revision_count: result.ok ? result.revision_rounds : 0 };
   return { event: await commit(store, event, base) };
 }
 

@@ -268,6 +268,40 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
+### D-JT10-1 — Choosing stub or real agents
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Orchestration & Shared State"; CLAUDE.md "Stubs and placeholders"
+- **Decision:** `FIELDDAY_AGENTS=real` runs every real agent that exists; anything else (the default, `stub`) runs the
+  fixture-backed stubs and makes no Anthropic calls. The orchestrator picks the implementation
+  (`src/server/orchestrator/agents.ts`) by importing each real agent from its `agent.ts`; every agent folder's
+  `index.ts` keeps exporting its stub, so fixture mode and the lifecycle tests are unchanged. An agent with no real
+  version yet runs as its stub, and every run reports which agents were stubs so an eval never mislabels one.
+- **Value:** default `stub`
+- **Status:** in use
+
+### D-JT10-2 — What starts the specialists
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Workflow at a glance", "How the agents connect"
+- **Decision:** A conflict is a critical check that fails on the drafted plan (source `harness`) or an organizer
+  report or review request (source `organizer`). A critical check that is only unknown is not a conflict: the
+  specialists cannot supply missing evidence, so the plan goes to the organizer as needs_verification with its
+  tasks. This matches every eval fixture (`specialists_run`): cases 2 and 4–9 run the specialists, cases 1, 3 and
+  10–12 do not.
+- **Status:** in use
+
+### D-JT10-3 — Run budget and revision round
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Execution budgets"
+- **Decision:** One budget is shared by every agent in a run. The orchestrator counts agent executions itself
+  (stubs included) and stops at 7: planning, 2 specialists, first review, at most 2 specialist revisions and a final
+  review. Only the specialists the Reviewer names run again in the revision round. A final review that still asks
+  for a revision becomes needs_verification with the request listed as a blocking issue; there is never a second
+  round. Running out of budget, a failed agent or an answer for another version or snapshot returns an explicit
+  unresolved result. The other caps keep D-004's placeholder values until the evals (JT-17) measure real runs; the
+  elapsed cap (240 s) must also fit the hosting function time limit, to be confirmed in the JT-20 deploy.
+- **Value:** 7 agent executions · 1 revision round · other caps as D-004 (proposed)
+- **Status:** in use
+
 ## JT-11 — NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13)
 
 ### D-020 — Curated parks

@@ -330,12 +330,12 @@ describe("stale-result rejection", () => {
   });
 
   it("rejects a review result for another version or snapshot without saving it", async () => {
-    hooks.review = (r) => (r.ok ? { ok: true, review: { ...r.review, evidence_snapshot_id: "snap-old" } } : r);
+    hooks.review = (r) => (r.ok ? { ...r, review: { ...r.review, evidence_snapshot_id: "snap-old" } } : r);
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
     const { event } = await svc.getEvent("evt-case-02");
     expect(cur(event).alternatives).toBeNull();
 
-    hooks.review = (r) => (r.ok ? { ok: true, review: { ...r.review, event_version: 1 } } : r);
+    hooks.review = (r) => (r.ok ? { ...r, review: { ...r.review, event_version: 1 } } : r);
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
   });
 
