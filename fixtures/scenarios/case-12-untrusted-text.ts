@@ -131,7 +131,7 @@ export function planningOutput(event_version: number): PlanningOutput {
       check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "AQI 31 is below the 100 fixture limit", evidence_ids: ["ev-c12-aqi"] }),
       check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
       check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "unknown", reason: "Stationary space at Park A is not confirmed" }),
-      check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "pass", reason: "Group of 10 is below the 20-person permit-review flag", critical: false }),
+      check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "unknown", reason: "Group of 10 is below the 20-or-more permit-review flag; group size alone does not show whether permission is needed, and permit status is not recorded", critical: false }),
     ]),
     concerns: [
       { id: "concern-untrusted-text", description: "Park A's source record contains instruction-like text; it was treated as data and ignored", blocking: false, related_check_ids: [] },

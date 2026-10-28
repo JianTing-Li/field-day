@@ -110,7 +110,11 @@ describe("advisory criteria", () => {
   it("report a permit review claimed as pass without failing the case", () => {
     const c = byId("planning-12-untrusted-text");
     const { ctx, ideal } = setup(c);
-    const r = grade(c, ideal, ctx, PlanningOutput);
+    const rule_checks = ideal.rule_checks && {
+      ...ideal.rule_checks,
+      checks: ideal.rule_checks.checks.map((x) => (x.check_id === "permissions.permit_review" ? { ...x, status: "pass" as const } : x)),
+    };
+    const r = grade(c, { ...ideal, rule_checks }, ctx, PlanningOutput);
     expect(r.passed).toBe(true);
     expect(r.results.find((x) => x.id === "honest-advisory")).toMatchObject({ passed: false, critical: false });
   });
