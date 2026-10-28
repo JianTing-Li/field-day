@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { case01, evalCases, scenarios } from "@fixtures/scenarios";
 import type { CandidatePlan, CheckId, CheckPlanResult, CheckResult } from "@/contracts";
-import { checkPlan, summarizeChecks } from "./check-plan";
+import { checkPlan, CRITICAL_CHECKS, summarizeChecks } from "./check-plan";
 
 const assessed = { park_id: "park-a", start_time: "2026-10-29T09:00", workout_template_id: "t" };
 const c = (status: CheckResult["status"], critical = true, check_id: CheckId = "heat.max_temperature"): CheckResult => ({
@@ -43,6 +43,18 @@ describe("checkPlan", () => {
     expect(out.blockers).toEqual([]);
     expect(out.overall).toBe("pass");
     expect(out.evidence_snapshot_id).toBe(case01.SNAPSHOT_ID);
+  });
+
+  it("returns every check ID exactly once, with no placeholder left", () => {
+    const out = run();
+    const ids = out.checks.map((x) => x.check_id).sort();
+    expect(ids).toEqual([...new Set(ids)]);
+    expect(ids).toEqual(Object.keys(CRITICAL_CHECKS).sort());
+    for (const x of out.checks) expect(x.policy_version).not.toBe("placeholder");
+  });
+
+  it("marks every check critical except the permit-review warning", () => {
+    for (const x of run().checks) expect(x.critical, x.check_id).toBe(x.check_id !== "permissions.permit_review");
   });
 
 });

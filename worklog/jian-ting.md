@@ -131,6 +131,18 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
 
+### 2026-10-28 — JT-06: check_plan with real rules, critical checks decided
+- **Done:** `CRITICAL_CHECKS` in `src/server/rules/check-plan.ts` is the one list of which checks block finalization;
+  `checkPlan` applies it to every module's results. No placeholder rule is left (`placeholder.ts` stays for future
+  rules). The lifecycle test that expected placeholder "unknown" now expects Case 1 to pass on re-check.
+- **Decisions:** D-JT06-1 (every check critical except `permissions.permit_review`; no rain or wind check).
+- **Interfaces others depend on:** `CRITICAL_CHECKS`, `checkPlan`, `summarizeChecks`, `RULE_MODULES` (unchanged
+  signatures). A module's own `critical` flag is overridden by the list.
+- **Unfinished / next:** the final save gate (JT-09) uses these results.
+- **Gotchas:** `npm test` and `npm run lint` also pick up old copies of the repo under `.claude/worktrees/` on this
+  machine; CI does not have them.
+- **Requests:** none
+
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
 
 ### 2026-10-27 — JT-07: Lifecycle

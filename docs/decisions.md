@@ -227,6 +227,17 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
 
+### D-JT06-1 — Critical checks
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies", §3 "Final save gate"
+- **Decision:** Every check is critical except `permissions.permit_review`, which stays a non-critical review
+  warning (D-007, D-018). `CRITICAL_CHECKS` in `src/server/rules/check-plan.ts` is the single list and check_plan
+  applies it to every rule module's results. There is no rain or wind check: the PRD defines no policy for them, so
+  precipitation and wind are shown as information only.
+- **Value:** critical: start_window, allowed_park, equipment, duration, heat, air_quality, freshness, space,
+  surface · non-critical: permit_review
+- **Status:** in use
+
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
 
 ### D-016 — Lifecycle transitions and confirmation carry-forward
