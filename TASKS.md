@@ -2,7 +2,8 @@
 
 Deadline: **Thursday Oct 29, 2026, noon.**
 
-Rules: check off tasks only in your own section, in the same PR that implements them.
+Rules: check off tasks only in your own section, in a sync PR after the task's PR merges (not in the task's PR;
+see "Work logs, decisions and task status" in CLAUDE.md). Tasks added later get their own work log file.
 Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 "JT waits on this" marks Yadan tasks that JT's integration depends on.
 
