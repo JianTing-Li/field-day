@@ -110,7 +110,7 @@ function spaceCheck(input: RuleInput, t: WorkoutTemplate, adaptations: Adaptatio
   const park = input.plan.park_id;
   if (!park) return make("space_surface.space", "space_surface", "unknown", `No park chosen, so ${label} space is not confirmed`);
 
-  const found = confirmations(input, "space_surface.space").filter((c) => (c.category ?? t.space.layout) === layout);
+  const found = confirmations(input, "space_surface.space").filter((c) => norm(c.category ?? t.space.layout) === layout);
   const no = found.filter((c) => c.value === false);
   if (no.length > 0) {
     return make("space_surface.space", "space_surface", "fail", `Organizer reported no usable ${label} space at ${park}`, ids(no));

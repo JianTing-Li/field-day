@@ -172,7 +172,7 @@ describe("space_surface.space", () => {
   });
 
   it("passes an adapted layout only with a confirmation naming that layout", () => {
-    const yes = confirm({ id: "ev-stationary-a", check: "space_surface.space", value: true, layout: "stationary" });
+    const yes = confirm({ id: "ev-stationary-a", check: "space_surface.space", value: true, layout: "Stationary" });
     const c = run(
       { start_time: "2026-07-16T08:00", workout_template_id: "tpl-run-intervals-45", adaptation_ids: ["adapt-stationary-circuit"] },
       { ...c2, extra: [yes] },
