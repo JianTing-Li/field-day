@@ -71,7 +71,10 @@ export function startWindowCheck(input: RuleInput): CheckResult {
   return check("pass", `Start time ${time} is within the allowed window ${window}`);
 }
 
-/** Organizer permission records for the plan's park, and its start time when the record has a valid period. */
+/**
+ * Organizer permission records for the plan's park, and its start time when the record has a valid period.
+ * The period includes valid_from and excludes valid_to, the same as the workout rules (D-023).
+ */
 function permitConfirmations(input: RuleInput): EvidenceItem[] {
   const { plan, snapshot } = input;
   if (plan.park_id === null) return [];
@@ -82,7 +85,7 @@ function permitConfirmations(input: RuleInput): EvidenceItem[] {
       e.confirms_check_id === "permissions.permit_review" &&
       e.applies_to.park_id === plan.park_id &&
       (e.valid_from === null || (plan.start_time !== null && plan.start_time >= e.valid_from)) &&
-      (e.valid_to === null || (plan.start_time !== null && plan.start_time <= e.valid_to)),
+      (e.valid_to === null || (plan.start_time !== null && plan.start_time < e.valid_to)),
   );
 }
 

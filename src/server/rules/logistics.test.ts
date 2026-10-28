@@ -109,6 +109,7 @@ describe("permitReviewCheck", () => {
     const scoped = permit("park-a", true, { valid_from: "2026-10-29T08:00", valid_to: "2026-10-29T08:45" });
     expect(permitReviewCheck(input({ start_time: "2026-10-29T08:00" }, {}, [...noRecords, scoped])).status).toBe("pass");
     expect(permitReviewCheck(input({ start_time: "2026-10-29T09:00" }, {}, [...noRecords, scoped])).status).toBe("unknown");
+    expect(permitReviewCheck(input({ start_time: "2026-10-29T08:45" }, {}, [...noRecords, scoped])).status).toBe("unknown");
   });
 });
 

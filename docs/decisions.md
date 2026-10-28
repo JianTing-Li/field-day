@@ -119,6 +119,24 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   also sends some errors as HTTP 200 with a `WebServiceError` body; those are treated as failures. The API key is
   added only inside the live fetcher and never appears in evidence URLs or gaps.
 
+## D-019 — Condition tool coverage rules
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3a get_forecast / get_air_quality; Data Sources "Coverage" (NWS, AirNow)
+- **Decision:** `get_forecast` and `get_air_quality` (`src/server/tools/index.ts`) report coverage like this:
+  - Valid periods are half-open `[valid_from, valid_to)`; an hour ending 09:00 does not cover 09:00.
+    Adapters should end a daily period at the next day's `00:00`, not `23:59`.
+  - Only `forecast` items with a value and both bounds count as coverage. Observations, point-in-time
+    items and items with a missing bound are returned but never cover a window.
+  - Temperature (forecast) and AQI are always required. Precipitation probability and wind are checked
+    only when the snapshot has that metric for the park at some time.
+  - A window with `end_time <= start_time`, or a park that is not in the snapshot, returns no items and
+    one explicit gap.
+  - Snapshot-level gaps are passed on only when they are about the tool's domain (NWS/forecast/weather
+    vs AirNow/AQI terms) and either name the requested park or name no park known to the snapshot.
+    Gaps about park records or templates go to neither tool.
+  - Local times are converted with `src/server/time.ts`; the repeated 1 a.m. hour on the fall-back
+    date cannot be told apart in `LocalDateTime`.
+
 ## D-018 — Logistics rules and permit-review warning
 - **Date / owner:** 2026-10-27 · JT
 - **PRD section:** §3 "Validation Policies" (event constraints, permissions)
@@ -139,7 +157,7 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - Acceptable confirmation records for space, surface and permission
 - Ranking priorities for equally valid alternatives
 
-## D-013 — Default Anthropic model
+## D-022 — Default Anthropic model
 - **Date / owner:** 2026-10-27 · JT
 - **PRD section:** §3
 - **Decision:** The agent runner reads the model ID from `ANTHROPIC_MODEL` and defaults to `claude-haiku-5-5` when unset (completing the model choice left open in D-002).

@@ -24,7 +24,7 @@ import {
   type Usage,
 } from "@/contracts";
 
-/** Default model ID used when ANTHROPIC_MODEL is not set (see D-013 in docs/decisions.md). */
+/** Default model ID used when ANTHROPIC_MODEL is not set (see D-022 in docs/decisions.md). */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5";
 
 /** Maximum model turns per single agent execution, including the optional repair turn. */
