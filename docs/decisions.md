@@ -120,6 +120,7 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   never stands in for a later event. A category-only forecast (AQI -1) becomes a missing value, not a guess. AirNow
   also sends some errors as HTTP 200 with a `WebServiceError` body; those are treated as failures. The API key is
   added only inside the live fetcher and never appears in evidence URLs or gaps.
+- **Status:** in use
 
 ## D-019 — Condition tool coverage rules
 - **Date / owner:** 2026-10-27 · JT
