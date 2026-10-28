@@ -11,7 +11,7 @@ import type {
   WorkoutTemplate,
 } from "@/contracts";
 import { summarizeChecks } from "@/server/rules/check-plan";
-import parks from "@/server/content/parks.json";
+import parks from "./parks.json";
 import workouts from "@/server/content/workouts.json";
 
 /** Builders that keep scenario fixtures short. All output is labeled as fixture data. */
@@ -19,6 +19,7 @@ import workouts from "@/server/content/workouts.json";
 export const FIXTURE_RETRIEVED_AT = "2026-10-28T12:00:00Z";
 export const FIXTURE_POLICY_VERSION = "fixture-policy-v0";
 
+/** Fixture parks (`park-a`, `park-b`) for the eval scenarios. The app's curated parks are in content/parks.json (D-020). */
 export const placeholderParks = parks as ParkCandidate[];
 export const placeholderTemplates = workouts as WorkoutTemplate[];
 

@@ -127,6 +127,23 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-11 — NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13)
 
+### 2026-10-27 — JT-11: NYC Parks adapter + curated parks
+- **Done:** `src/server/data/parks.ts`: `fetchParkRecords(mode)` checks each curated park against its NYC Open
+  Data Parks Properties record and returns one `park_record` reference item per park (fixture or live).
+  Flags missing/retired records, name/borough/acreage mismatches and coordinates outside the boundary as
+  coverage gaps; never throws. `parks.json` now has 10 real parks; recorded source data in
+  `fixtures/sources/parks/parks-properties.json` (labeled fixture). The eval scenarios keep their fixture parks
+  `park-a`/`park-b`, now in `fixtures/scenarios/parks.json`, so no scenario or test IDs change.
+- **Decisions:** D-020 (10 curated parks, more than the PRD's 3–5).
+- **Interfaces others depend on:** curated park IDs are `park-<property ID>`; fixture scenarios still use
+  `park-a`/`park-b`. `getCuratedParks()` unchanged; new `fetchParkRecords(mode, deps)` for the snapshot builder (JT-03).
+- **Unfinished / next:** JT-03 should call `fetchParkRecords` and use its items in the snapshot (scenario
+  helpers still build park evidence by hand). Live mode was exercised only with an injected fetch in tests.
+- **Gotchas:** McCarren's boundary is 5 parcels; its rounded centroid fell in a street, which the boundary
+  check caught. Large parks (Crotona, Clove Lakes, Wolfe's Pond) note that the coordinate is not a meeting point.
+- **Requests:** Yadan: please agree to D-020 (10 parks instead of 3–5). Seeded demo events still show the fixture
+  parks ("Park A", "Park B"), labeled as fixture data.
+
 ## JT-12 — Event Logistics agent (#14)
 
 ## JT-13 — Independent Reviewer agent (#15)
