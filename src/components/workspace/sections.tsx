@@ -62,7 +62,7 @@ export function BlockersCard({
     <Card
       title="What's blocking this plan"
       description="Critical problems must be fixed or confirmed before this version can be approved."
-      className={blocking.length > 0 ? "bg-accent/35" : ""}
+      className={blocking.length > 0 ? "bg-danger/40" : ""}
     >
       {blocking.length > 0 && (
         <ul className="space-y-2">

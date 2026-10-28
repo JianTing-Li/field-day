@@ -9,13 +9,15 @@
   --dp-color-ground: #f1f2fa;
   --dp-color-ink: #383139;
   --dp-color-ink-secondary: #48404b;
-  --dp-color-accent: #f6a3ca;
+  --dp-color-accent: #8ad9d1; /* light teal: brand, hero, primary actions, recommended option */
   --dp-color-surface-support: #c0efdc;
   --dp-color-surface-compare: #ded0f9;
   --dp-color-surface-warm: #f9e7a8;
   --dp-color-surface-cool: #c5e5fb;
   --dp-color-surface: #fffdf7;
-  /* Field error text on cream: a deep plum-pink from the ink/accent family, so errors stay legible. */
+  /* Problems keep a soft rose so a "Fail" never looks like the mint "Pass" or the teal brand color. */
+  --dp-color-surface-danger: #f6b3cf;
+  /* Field error text on cream: a deep plum so errors stay legible. */
   --dp-color-danger-ink: #8a2453;
 
   --dp-typography-face: var(--font-instrument), "Claymorphism Instrument", sans-serif;
@@ -58,6 +60,7 @@
   --color-butter: var(--dp-color-surface-warm);
   --color-cool: var(--dp-color-surface-cool);
   --color-cream: var(--dp-color-surface);
+  --color-danger: var(--dp-color-surface-danger);
   --color-danger-ink: var(--dp-color-danger-ink);
   --color-background: var(--dp-color-ground);
   --color-foreground: var(--dp-color-ink);

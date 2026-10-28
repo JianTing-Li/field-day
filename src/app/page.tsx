@@ -24,7 +24,7 @@ export default function Home() {
 function Sculpture() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] md:block">
-      <span className="clay absolute top-[14%] right-[30%] h-28 w-28 rounded-full bg-mint lg:h-36 lg:w-36" />
+      <span className="clay absolute top-[14%] right-[30%] h-28 w-28 rounded-full bg-cream lg:h-36 lg:w-36" />
       <span className="clay absolute top-[38%] right-[8%] h-24 w-40 rotate-[-12deg] rounded-surface bg-lavender lg:h-28 lg:w-48" />
       <span className="clay absolute right-[44%] bottom-[12%] h-16 w-16 rounded-full bg-butter lg:h-20 lg:w-20" />
       <span className="clay absolute right-[14%] bottom-[-8%] h-24 w-24 rounded-[30px] bg-cool lg:h-28 lg:w-28" />

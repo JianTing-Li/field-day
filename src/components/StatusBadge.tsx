@@ -7,7 +7,7 @@ const TONE: Record<string, string> = {
   info: "bg-cool text-ink",
   success: "bg-mint text-ink",
   final: "bg-ink text-cream",
-  danger: "bg-accent text-ink",
+  danger: "bg-danger text-ink",
 };
 
 /** A lifecycle status as icon + words. Color only reinforces the text. */

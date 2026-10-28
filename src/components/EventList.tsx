@@ -117,7 +117,7 @@ function ListSkeleton() {
   );
 }
 
-/** "+ New event". Cream on the pink hero, pink elsewhere. */
+/** "+ New event". Cream on the teal hero, teal elsewhere. */
 export function NewEventLink({
   className = "",
   variant = "surface",

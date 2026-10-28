@@ -183,7 +183,7 @@ export function BriefForm(props: Props) {
       )}
 
       {(errorList.length > 0 || serverError) && (
-        <div ref={summaryRef} tabIndex={-1} role="alert" className="clay focus-ring rounded-surface bg-accent px-6 py-5 text-ink">
+        <div ref={summaryRef} tabIndex={-1} role="alert" className="clay focus-ring rounded-surface bg-danger px-6 py-5 text-ink">
           {serverError ? (
             <p className="font-bold">{serverError}</p>
           ) : (

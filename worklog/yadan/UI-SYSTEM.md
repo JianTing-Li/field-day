@@ -7,3 +7,11 @@
 - **Unfinished / next:** none.
 - **Gotchas:** after editing `globals.css`, the dev server kept serving the old stylesheet until `.next/dev` was deleted and the server restarted (the production build was fine).
 - **Requests:** none
+
+### 2026-10-28 — UI-SYSTEM: light teal accent
+- **Done:** Swapped the pink accent for light teal (`#8ad9d1`). Fail checks, blocking concerns and error alerts moved to a separate soft rose (`bg-danger`) so problems stay distinct from mint passes and the teal brand. Checked home and the Case 2 workspace at 1280px and 762px.
+- **Decisions:** D-UI-2.
+- **Interfaces others depend on:** new Tailwind color `danger` (and `TONE_BG.danger` now uses it).
+- **Unfinished / next:** none.
+- **Gotchas:** the dev server again kept the old stylesheet until `.next/dev` was deleted.
+- **Requests:** none

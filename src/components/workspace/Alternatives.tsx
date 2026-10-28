@@ -86,7 +86,7 @@ export function Alternatives({
   );
 }
 
-/** One broad horizontal shelf: identity, details, action. The recommended shelf is pink. */
+/** One broad horizontal shelf: identity, details, action. The recommended shelf is teal. */
 function OptionShelf({
   rank,
   option: o,

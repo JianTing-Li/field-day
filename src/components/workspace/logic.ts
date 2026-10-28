@@ -22,7 +22,7 @@ export function currentVersion(event: FieldDayEvent): PlanVersion {
 /** Icon + words for a check result. Unknown is never styled like pass. */
 export const CHECK_STATUS: Record<CheckStatus, { icon: string; label: string; tone: string }> = {
   pass: { icon: "✓", label: "Pass", tone: "text-ink bg-mint" },
-  fail: { icon: "✕", label: "Fail", tone: "text-ink bg-accent" },
+  fail: { icon: "✕", label: "Fail", tone: "text-ink bg-danger" },
   unknown: { icon: "?", label: "Unknown", tone: "text-ink bg-butter" },
 };
 

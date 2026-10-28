@@ -8,11 +8,11 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type ButtonVariant = "primary" | "secondary" | "surface" | "danger" | "ghost";
 
 const BUTTON: Record<ButtonVariant, string> = {
-  // Thick molded pills. "surface" is the cream pill used on top of pink areas.
+  // Thick molded pills. "surface" is the cream pill used on top of teal areas.
   primary: "clay-control bg-accent text-ink",
   secondary: "clay-control bg-cream text-ink",
   surface: "clay-control bg-cream text-ink",
-  danger: "clay-control bg-accent text-ink",
+  danger: "clay-control bg-danger text-ink",
   // Plain text action beside a primary button.
   ghost: "text-ink underline-offset-4 hover:underline",
 };
@@ -66,7 +66,7 @@ export type Tone = "info" | "warning" | "danger" | "success" | "neutral";
 export const TONE_BG: Record<Tone, string> = {
   info: "bg-cool",
   warning: "bg-butter",
-  danger: "bg-accent",
+  danger: "bg-danger",
   success: "bg-mint",
   neutral: "bg-lavender",
 };
