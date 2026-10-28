@@ -108,3 +108,11 @@ describe("finalizeKey", () => {
     expect(finalizeKey("evt-1", 3)).not.toBe(finalizeKey("evt-1", 4));
   });
 });
+
+describe("applyOption", () => {
+  it("is offered only when the current version has alternatives", () => {
+    expect(availableActions(at("needs_verification")).applyOption).toBe(false);
+    const review = case02.reviewerOutput(1);
+    expect(availableActions({ ...at("needs_verification"), alternatives: review }).applyOption).toBe(true);
+  });
+});

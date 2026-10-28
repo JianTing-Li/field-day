@@ -120,6 +120,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
 
+### 2026-10-28 — YT-10: Alternatives comparison
+- **Done:** `workspace/Alternatives.tsx` shows `alternatives` on the current version: reviewer status, unresolved blocking issues, the recommendation (or a plain "no option is recommended yet"), and one card per ranked option with park/time/workout, before -> after changes in words, critical checks that aren't passing, unknowns, tradeoffs, and **Use this option** (`POST .../apply-option`, then reload). A recommended option is outlined and starred; an option that still fails a check says it can't be approved as is. Checked on Case 2: Request review -> 2 options, none recommended; Use option 1 -> v3 at 8 a.m. with the stationary circuit and one blocker (Park A stationary space). 4 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-11 confirmations, approve and finalize.
+- **Gotchas:** after applying, the new version carries the review's organizer tasks for both parks (Park B's task too), which reads a little odd on a Park A plan. That comes from the lifecycle/reviewer data, not the UI.
+- **Requests:** JT: should `apply_option` keep only the organizer tasks for the chosen option's park/time?
+
 ## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
 
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)

@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { Api, ChangeReport, type EvidenceSnapshot, type FieldDayEvent } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { Alert, Button, buttonClass, Card } from "../ui";
+import { Alternatives } from "./Alternatives";
 import { approveBlockedReason, availableActions, currentVersion } from "./logic";
 import { BlockersCard, ChecksList, EvidenceList, PlanCard, StatusBar } from "./sections";
 
@@ -149,6 +150,15 @@ export function Workspace({ eventId }: { eventId: string }) {
       </Card>
 
       <BlockersCard version={v} snapshot={snapshot} />
+      <Alternatives
+        version={v}
+        snapshot={snapshot}
+        busy={!!busy}
+        canApply={actions.applyOption}
+        onApply={(o) =>
+          act("Use this option", "apply-option", { ...version, combined_option_id: o.combined_option_id }, Api.applyOption.response)
+        }
+      />
       <div className="grid gap-5 lg:grid-cols-2">
         <PlanCard version={v} snapshot={snapshot} />
         <ChecksList checks={v.checks} />

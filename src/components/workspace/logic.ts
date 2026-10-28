@@ -55,6 +55,7 @@ export interface Actions {
   recheck: boolean;
   reportChange: boolean;
   requestReview: boolean;
+  applyOption: boolean;
   confirm: boolean;
   approve: boolean;
   finalize: boolean;
@@ -70,6 +71,7 @@ export function availableActions(v: PlanVersion): Actions {
     recheck: hasPlan && s !== "draft",
     reportChange: hasPlan && open.includes(s),
     requestReview: hasPlan && open.includes(s),
+    applyOption: v.alternatives !== null && [...open, "finalized"].includes(s),
     confirm: hasPlan && ["needs_verification", "ready_for_approval", "approved"].includes(s),
     approve: s === "ready_for_approval",
     finalize: s === "approved",
