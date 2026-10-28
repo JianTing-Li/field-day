@@ -280,6 +280,23 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-18 — Logistics + Reviewer eval cases (#20)
 
+### 2026-10-28 — JT-18: Logistics + Reviewer eval cases
+- **Done:** `evals/cases/logistics/` (6 cases: scenarios 2, 4, 5, 6, 8, 9) and `evals/cases/reviewer/` (same 6
+  scenarios; the Reviewer gets both fixture proposals and the orchestrator's real combination checks). Each case is a
+  baseline (echo, evidence only, real candidates, honest checks, honest status, ...) plus scenario criteria (e.g.
+  Case 8: the recommendation combines the time change and the workout adaptation). `grade.ts` grades them the same
+  way as Yadan's rubric. Tests: every scenario's ideal output passes, the stub passes through the same path, and
+  bad outputs are caught.
+- **Decisions:** criteria judge against the harness's check_plan, never hard-coded statuses. A concern in the same
+  area counts as making an unknown visible, blocking or not.
+- **Interfaces others depend on:** `logisticsEvalCases`, `reviewerEvalCases`, `SpecialistEvalCase`, `gradeCase`,
+  `runAndGradeCase`, `contextFor`.
+- **Unfinished / next:** results come from the real run (JT-17).
+- **Gotchas:** Yadan's `AgentEvalCase` type covers only Planning and Workout, so these cases use a local type with the
+  same shape and reuse the rubric's helpers. Widening `EvalAgent` in `evals/cases/planning/rubric.ts` would let both
+  share one type; not needed now.
+- **Requests:** none
+
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 
 ## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
