@@ -110,6 +110,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
 
+### 2026-10-28 — YT-09: Event workspace
+- **Done:** `/events/[id]` renders `src/components/workspace/Workspace.tsx` from `GET /api/events/:id`: title and brief summary, status bar (status, version, snapshot, finalized version, last run), actions (Generate, Recheck, Something changed with a kind + details form, Request review, Approve vN with the reason when it's unavailable), blockers + organizer tasks, plan card (park, start, length, workout and adaptations, outline, facts with links to their evidence), checks (fail, then unknown, then pass; icon + word; advisory checks marked), and the evidence list (type, fixture label, value or missing reason, source, valid period, limitations, coverage gaps). Each action reloads the event afterwards. Shared `ui.tsx` (Button, Card, Alert, Pill) for the later design-system pass. 9 tests in `workspace/logic.test.ts`. Checked in the browser on Case 2 and on a new event (Generate -> v3 ready for approval).
+- **Decisions:** none
+- **Interfaces others depend on:** `availableActions` in `workspace/logic.ts` mirrors `ACTION_FROM` in `lifecycle/transitions.ts`; if JT changes that table, this needs the same change.
+- **Unfinished / next:** YT-10 alternatives, YT-11 confirmations/approve/finalize, YT-12 states.
+- **Gotchas:** check names are neutral labels ("Heat limit"), so a fail badge never sits next to a sentence that claims the opposite.
+- **Requests:** none
+
 ## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
 
 ## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
