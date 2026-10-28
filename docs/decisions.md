@@ -127,7 +127,7 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - Acceptable confirmation records for space, surface and permission
 - Ranking priorities for equally valid alternatives
 
-## D-013 — Default Anthropic model
+## D-022 — Default Anthropic model
 - **Date / owner:** 2026-10-27 · JT
 - **PRD section:** §3
 - **Decision:** The agent runner reads the model ID from `ANTHROPIC_MODEL` and defaults to `claude-haiku-5-5` when unset (completing the model choice left open in D-002).
