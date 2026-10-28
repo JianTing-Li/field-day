@@ -11,7 +11,7 @@ import type {
   WorkoutTemplate,
 } from "@/contracts";
 import { summarizeChecks } from "@/server/rules/check-plan";
-import parks from "@/server/content/parks.json";
+import parks from "./parks.json";
 import workouts from "@/server/content/workouts.json";
 
 /** Builders that keep scenario fixtures short. All output is labeled as fixture data. */
@@ -19,7 +19,8 @@ import workouts from "@/server/content/workouts.json";
 export const FIXTURE_RETRIEVED_AT = "2026-10-28T12:00:00Z";
 export const FIXTURE_POLICY_VERSION = "fixture-policy-v0";
 
-export const curatedParks = parks as ParkCandidate[];
+/** Fixture parks (`park-a`, `park-b`) for the eval scenarios. The app's curated parks are in content/parks.json (D-020). */
+export const placeholderParks = parks as ParkCandidate[];
 export const placeholderTemplates = workouts as WorkoutTemplate[];
 
 export function template(id: string): WorkoutTemplate {
@@ -73,18 +74,18 @@ export function evidence(a: EvidenceArgs): EvidenceItem {
   };
 }
 
-/** Reference evidence records for the curated parks and placeholder templates. */
+/** Reference evidence records for the placeholder parks and templates. */
 export function referenceEvidence(): EvidenceItem[] {
   return [
-    ...curatedParks.map((p) =>
+    ...placeholderParks.map((p) =>
       evidence({
         id: p.evidence_id,
         metric: "park_record",
         evidence_type: "reference",
         value: p.name,
-        source: "NYC Parks Open Data — Parks Properties (fixture)",
+        source: "Placeholder park list",
         park_id: p.id,
-        limitations: ["Park record; does not prove space, capacity or permission"],
+        limitations: ["Placeholder record; does not prove space, capacity or permission"],
       }),
     ),
     ...placeholderTemplates.map((t) =>

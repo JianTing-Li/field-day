@@ -1,46 +1,95 @@
 [
   {
     "id": "tpl-bodyweight-45",
-    "name": "Bodyweight circuit (placeholder)",
+    "name": "Beginner bodyweight circuit",
     "duration_minutes": 45,
     "intensity": "moderate",
     "exercises": [
-      { "name": "Warm-up walk and mobility", "minutes": 8, "intensity": "low" },
-      { "name": "Bodyweight circuit", "minutes": 30, "intensity": "moderate" },
-      { "name": "Cool-down stretch", "minutes": 7, "intensity": "low" }
+      { "name": "Warm-up: easy walk in place, arm circles, leg swings", "minutes": 8, "intensity": "low" },
+      { "name": "Circuit, 5 rounds of 40s on / 20s rest: squats, incline push-ups or wall push-ups, glute bridges, reverse lunges, plank, step jacks", "minutes": 30, "intensity": "moderate" },
+      { "name": "Cool-down: hamstring, quad, hip flexor and shoulder stretches", "minutes": 7, "intensity": "low" }
     ],
     "equipment": [],
-    "space": { "layout": "stationary", "min_area_sq_m": null },
-    "surfaces": ["grass", "paved"],
-    "group_size": { "min": 1, "max": 30 },
-    "permitted_adaptations": [],
-    "review": { "status": "placeholder", "reviewer": null, "reviewed_at": null },
+    "space": { "layout": "stationary", "min_area_sq_m": 100 },
+    "surfaces": ["grass", "turf", "paved"],
+    "group_size": { "min": 4, "max": 25 },
+    "permitted_adaptations": [
+      {
+        "id": "adapt-low-impact",
+        "description": "Swap every move for its low-impact version (no jumping, push-ups against a wall or bench)",
+        "effect": "Easier on joints for beginners; same moves, same time, same space",
+        "resulting_layout": null,
+        "duration_delta_minutes": 0
+      },
+      {
+        "id": "adapt-short-30",
+        "description": "Do 3 circuit rounds instead of 5 and shorten the cool-down to 4 minutes",
+        "effect": "Shortens the session by 15 minutes (12 from the circuit, 3 from the cool-down)",
+        "resulting_layout": null,
+        "duration_delta_minutes": -15
+      }
+    ],
+    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
     "evidence_id": "ev-tpl-bodyweight-45"
   },
   {
     "id": "tpl-run-intervals-45",
-    "name": "Running intervals (placeholder)",
+    "name": "Beginner walk-run intervals",
     "duration_minutes": 45,
     "intensity": "high",
     "exercises": [
-      { "name": "Easy jog warm-up", "minutes": 10, "intensity": "low" },
-      { "name": "Running intervals", "minutes": 28, "intensity": "high" },
-      { "name": "Cool-down walk", "minutes": 7, "intensity": "low" }
+      { "name": "Warm-up: brisk walk, then easy jog", "minutes": 10, "intensity": "low" },
+      { "name": "Intervals, 7 rounds: 1 min run at a hard but steady pace, 2 min walk", "minutes": 21, "intensity": "high" },
+      { "name": "Steady easy jog or brisk walk", "minutes": 7, "intensity": "moderate" },
+      { "name": "Cool-down walk and calf, hamstring and hip stretches", "minutes": 7, "intensity": "low" }
     ],
     "equipment": [],
     "space": { "layout": "running_lane", "min_area_sq_m": null },
-    "surfaces": ["paved"],
-    "group_size": { "min": 1, "max": 30 },
+    "surfaces": ["paved", "track"],
+    "group_size": { "min": 4, "max": 20 },
     "permitted_adaptations": [
       {
         "id": "adapt-stationary-circuit",
-        "description": "Replace running intervals with a stationary circuit",
+        "description": "Replace the running intervals with a stationary circuit (high knees, squats, step-ups, mountain climbers)",
         "effect": "Removes the need for a running lane; needs open stationary space instead",
         "resulting_layout": "stationary",
         "duration_delta_minutes": 0
+      },
+      {
+        "id": "adapt-loop-path",
+        "description": "Run the intervals around a park loop path instead of a straight lane",
+        "effect": "Needs a loop path the whole group can share instead of a running lane",
+        "resulting_layout": "loop_path",
+        "duration_delta_minutes": 0
       }
     ],
-    "review": { "status": "placeholder", "reviewer": null, "reviewed_at": null },
+    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
     "evidence_id": "ev-tpl-run-intervals-45"
+  },
+  {
+    "id": "tpl-band-strength-45",
+    "name": "Beginner resistance band strength",
+    "duration_minutes": 45,
+    "intensity": "moderate",
+    "exercises": [
+      { "name": "Warm-up: marching, arm circles, band pull-aparts", "minutes": 8, "intensity": "low" },
+      { "name": "Strength, 3 sets of 12 each: band rows, band chest press, banded squats, banded glute bridges, band overhead press", "minutes": 30, "intensity": "moderate" },
+      { "name": "Cool-down: mat stretches for back, hips and shoulders", "minutes": 7, "intensity": "low" }
+    ],
+    "equipment": ["resistance_band", "exercise_mat"],
+    "space": { "layout": "stationary", "min_area_sq_m": 100 },
+    "surfaces": ["grass", "turf"],
+    "group_size": { "min": 4, "max": 20 },
+    "permitted_adaptations": [
+      {
+        "id": "adapt-band-short-35",
+        "description": "Do 2 sets of each move instead of 3",
+        "effect": "Shortens the session by 10 minutes; warm-up and cool-down stay the same",
+        "resulting_layout": null,
+        "duration_delta_minutes": -10
+      }
+    ],
+    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
+    "evidence_id": "ev-tpl-band-strength-45"
   }
 ]

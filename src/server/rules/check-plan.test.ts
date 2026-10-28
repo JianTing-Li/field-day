@@ -3,7 +3,7 @@ import { case01 } from "@fixtures/scenarios";
 import type { CheckId, CheckResult } from "@/contracts";
 import { checkPlan, summarizeChecks } from "./check-plan";
 
-const assessed = { park_id: "park-b058", start_time: "2026-10-29T09:00", workout_template_id: "t" };
+const assessed = { park_id: "park-a", start_time: "2026-10-29T09:00", workout_template_id: "t" };
 const c = (status: CheckResult["status"], critical = true, check_id: CheckId = "heat.max_temperature"): CheckResult => ({
   check_id,
   area: "heat",
