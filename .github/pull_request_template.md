@@ -1,5 +1,5 @@
 ## Task
-<!-- Task ID from TASKS.md, e.g. JT-04 -->
+<!-- Task ID(s) from TASKS.md, e.g. JT-04. A grouped PR lists each task and one Closes line per task. -->
 
 Closes #
 
