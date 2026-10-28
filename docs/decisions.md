@@ -99,7 +99,27 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   resolves only the matching check at that park (and time); Park A suitability never resolves Park B.
 - **Status:** in use
 
-## D-013 — Logistics rules and permit-review warning
+## D-013 — NWS adapter: wind ranges and the fixture recording
+- **Date / owner:** 2026-10-27 · Yadan
+- **PRD section:** §3 "Common evidence contract"
+- **Decision:** When NWS gives a wind range ("5 to 10 mph"), the evidence uses the higher value and says so in
+  `limitations`. Fixture mode always answers with one real recording (Central Park, grid OKX/34,45, retrieved
+  2026-10-27, covering 2026-10-27T13:00 to 2026-11-03T00:00), so fixture events must fall in that window or they
+  get a coverage gap. Provider error text is never copied into gaps; only the HTTP status is.
+- **Status:** in use
+
+## D-015 — AirNow adapter: which services, and when observations count
+- **Date / owner:** 2026-10-27 · Yadan
+- **PRD section:** §3 "Common evidence contract"
+- **Decision:** Use AirNow's June 2026 services: `/aq/forecast/current/` (daily forecast per pollutant) and
+  `/aq/observation/current/ziplatlong/` (current NowCast reading). The older lat/long and zip services were retired
+  on 2026-10-01 and return HTTP 410. Forecasts cover whole days (00:00 to 00:00); each event day without one is a
+  coverage gap. An observation is kept only when the hour it measured overlaps the event, so a current reading
+  never stands in for a later event. A category-only forecast (AQI -1) becomes a missing value, not a guess. AirNow
+  also sends some errors as HTTP 200 with a `WebServiceError` body; those are treated as failures. The API key is
+  added only inside the live fetcher and never appears in evidence URLs or gaps.
+
+## D-018 — Logistics rules and permit-review warning
 - **Date / owner:** 2026-10-27 · JT
 - **PRD section:** §3 "Validation Policies" (event constraints, permissions)
 - **Decision:** `src/server/rules/logistics.ts` checks the allowed park, the start window (event date and
@@ -118,3 +138,16 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - Freshness limits per source (JT-03)
 - Acceptable confirmation records for space, surface and permission
 - Ranking priorities for equally valid alternatives
+
+## D-013 — Default Anthropic model
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3
+- **Decision:** The agent runner reads the model ID from `ANTHROPIC_MODEL` and defaults to `claude-haiku-5-5` when unset (completing the model choice left open in D-002).
+- **Value:** `claude-haiku-5-5`
+- **Status:** in use
+
+## D-014 — Agent runner tool error handling
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3a, §3b
+- **Decision:** The agent runner fails fast and returns `tool_error` immediately if the model requests a tool not in `definition.allowed_tools`, if tool input fails `ToolSchemas` validation, or if a tool handler throws. Automatic retry/repair is reserved for the single final JSON output repair attempt.
+- **Status:** in use
