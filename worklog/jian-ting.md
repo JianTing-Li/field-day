@@ -80,6 +80,19 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
 
+### 2026-10-27 — JT-05: Logistics rules
+- **Done:** replaced the placeholder `logisticsRules` in `src/server/rules/logistics.ts` with real
+  `event_constraints.start_window`, `event_constraints.allowed_park` and `permissions.permit_review` checks;
+  tests in `logistics.test.ts` (incl. Case 1 and Case 2 fixtures).
+- **Decisions:** D-018 (permit flag ≥ 20, non-critical; unknown without an organizer record at any group size).
+- **Interfaces others depend on:** `logisticsRules` (same export); also exports `startWindowCheck`,
+  `allowedParkCheck`, `permitReviewCheck`, `LOGISTICS_POLICY`.
+- **Unfinished / next:** JT-06 decides which checks are critical (start window / allowed park are critical for now).
+- **Gotchas:** permit confirmations match on `applies_to.park_id`; when `valid_from`/`valid_to` are set, the plan's
+  start time must be at or after `valid_from` and before `valid_to`
+  (the same rule as Yadan's workout rules, D-023). Plan and brief time zones are both fixed to New York by the contracts.
+- **Requests:** none
+
 ## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
 
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
