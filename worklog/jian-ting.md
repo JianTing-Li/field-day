@@ -278,7 +278,41 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
 
+### 2026-10-28 — JT-17: Eval runner + comparison
+- **Done:** `evals/runner.ts` runs the 12 cases through rules-only, Planning alone and the 4-agent workflow and grades
+  each against its `expected` outcome. `evals/compare.ts` computes the PRD §2c metrics (correct outcomes, conflicts
+  resolved, hard-rule violations, cited evidence not in the snapshot, hidden gaps, multi-agent value, usage, latency,
+  cost) and writes a Markdown report. `evals/run-evals.test.ts` is the real run, skipped unless `RUN_EVALS=1`; it
+  also runs each agent on its own eval cases. Tests in `evals/runner.test.ts` (stub mode). The orchestrator now
+  registers the real Logistics and Reviewer agents and rejects Planning answers with unknown references (Case 11).
+  `evals/README.md` explains how to run it.
+- **Decisions:** D-JT17-1 (architectures and grading), D-JT17-2 (Planning reference check).
+- **Interfaces others depend on:** `runEvals`, `runRules`, `runSingle`, `runMulti`, `gradeOutcome`, `finalValidation`,
+  `summarize`, `toMarkdown`; `planningReferenceProblem` in the orchestrator; `REAL_AGENTS` now has all four agents.
+- **Unfinished / next:** the real run with `FIELDDAY_AGENTS=real`, then the README "Eval results" section.
+- **Gotchas:** in stub mode the 4-agent workflow scores 12/12 because the stubs return the fixtures' own outputs;
+  that only shows the plumbing works. Rules-only reaches 11/11 on the fixtures without any agent, so the PRD's
+  "multi-agent value" question depends on the real run.
+- **Requests:** none
+
 ## JT-18 — Logistics + Reviewer eval cases (#20)
+
+### 2026-10-28 — JT-18: Logistics + Reviewer eval cases
+- **Done:** `evals/cases/logistics/` (6 cases: scenarios 2, 4, 5, 6, 8, 9) and `evals/cases/reviewer/` (same 6
+  scenarios; the Reviewer gets both fixture proposals and the orchestrator's real combination checks). Each case is a
+  baseline (echo, evidence only, real candidates, honest checks, honest status, ...) plus scenario criteria (e.g.
+  Case 8: the recommendation combines the time change and the workout adaptation). `grade.ts` grades them the same
+  way as Yadan's rubric. Tests: every scenario's ideal output passes, the stub passes through the same path, and
+  bad outputs are caught.
+- **Decisions:** criteria judge against the harness's check_plan, never hard-coded statuses. A concern in the same
+  area counts as making an unknown visible, blocking or not.
+- **Interfaces others depend on:** `logisticsEvalCases`, `reviewerEvalCases`, `SpecialistEvalCase`, `gradeCase`,
+  `runAndGradeCase`, `contextFor`.
+- **Unfinished / next:** results come from the real run (JT-17).
+- **Gotchas:** Yadan's `AgentEvalCase` type covers only Planning and Workout, so these cases use a local type with the
+  same shape and reuse the rubric's helpers. Widening `EvalAgent` in `evals/cases/planning/rubric.ts` would let both
+  share one type; not needed now.
+- **Requests:** none
 
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 

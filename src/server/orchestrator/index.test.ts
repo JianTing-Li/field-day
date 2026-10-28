@@ -11,13 +11,14 @@ import {
   type ReviewerOutput,
   type ToolRegistry,
 } from "@/contracts";
-import { case01, case02 } from "@fixtures/scenarios";
+import { case01, case02, case11 } from "@fixtures/scenarios";
 import { tools } from "@/server/tools";
 import { agentKinds, agentMode, selectAgents, STUB_AGENTS, type AgentSet } from "./agents";
 import {
   combinationChecks,
   findConflict,
   MAX_AGENT_EXECUTIONS,
+  planningReferenceProblem,
   runConflictReview,
   runPlanning,
   runWorkflow,
@@ -270,6 +271,23 @@ describe("runWorkflow", () => {
 });
 
 describe("runPlanning", () => {
+  it("rejects a Planning answer that cites a candidate or evidence the snapshot doesn't have (Case 11)", async () => {
+    const snapshot = case11.snapshot("evt-test", 1);
+    const r = await runPlanning({ event_id: "evt-test", event_version: 1, brief: case11.brief, snapshot }, { agents: STUB_AGENTS });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.kind).toBe("invalid_output");
+      expect(r.error.message).toContain(case11.UNKNOWN_IDS.park_time_candidate);
+    }
+  });
+
+  it("rejects a plan whose park or time doesn't match its candidate", () => {
+    const out = case01.planningOutput(1);
+    const snapshot = case01.snapshot("evt-test", 1);
+    expect(planningReferenceProblem(out, snapshot)).toBeNull();
+    expect(planningReferenceProblem({ ...out, plan: { ...out.plan, start_time: "2026-10-29T11:00" } }, snapshot)).toContain("but candidate");
+  });
+
   it("rejects a planning answer for another version", async () => {
     const r = await runPlanning(args2, { agents: asSet({ ...case2Agents(), planning: fake("planning", [{ ...case02.planningOutput(1), event_version: 3 }]) }) });
     expect(r.ok).toBe(false);
@@ -288,10 +306,7 @@ describe("agent selection", () => {
     expect(agentMode()).toBe("real");
   });
 
-  it("falls back to the stub for an agent that has no real implementation yet, and says so", () => {
-    const kinds = agentKinds(selectAgents("real"));
-    expect(kinds.planning).toBe("real");
-    expect(kinds.workout).toBe("real");
-    for (const name of ["logistics", "reviewer"] as const) expect(["stub", "real"]).toContain(kinds[name]);
+  it("runs every agent's real implementation in real mode", () => {
+    expect(agentKinds(selectAgents("real"))).toEqual({ planning: "real", logistics: "real", workout: "real", reviewer: "real" });
   });
 });
