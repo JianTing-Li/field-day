@@ -67,10 +67,11 @@ npm run dev                  # http://localhost:3000
 | Agent tools | JT | done |
 | Evidence snapshots, freshness | JT | placeholder |
 | Heat / AQI policies | JT | placeholder |
-| Logistics rules | JT | placeholder |
-| check_plan | JT | done (combining); rules placeholder |
+| Logistics rules | JT | done |
+| check_plan | JT | done (combining); logistics and workout rules real, heat/AQI placeholder |
 | Orchestrator | JT | stub |
-| Lifecycle, approval, save gate | JT | stub |
+| Lifecycle, approval | JT | done (states, versions, approval invalidation, stale-result rejection) |
+| Final save gate | JT | stub (version, approval, hard constraints only) |
 | Persistence | JT | in-memory stub |
 | Event Logistics agent | JT | stub |
 | Independent Reviewer agent | JT | stub |
@@ -84,7 +85,7 @@ npm run dev                  # http://localhost:3000
 <!-- Each person edits only their own sources. Status: proposed · tested · live · fixture-backed -->
 | Source | Owner | Status |
 |---|---|---|
-| NYC Parks Open Data | JT | proposed; placeholder parks in use |
+| NYC Parks Open Data | JT | in use: 10 curated parks (D-020); eval scenarios use fixture parks; live mode untested in CI |
 | National Weather Service | Yadan | tested; fixture-backed (live mode needs `NWS_USER_AGENT`) |
 | AirNow | Yadan | tested live; fixture-backed (live mode needs `AIRNOW_API_KEY`) |
 | Workout templates | Yadan | placeholder, not instructor-reviewed |

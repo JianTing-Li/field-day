@@ -127,14 +127,15 @@ contract type so nothing else has to change.
 
 ## Workflow
 1. Pick a task from your owner's section of `TASKS.md`. Its GitHub issue number is next to it.
-2. Branch from `develop` (no naming convention). One task per branch and PR.
+2. Branch from `develop` (no naming convention). One task per branch and PR, or one group of tasks that
+   depend on each other or work in the same area (same owner). A grouped PR has one commit per task and a `Closes #N` for each task.
 3. Before opening the PR, complete the done checklist:
    - [ ] `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` all pass
    - [ ] New logic has tests
    - [ ] Work log entry added in the task's section (or the task's own file)
    - [ ] Matching README sections updated (status rows wait for the sync PR)
    - [ ] Any new decision recorded in the task's section of `docs/decisions.md` (or `docs/decisions/<TASK-ID>.md`)
-4. Open the PR to `develop` using the PR template, with `Closes #N`.
+4. Open the PR to `develop` using the PR template, with `Closes #N` for each task.
    Never merge your own PR; the other person reviews.
 
 ## Commits
