@@ -15,7 +15,7 @@ import { runConflictReview, runPlanning } from "@/server/orchestrator";
 import { checkPlan } from "@/server/rules/check-plan";
 import { getStore } from "@/server/store/memory";
 import type { EventStore } from "@/server/store/types";
-import { applyConfirmations } from "./confirmations";
+import { applyConfirmations, confirmationLayout, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
 import { snapshotFor } from "./snapshots";
 import { assertCanStart, deriveStatus, transition } from "./transitions";
@@ -123,6 +123,12 @@ function requireMatchingResult(
   }
 }
 
+/** Workout templates in a snapshot; empty if there is none, so no layout can be worked out. */
+async function templatesFor(store: EventStore, snapshotId: string | null) {
+  const snapshot = snapshotId ? await store.getSnapshot(snapshotId) : null;
+  return snapshot?.workout_templates ?? [];
+}
+
 async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
   const event = await store.getEvent(id);
   if (!event) throw new ServiceError("not_found", `Event ${id} not found`);
@@ -171,7 +177,8 @@ async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEv
   }
   const out = result.output;
   requireMatchingResult("Planning", out, next, snapshot.id);
-  const checks = out.rule_checks ? applyConfirmations(out.rule_checks, event.confirmations).checks : null;
+  const layout = planLayout(out.plan, snapshot.workout_templates);
+  const checks = out.rule_checks ? applyConfirmations(out.rule_checks, event.confirmations, layout).checks : null;
   pushVersion(event, {
     ...emptyVersion(next, base.version, "planning"),
     status: deriveStatus(out.plan, checks, out.status),
@@ -282,7 +289,7 @@ export async function recheck(id: string, req: ApiRequest<"recheck">): Promise<A
   }
   await store.saveSnapshot(snapshot);
   const raw = checkPlan({ plan: v.plan, brief: event.brief, snapshot, event_version: next });
-  const { checks } = applyConfirmations(raw, event.confirmations);
+  const { checks } = applyConfirmations(raw, event.confirmations, planLayout(v.plan, snapshot.workout_templates));
   pushVersion(event, {
     ...emptyVersion(next, v.version, "recheck"),
     status: deriveStatus(v.plan, checks),
@@ -362,7 +369,12 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
   requireMatchingResult("Review", review, v.version, v.evidence_snapshot_id ?? "");
   requireMatchingResult("Option checks", option.checks, v.version, v.evidence_snapshot_id ?? "");
   const next = v.version + 1;
-  const { checks } = applyConfirmations({ ...option.checks, event_version: next }, event.confirmations);
+  const templates = await templatesFor(store, v.evidence_snapshot_id);
+  const { checks } = applyConfirmations(
+    { ...option.checks, event_version: next },
+    event.confirmations,
+    planLayout(option.plan, templates),
+  );
   pushVersion(event, {
     ...emptyVersion(next, v.version, "review"),
     status: deriveStatus(option.plan, checks),
@@ -392,6 +404,7 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   requireCurrent(event, req.version);
   const v = current(event);
   assertCanStart("add_confirmation", v);
+  const templates = await templatesFor(store, v.evidence_snapshot_id);
   const conf = {
     id: newId("conf"),
     check_id: req.check_id,
@@ -401,11 +414,13 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
     confirmed_by: "Organizer",
     confirmed_at: now(),
     note: req.note,
+    // Space and surface confirmations only resolve plans with this layout (D-JT22-1).
+    layout: confirmationLayout(req, v.plan, templates),
   };
   event.confirmations.push(conf);
   clearApproval(event);
   if (v.checks) {
-    const { checks, changed } = applyConfirmations(v.checks, [conf]);
+    const { checks, changed } = applyConfirmations(v.checks, [conf], planLayout(v.plan, templates));
     v.checks = checks;
     if (changed && v.status === "needs_verification" && checks.overall === "pass") {
       transition(v, "ready_for_approval", "add_confirmation");
