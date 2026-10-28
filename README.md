@@ -76,7 +76,7 @@ npm run dev                  # http://localhost:3000
 | Event Logistics agent | JT | stub |
 | Independent Reviewer agent | JT | stub |
 | Planning agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
-| Workout Adaptation agent | Yadan | stub |
+| Workout agent | Yadan | stub |
 | Workout rules | Yadan | done (equipment, duration, space, surface) |
 | Workout templates | Yadan | 3 beginner templates, pending instructor review |
 | UI | Yadan | not started |

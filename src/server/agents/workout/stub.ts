@@ -1,7 +1,7 @@
 import type { AgentImpl } from "@/contracts";
 import { stubResult } from "../stub-result";
 
-/** Fixture-backed Workout Adaptation Agent. Keep until the real agent passes its tests (YT-06). */
+/** Fixture-backed Workout Agent. Keep until the real agent passes its tests (YT-06). */
 export const workoutStub: AgentImpl<"workout"> = {
   name: "workout",
   kind: "stub",

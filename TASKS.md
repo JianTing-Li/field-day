@@ -110,7 +110,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Done when:** against the Case 1 and Case 2 fixtures the output validates against `PlanningOutput`, cites
     only evidence IDs from the snapshot, and never reports a failed or unknown check as passing.
   - **Test:** `npm test -- planning` (tests use JT's fake runner from JT-01; no Anthropic calls)
-- [ ] **YT-06** Workout Adaptation agent (JT waits on this) (#31) · Wed AM · needs: JT-01, YT-04
+- [ ] **YT-06** Workout agent (JT waits on this) (#31) · Wed AM · needs: JT-01, YT-04
   - **Files:** `src/server/agents/workout/agent.ts`, `prompt.md`, `agent.test.ts`, `index.ts`
   - **Uses:** `SpecialistInput`, `WorkoutOutput`
   - **Do:** allowed tools: `get_forecast`, `get_air_quality`, `get_workout_templates`, `check_plan`. At most 3

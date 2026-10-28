@@ -72,7 +72,7 @@ the file. Entries above the task sections are earlier history.
 - **Done:** JT's #51 added `ev-c1-surface-confirm` (grass) to Case 1, as requested, so Case 1 now passes all four workout checks. Updated 4 tests in `workout.test.ts` that assumed Case 1 had no surface confirmation: the Case 1 test now expects `pass`, and the surface tests drop that item so each test controls its own confirmation. No rule changes.
 - **Decisions:** none
 - **Interfaces others depend on:** none
-- **Unfinished / next:** YT-06 Workout Adaptation agent.
+- **Unfinished / next:** YT-06 Workout agent.
 - **Gotchas:** none
 - **Requests:** none
 
@@ -86,7 +86,23 @@ the file. Entries above the task sections are earlier history.
 - **Gotchas:** the live model's first two attempts failed: copying `rule_checks` back hit the 4096-token output limit, and without the JSON Schema it guessed field names. Both fixed (rule_checks null + schema in the user message). The prompt is read with `readFileSync(process.cwd()/…)`; Vercel's file tracing should include it, but check the first deploy.
 - **Requests:** JT: how should the harness choose real vs stub agents? One idea: real agents when `FIELDDAY_DATA_MODE=live`, stubs in fixture mode, so lifecycle tests keep working. Also, the tools stub returns evidence for the whole day, not just the asked window (JT-02), so the live model read 10 a.m. data while looking at 8 a.m.
 
-## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
+## YT-06 — Workout agent (JT waits on this) (#31)
+
+### 2026-10-28 — YT-06: Workout agent
+- **Done:** `src/server/agents/workout/agent.ts` (definition + real `AgentImpl`), notes at the end of `prompt.md`, 15 tests in `agent.test.ts` with the fake runner. Case 2: proposes `adapt-stationary-circuit`, keeps 10 a.m. heat as `fail` (using a stand-in heat rule in the test until JT-04) and Park A space as `unknown`; moving to 8 a.m. clears heat but space stays unknown. Also tests: lying checks replaced, a gentler workout never clears heat, options for unsupplied candidates or moved park/time dropped, logistics-only options dropped, made-up evidence removed, unpermitted adaptation, more than 3 options, stale version, disallowed tool. One live run on Case 2 with my key: 3 valid options, all at 8 a.m. to avoid the 93°F forecast, none claimed ready, `needs_verification`, only real evidence IDs. 3 model calls, ~33k in / ~4.8k out tokens, ~19 s.
+- **Decisions:** D-YT06-1 (the harness has the last word on workout options).
+- **Interfaces others depend on:** `workoutAgentImpl`, `workoutDefinition`, `enforceWorkoutResults(output, input, deps)` from `workout/agent.ts`.
+- **Unfinished / next:** `index.ts` still exports the stub, same as Planning; switch both once JT decides how the harness picks real vs stub. YT-07 onward (UI) next.
+- **Gotchas:** the first live run hit the 4096-token output limit, so the prompt asks for placeholder `checks` (the harness fills them) and short lists. The live model also offered a park-only move, which is now dropped as Logistics' job.
+- **Requests:** JT: heat/AQI rules (JT-04) are still placeholders, so live runs show heat as `unknown`, not `fail`. The tests use a stand-in heat rule for now.
+
+### 2026-10-28 — YT-06: rename to "Workout agent"
+- **Done:** Renamed the agent from "Workout Adaptation agent" to "Workout agent" in my files (prompt, agent/stub comments, test, my README row, my TASKS line, my worklog and decision headings). Code names (`workout`, `workoutAgentImpl`) were already short, so nothing else changed.
+- **Decisions:** none (the PRD keeps its own name; D-YT06-1 notes it)
+- **Interfaces others depend on:** none
+- **Unfinished / next:** none
+- **Gotchas:** none
+- **Requests:** JT: the old name still appears in shared/JT files: README overview lines 55 and 57, `logistics/prompt.md`, fixture comments (cases 4, 6, 7, `expected.ts`) and two contract comments. Rename them when convenient, if you agree.
 
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
 
