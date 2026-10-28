@@ -278,6 +278,23 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
 
+### 2026-10-28 — JT-17: Eval runner + comparison
+- **Done:** `evals/runner.ts` runs the 12 cases through rules-only, Planning alone and the 4-agent workflow and grades
+  each against its `expected` outcome. `evals/compare.ts` computes the PRD §2c metrics (correct outcomes, conflicts
+  resolved, hard-rule violations, cited evidence not in the snapshot, hidden gaps, multi-agent value, usage, latency,
+  cost) and writes a Markdown report. `evals/run-evals.test.ts` is the real run, skipped unless `RUN_EVALS=1`; it
+  also runs each agent on its own eval cases. Tests in `evals/runner.test.ts` (stub mode). The orchestrator now
+  registers the real Logistics and Reviewer agents and rejects Planning answers with unknown references (Case 11).
+  `evals/README.md` explains how to run it.
+- **Decisions:** D-JT17-1 (architectures and grading), D-JT17-2 (Planning reference check).
+- **Interfaces others depend on:** `runEvals`, `runRules`, `runSingle`, `runMulti`, `gradeOutcome`, `finalValidation`,
+  `summarize`, `toMarkdown`; `planningReferenceProblem` in the orchestrator; `REAL_AGENTS` now has all four agents.
+- **Unfinished / next:** the real run with `FIELDDAY_AGENTS=real`, then the README "Eval results" section.
+- **Gotchas:** in stub mode the 4-agent workflow scores 12/12 because the stubs return the fixtures' own outputs;
+  that only shows the plumbing works. Rules-only reaches 11/11 on the fixtures without any agent, so the PRD's
+  "multi-agent value" question depends on the real run.
+- **Requests:** none
+
 ## JT-18 — Logistics + Reviewer eval cases (#20)
 
 ### 2026-10-28 — JT-18: Logistics + Reviewer eval cases

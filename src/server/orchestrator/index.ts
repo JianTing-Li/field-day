@@ -123,7 +123,30 @@ async function execute<N extends AgentName>(run: Run, name: N, input: AgentIO[N]
       usage: result.usage,
     };
   }
+  if (name === "planning") {
+    const problem = planningReferenceProblem(result.output as PlanningOutput, run.args.snapshot);
+    if (problem) return { ok: false, error: { kind: "invalid_output", message: `planning ${problem}` }, usage: result.usage };
+  }
   return result;
+}
+
+/**
+ * Why a Planning answer refers to something the snapshot doesn't contain, or null. Such an answer
+ * is rejected, never repaired (PRD Case 11). The specialists' and Reviewer's own harness checks
+ * drop options with bad references instead, so their results can still be partly used.
+ */
+export function planningReferenceProblem(output: PlanningOutput, snapshot: EvidenceSnapshot): string | null {
+  const { plan } = output;
+  if (plan.park_time_candidate_id !== null) {
+    const slot = snapshot.park_time_candidates.find((c) => c.id === plan.park_time_candidate_id);
+    if (!slot) return `cites park/time candidate ${plan.park_time_candidate_id}, which is not in the snapshot`;
+    if (slot.park_id !== plan.park_id || slot.start_time !== plan.start_time) {
+      return `plans ${plan.park_id} at ${plan.start_time}, but candidate ${slot.id} is ${slot.park_id} at ${slot.start_time}`;
+    }
+  }
+  const known = new Set(snapshot.items.map((i) => i.id));
+  const unknown = output.facts.flatMap((f) => f.evidence_ids).filter((id) => !known.has(id));
+  return unknown.length > 0 ? `cites evidence that is not in the snapshot: ${[...new Set(unknown)].join(", ")}` : null;
 }
 
 /**

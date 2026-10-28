@@ -342,6 +342,29 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
 
+### D-JT17-1 — How the three architectures are run and graded
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §2c Success Metrics, §3d Eval Card
+- **Decision:** Rules-only checks every park/time candidate × template × permitted adaptation with check_plan and
+  takes the best (pass over unknown over fail, then the organizer's preferred park and template, then no
+  adaptation, then the earliest start); it is not graded on Case 11, which has no agent output to reject. Single is
+  the Planning agent alone. Multi is the orchestrator's full workflow. Every result is graded on check_plan's result
+  for its final plan (the recommended combination, or the top-ranked one), not on the agent's claim. "Finalize" is
+  allowed only for a draft whose checks all pass, until the save gate (JT-09) exists. Case 3 is a final-validation
+  case: every architecture plans on snapshot A, then the result is rechecked on the refreshed snapshot B and a
+  draft that no longer passes becomes needs_verification. "Invented claims" are counted as cited evidence IDs that
+  are not in the snapshot; claim text is not read. Real runs are gated behind `RUN_EVALS=1` and never run in `npm test`.
+- **Status:** in use
+
+### D-JT17-2 — The harness rejects a Planning answer with unknown references
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3d Case 11; §3 "The harness validates every returned JSON"
+- **Decision:** The orchestrator rejects a Planning answer as `invalid_output` when its plan names a park/time
+  candidate that isn't in the snapshot, when the plan's park or time doesn't match that candidate, or when a fact
+  cites evidence that isn't in the snapshot. It is rejected, not repaired. The specialists and the Reviewer keep
+  their own harness checks, which drop the bad options and keep the rest.
+- **Status:** in use
+
 ## JT-18 — Logistics + Reviewer eval cases (#20)
 
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)

@@ -1,8 +1,10 @@
 import type { AgentImpl, AgentName } from "@/contracts";
 import { logisticsAgent } from "@/server/agents/logistics";
+import { logisticsAgentImpl } from "@/server/agents/logistics/agent";
 import { planningAgent } from "@/server/agents/planning";
 import { planningAgentImpl } from "@/server/agents/planning/agent";
 import { reviewerAgent } from "@/server/agents/reviewer";
+import { reviewerAgentImpl } from "@/server/agents/reviewer/agent";
 import { workoutAgent } from "@/server/agents/workout";
 import { workoutAgentImpl } from "@/server/agents/workout/agent";
 
@@ -29,10 +31,12 @@ export const STUB_AGENTS: AgentSet = {
   reviewer: reviewerAgent,
 };
 
-/** Real agents that exist on this branch. Logistics and Reviewer join when JT-12/JT-13 merge. */
+/** Every agent's real implementation. Partial so a future agent can start as a stub only. */
 export const REAL_AGENTS: Partial<AgentSet> = {
   planning: planningAgentImpl,
+  logistics: logisticsAgentImpl,
   workout: workoutAgentImpl,
+  reviewer: reviewerAgentImpl,
 };
 
 /** Reads FIELDDAY_AGENTS (default: stub). */
