@@ -60,7 +60,23 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-04 — Workout rules (JT waits on this) (#29)
 
+### 2026-10-28 — YT-04: workout rules
+- **Done:** `src/server/rules/workout.ts` now returns real results for `equipment.available`, `duration.fits`, `space_surface.space` and `space_surface.surface`. 27 tests in `workout.test.ts` cover pass, fail and unknown for each check, plus Case 1 and Case 2 behavior.
+- **Decisions:** D-023 (what counts as a space or surface confirmation).
+- **Interfaces others depend on:** `workoutRules` keeps the `RuleFn` contract. Every check is critical, `policy_version` "workout-rules-v1". An unknown template or an adaptation the template doesn't permit makes all 4 checks unknown.
+- **Unfinished / next:** YT-05 Planning agent.
+- **Gotchas:** an adaptation can't say which equipment it removes (the contract has no field for it), so adaptations only change layout and length. I swapped YT-03's "no bands" adaptation for a shorter-session one because of this.
+- **Requests:** JT: (1) Case 1 has no surface confirmation, so with the real rules `space_surface.surface` comes back `unknown` and the plan is no longer an overall `pass`. Adding a surface confirmation for Park A (e.g. `value: "grass"`) to the Case 1 snapshot fixes it. (2) Case 2's `ev-c2-lane-unusable` uses metric `surface_confirmation` but confirms `space_surface.space`; it works (rules read `confirms_check_id`), but `space_confirmation` plus `category: "running_lane"` would be clearer.
+
 ## YT-05 — Planning agent (critical path, JT waits on this) (#30)
+
+### 2026-10-28 — YT-05: Planning agent
+- **Done:** `src/server/agents/planning/agent.ts` (definition + real `AgentImpl`), extra notes at the end of `prompt.md`, 14 tests in `agent.test.ts` using the fake runner (Case 1, Case 2, a model that lies about checks, made-up evidence IDs, skipped check_plan, stale version, disallowed tool, invalid JSON + repair). One live run on Case 2 with my key: valid output, picked Park B at 8 a.m. (avoiding the 10 a.m. heat and Park A's broken lane), `needs_verification`, cited only snapshot IDs, a blocking concern and an organizer task for every blocker. Cost: 5 model calls, 8 tool calls, ~44k input / ~4.7k output tokens, ~20 s.
+- **Decisions:** D-024 (the harness has the last word on the Planning output).
+- **Interfaces others depend on:** `planningAgentImpl` and `planningDefinition` from `planning/agent.ts`; `enforceHarnessResults(output, deps)` is exported too.
+- **Unfinished / next:** `index.ts` still exports the stub. Switching it made 3 `lifecycle/service.test.ts` tests fail (they expect fixture outputs and have no API key), so the switch needs JT's call. YT-06 next.
+- **Gotchas:** the live model's first two attempts failed: copying `rule_checks` back hit the 4096-token output limit, and without the JSON Schema it guessed field names. Both fixed (rule_checks null + schema in the user message). The prompt is read with `readFileSync(process.cwd()/…)`; Vercel's file tracing should include it, but check the first deploy.
+- **Requests:** JT: how should the harness choose real vs stub agents? One idea: real agents when `FIELDDAY_DATA_MODE=live`, stubs in fixture mode, so lifecycle tests keep working. Also, the tools stub returns evidence for the whole day, not just the asked window (JT-02), so the live model read 10 a.m. data while looking at 8 a.m.
 
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
 

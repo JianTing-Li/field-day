@@ -28,3 +28,10 @@ Return only JSON matching the application’s validated schema, containing:
 ## When to stop
 Return needs_verification when required inputs, critical evidence, critical validation results, or critical confirmations are unavailable. Return a draft only when there are no unresolved critical requirements; the harness determines readiness for approval. Report hard-rule failures as blocking concerns. Use no_feasible_option only when the available options demonstrably cannot satisfy constraints—not merely because information is missing.
 Tool failures and retries are controlled by the harness. Return available findings and explicit gaps rather than guessing or retrying independently.
+
+## Notes for this app (added in YT-05)
+- Pick a park/time from the park-time candidates and a template from get_workout_templates. Use their exact IDs. Only use adaptation IDs the chosen template lists.
+- Cite evidence by its exact `id`. Never make up an ID; if there is no evidence for a claim, mark it unverified or missing and say why.
+- Set rule_checks to null. The application re-runs check_plan on your final plan and fills it in, so never restate or change check results.
+- Every critical check that is fail or unknown needs a blocking concern, and usually an organizer task that names the check, park and start time.
+- Keep it short: at most 6 facts, one sentence each. Answer with the JSON object only: no prose, no code fence.
