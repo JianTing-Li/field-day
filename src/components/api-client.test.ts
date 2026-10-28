@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Api } from "@/contracts";
-import { apiGet } from "./api-client";
+import { apiGet, apiSend } from "./api-client";
 
 const list = Api.listEvents;
 const summary = {
@@ -50,5 +50,19 @@ describe("apiGet", () => {
     });
     const r = await apiGet(list.path, list.response);
     expect(r).toEqual({ ok: false, status: null, code: "network", message: "Could not reach the FieldDay server" });
+  });
+});
+describe("apiSend", () => {
+  it("sends JSON with the method and checks the response", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ events: [] }), { status: 200 });
+    });
+    const r = await apiSend("POST", "/api/events", { hello: "world" }, list.response);
+    expect(r).toEqual({ ok: true, data: { events: [] } });
+    expect(calls[0].init.method).toBe("POST");
+    expect(calls[0].init.body).toBe('{"hello":"world"}');
+    expect(new Headers(calls[0].init.headers).get("Content-Type")).toBe("application/json");
   });
 });

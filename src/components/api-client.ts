@@ -10,10 +10,28 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number | null; code: ApiError["error"]["code"] | "network" | "bad_response"; message: string };
 
-export async function apiGet<S extends z.ZodType>(path: string, schema: S): Promise<ApiResult<z.infer<S>>> {
+export function apiGet<S extends z.ZodType>(path: string, schema: S): Promise<ApiResult<z.infer<S>>> {
+  return apiRequest(path, schema);
+}
+
+/** POST/PUT a JSON body. */
+export function apiSend<S extends z.ZodType>(
+  method: "POST" | "PUT",
+  path: string,
+  body: unknown,
+  schema: S,
+): Promise<ApiResult<z.infer<S>>> {
+  return apiRequest(path, schema, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiRequest<S extends z.ZodType>(path: string, schema: S, init: RequestInit = {}): Promise<ApiResult<z.infer<S>>> {
   let res: Response;
   try {
-    res = await fetch(path, { cache: "no-store", headers: { Accept: "application/json" } });
+    res = await fetch(path, { cache: "no-store", ...init, headers: { Accept: "application/json", ...init.headers } });
   } catch {
     return { ok: false, status: null, code: "network", message: "Could not reach the FieldDay server" };
   }

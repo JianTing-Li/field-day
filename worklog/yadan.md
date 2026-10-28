@@ -100,6 +100,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
 
+### 2026-10-28 — YT-08: Event brief form
+- **Done:** `/events/new` (create, `POST /api/events`) and `/events/[id]/brief` (edit, `PUT /api/events/:id/brief`) share `src/components/BriefForm.tsx`. Sections: event, start window, parks (checkboxes from `parks.json`, preferred park limited to the ones ticked), workout (templates from `workouts.json`, with an "not reviewed by an instructor yet" note), equipment, instructor limits, priorities. `brief-form.ts` turns the text fields into an `EventBrief` and validates with the contract, with a friendly message per field plus an error summary that links to each field. Editing warns that saving makes a new version and clears approval and confirmations; a 409 `stale_version` gets a plain "this event changed, nothing was saved" message. Added `apiSend` (POST/PUT) to `api-client.ts`. Checked in the browser: empty submit, create, edit to v2, and a stale-version PUT (409). 10 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `BriefForm`, `toBrief`/`fromBrief` in `src/components/brief-form.ts`, `apiSend`.
+- **Unfinished / next:** after saving, the page goes to `/events/[id]`, which is YT-09.
+- **Gotchas:** Next 16 blocks a page that awaits `params` outside `<Suspense>` ("runtime data during prerendering"), so the edit page reads the ID in a child component inside Suspense. Briefs that use parks outside `parks.json` (the fixture `park-a`/`park-b`) still show them as "not in the park list" so editing doesn't silently drop them.
+- **Requests:** none
+
 ## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
 
 ## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
