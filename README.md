@@ -97,8 +97,43 @@ Not started.
 
 ## Eval results
 <!-- Owner: JT -->
-Not run yet. Targets are in the PRD §2c. All 12 fixtures are defined in `fixtures/scenarios/` with expected
-outcomes (`expected` in each case file) written before any agent run; cases 4–8 are the 5 known-feasible conflicts.
+First real run: 2026-10-28, all four agents real, `claude-haiku-5-5`, fixture inputs (not live data or
+real-world results). Full report: [`evals/results/2026-10-28T22-38-08-324Z-real.md`](evals/results/2026-10-28T22-38-08-324Z-real.md).
+Targets are in the PRD §2c. The 12 cases' expected outcomes (`expected` in each `fixtures/scenarios/` file) were
+written before any agent run and were not changed after it; cases 4–8 are the 5 known-feasible conflicts.
+How to run it: [`evals/README.md`](evals/README.md).
+
+| Metric (PRD §2c) | Target | Rules only | Planning alone | 4 agents |
+|---|---|---|---|---|
+| Correct outcomes | ≥ 11 of 12 | 11 of 11 | 8 of 12 | 8 of 12 |
+| Conflicts resolved (cases 4–8) | ≥ 4 of 5 | 5 of 5 | 3 of 5 | 5 of 5 |
+| Approvable plans breaking a hard rule | 0 | 0 | 0 | 0 |
+| Cited evidence not in the snapshot | 0 | 0 | 0 | 0 |
+| Missing-data cases shown as passing | 0 | 0 | 0 | 0 |
+| Model requests / tool calls (all 12 cases) | — | 0 / 0 | 44 / 71 | 77 / 129 |
+| Tokens in / out (all 12 cases) | — | 0 / 0 | 350k / 40k | 852k / 137k |
+| Total latency (all 12 cases) | — | 0.0 s | 172 s | 439 s |
+
+**Multi-agent value** (target: ≥ 2 more conflicts resolved than Planning alone, at ≤ 2× its latency): the 4-agent
+workflow resolved 2 more (Cases 6 and 8, the workout substitution and the combined revision), at 2.6× the latency.
+The conflict target is met; the latency target is not. Each agent passed all of its own eval cases (Planning 5/5,
+Workout 5/5, Logistics 6/6, Reviewer 6/6).
+
+What the failures mean:
+- **4 agents, Cases 4, 5 and 7 ("specialists did not run"):** the final plan is correct, but Planning found the time,
+  venue or session change on its own, so its plan had no failed check and the harness never triggered the
+  specialists. The case expected them to run, so these count as wrong.
+- **Case 11, both agent architectures:** the case tests that the harness rejects malformed output or an unknown
+  candidate/evidence ID. The real model returned valid output, so there was nothing to reject. The rejection
+  itself is covered by the stub-mode tests (`evals/runner.test.ts`, `src/server/orchestrator`), not by this run.
+- **Planning alone, Cases 2, 6 and 8:** it kept a plan with a failed critical check (space, equipment) where the
+  4-agent workflow reached the expected result. That is the gap the specialists exist for.
+- **Rules only scores highest** because the fixtures are small enough to try every combination. It cannot explain a
+  choice or handle anything outside the fixed rules, but it is the baseline the agents have to beat.
+
+An earlier run the same day scored 6/12 (Planning alone) and 3/12 (4 agents) because of two harness problems, fixed
+in JT-23: Logistics and Reviewer answers were cut off at 4,096 output tokens, and an agent's `needs_verification`
+blocked plans that passed every check (D-JT23-1, D-JT23-2).
 
 ## Limitations and open decisions
 <!-- Both: add as you go -->

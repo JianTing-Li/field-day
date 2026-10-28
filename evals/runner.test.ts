@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ZERO_USAGE } from "@/contracts";
 import { case01, case03 } from "@fixtures/scenarios";
 import { multiAgentValue, summarize, toMarkdown } from "./compare";
-import { ALL_CASES, allPlans, applicable, finalValidation, gradeOutcome, runEvals, runRules, snapshotFor, type Outcome } from "./runner";
+import { ALL_CASES, allPlans, applicable, finalValidation, gradeOutcome, harnessStatus, runEvals, runRules, snapshotFor, type Outcome } from "./runner";
 
 // Stub mode only: stubs return the fixtures' own outputs and make no API calls. These tests check
 // the runner and the grading, not agent quality.
@@ -34,6 +34,20 @@ describe("rules-only baseline", () => {
   it("is not graded on Case 11, which has no agent output to reject", () => {
     expect(applicable("rules", byNumber(11))).toBe(false);
     expect(applicable("single", byNumber(11))).toBe(true);
+  });
+});
+
+describe("harnessStatus (D-JT23-1)", () => {
+  const out = case01.planningOutput(1);
+  const pass = out.rule_checks!;
+
+  it("grades passing checks as a draft even when the agent says needs_verification", () => {
+    expect(harnessStatus(out.plan, pass, "needs_verification")).toBe("draft");
+  });
+  it("never grades unknown or failed checks as a draft, whatever the agent says", () => {
+    expect(harnessStatus(out.plan, { ...pass, overall: "unknown" }, "draft")).toBe("needs_verification");
+    expect(harnessStatus(out.plan, { ...pass, overall: "fail" }, "no_feasible_option")).toBe("no_feasible_option");
+    expect(harnessStatus(null, null, "revision_requested")).toBe("needs_verification");
   });
 });
 

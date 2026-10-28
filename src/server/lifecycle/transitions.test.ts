@@ -98,8 +98,16 @@ describe("deriveStatus", () => {
     expect(deriveStatus(out.plan, { ...pass, overall: "fail" })).toBe("needs_verification");
     expect(deriveStatus(out.plan, null)).toBe("needs_verification");
   });
-  it("keeps the agent's needs_verification and no_feasible_option", () => {
-    expect(deriveStatus(out.plan, pass, "needs_verification")).toBe("needs_verification");
-    expect(deriveStatus(out.plan, pass, "no_feasible_option")).toBe("no_feasible_option");
+  it("passing checks win over the agent's status (D-JT23-1)", () => {
+    expect(deriveStatus(out.plan, pass, "needs_verification")).toBe("ready_for_approval");
+    expect(deriveStatus(out.plan, pass, "no_feasible_option")).toBe("ready_for_approval");
+  });
+  it("keeps the agent's no_feasible_option when the checks don't pass", () => {
+    expect(deriveStatus(out.plan, { ...pass, overall: "fail" }, "no_feasible_option")).toBe("no_feasible_option");
+    expect(deriveStatus(out.plan, unknown, "no_feasible_option")).toBe("no_feasible_option");
+    expect(deriveStatus(null, null, "no_feasible_option")).toBe("no_feasible_option");
+  });
+  it("never lets the agent's draft make unknown checks ready", () => {
+    expect(deriveStatus(out.plan, unknown, "draft")).toBe("needs_verification");
   });
 });

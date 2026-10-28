@@ -9,6 +9,7 @@ import {
 import { case03, evalCases, type ExpectedOutcome } from "@fixtures/scenarios";
 import { agentKinds, selectAgents, type AgentMode } from "@/server/orchestrator/agents";
 import { runPlanning, runWorkflow } from "@/server/orchestrator";
+import { deriveStatus } from "@/server/lifecycle/transitions";
 import { tools } from "@/server/tools";
 
 /**
@@ -168,6 +169,15 @@ export async function runRules(c: EvalCase): Promise<Outcome> {
 
 // ---- Agent architectures -----------------------------------------------------------------------
 
+/**
+ * The status the app would give this result: the lifecycle's own `deriveStatus`, so passing checks
+ * win over the agent's status (D-JT23-1). Ready for approval is graded as "draft".
+ */
+export function harnessStatus(plan: CandidatePlan | null, checks: CheckPlanResult | null, agentStatus: string): FinalStatus {
+  const s = deriveStatus(plan, checks, agentStatus);
+  return s === "ready_for_approval" ? "draft" : s === "no_feasible_option" ? "no_feasible_option" : "needs_verification";
+}
+
 function runArgs(c: EvalCase) {
   const snapshot = snapshotFor(c);
   return { event_id: `evt-eval-${c.expected.case_number}`, event_version: 1, brief: c.brief, snapshot };
@@ -191,11 +201,12 @@ export async function runSingle(c: EvalCase, mode: AgentMode): Promise<Outcome> 
   if (!r.ok) {
     return { ...base, final_status: null, plan: null, checks: null, agent_error: r.error.kind, cited_evidence_ids: [], note: r.error.message };
   }
+  const checks = await harnessChecks(c, args.snapshot, r.output.plan);
   return {
     ...base,
-    final_status: r.output.status,
+    final_status: harnessStatus(r.output.plan, checks, r.output.status),
     plan: r.output.plan,
-    checks: await harnessChecks(c, args.snapshot, r.output.plan),
+    checks,
     agent_error: null,
     cited_evidence_ids: r.output.facts.flatMap((f) => f.evidence_ids),
     note: null,
@@ -222,7 +233,7 @@ export async function runMulti(c: EvalCase, mode: AgentMode): Promise<Outcome> {
   if (!r.review) {
     return {
       ...base,
-      final_status: r.planning.status,
+      final_status: harnessStatus(r.planning.plan, r.checks, r.planning.status),
       plan: r.planning.plan,
       checks: r.checks,
       specialists_run: false,
@@ -239,11 +250,12 @@ export async function runMulti(c: EvalCase, mode: AgentMode): Promise<Outcome> {
   const chosen = review.recommendation
     ? review.ranked_options.find((o) => o.combined_option_id === review.recommendation!.combined_option_id)
     : review.ranked_options[0];
+  const checks = chosen ? await harnessChecks(c, args.snapshot, chosen.plan) : null;
   return {
     ...base,
-    final_status: review.status === "revision_requested" ? "needs_verification" : review.status,
+    final_status: harnessStatus(chosen?.plan ?? null, checks, review.status),
     plan: chosen?.plan ?? null,
-    checks: chosen ? await harnessChecks(c, args.snapshot, chosen.plan) : null,
+    checks,
     specialists_run: true,
     revision_rounds: r.review.revision_rounds,
     agent_error: null,
