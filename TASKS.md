@@ -129,7 +129,7 @@ API shapes: `src/contracts/api.ts`. Every fixture-backed value must be labeled a
 - [x] **YT-12** States: loading, data unavailable, stale version (409), fixture banner, save failed (#37) · Thu AM
 
 ### Evals
-- [ ] **YT-13** Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38) · Thu AM
+- [x] **YT-13** Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38) · Thu AM
 
 ## Outside the repo
 - Deck: Yadan · Script and demo flow: JT
