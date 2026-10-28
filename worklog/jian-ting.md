@@ -76,7 +76,43 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
 
+### 2026-10-28 — JT-03: Evidence snapshot builder + freshness/coverage rules
+- **Done:** `buildSnapshot` in `src/server/evidence/snapshot.ts` gathers the allowed curated parks, Parks Properties
+  records, workout templates (as reference evidence) and NWS + AirNow conditions for every candidate, creates a
+  park/time candidate every 30 minutes across the start window, assesses each item's freshness and collects gaps.
+  `freshness.conditions` in `src/server/evidence/freshness.ts` passes only when fresh temperature and AQI forecasts
+  cover the whole event. Coverage helpers moved from the agent tools to `src/server/evidence/coverage.ts` (same
+  behavior, shared by tools and rules). Tests: `snapshot.test.ts` (fixture mode with the recorded responses, live
+  mode with fake adapters), `freshness.test.ts`.
+- **Decisions:** D-JT03-1 (age limits per source, measured against the snapshot's assessment time; fixture
+  freshness assessed at recording time), D-JT03-2 (snapshot IDs and candidates).
+- **Interfaces others depend on:** `buildSnapshot(args, deps?)`, `startTimes`, `CANDIDATE_STEP_MINUTES`;
+  `freshnessRules`, `assessFreshness`, `maxAgeHours`, `isCoveringForecast`, `aqiCategoryRange`;
+  `overlapsWindow`, `findUncoveredIntervals`, `planWindow`, `addMinutes`, `itemsForPark`. Candidate IDs are
+  `cand-<park_id>-<HHMM>`. Rules read `item.freshness.status` and never look at the clock.
+- **Unfinished / next:** the lifecycle service still uses fixture snapshots (`lifecycle/snapshots.ts`); JT-14 switches
+  the API to `buildSnapshot`. The save gate (JT-09) must refresh a live snapshot that is older than the limits at
+  finalize time.
+- **Gotchas:** two parks in the same NWS grid or AirNow reporting area get the same provider record ID; the builder
+  appends the park ID to repeats so IDs stay unique. The snapshot ID ignores freshness and template read times, so
+  a fixture recheck keeps the same ID.
+- **Requests:** none
+
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
+
+### 2026-10-28 — JT-04: Heat/AQI policies + policy-config
+- **Done:** `heat.max_temperature` and `air_quality.max_aqi` in `src/server/rules/environment.ts`, limits in
+  `policy-config.ts` (version `unreviewed-demo-policy-v1`, every reason ends with "unreviewed demo policy").
+  Tests: `environment.test.ts`, plus a check in `check-plan.test.ts` that the real rules give the same heat, AQI and
+  freshness statuses as every plan in the eval fixtures (Case 11 excluded: its output must be rejected).
+- **Decisions:** D-JT04-1 (90°F air temperature, AQI 100, stricter instructor limit wins, category-only AQI).
+- **Interfaces others depend on:** `environmentRules` (same export), `heatCheck`, `airQualityCheck`,
+  `effectiveLimit`, `POLICY_CONFIG`, `AQI_CATEGORY_RANGES`.
+- **Unfinished / next:** values need review by an appropriate reviewer before any real-world use (PRD §3).
+- **Gotchas:** a known reading over the limit fails even when other hours are missing; missing hours with nothing
+  over the limit are unknown. AQI observations can fail the check but never cover an event. Neither check reads the
+  workout, so lowering intensity can never lift a block.
+- **Requests:** none
 
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
 
@@ -94,6 +130,18 @@ the file. Entries above the task sections are earlier history.
 - **Requests:** none
 
 ## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
+
+### 2026-10-28 — JT-06: check_plan with real rules, critical checks decided
+- **Done:** `CRITICAL_CHECKS` in `src/server/rules/check-plan.ts` is the one list of which checks block finalization;
+  `checkPlan` applies it to every module's results. No placeholder rule is left (`placeholder.ts` stays for future
+  rules). The lifecycle test that expected placeholder "unknown" now expects Case 1 to pass on re-check.
+- **Decisions:** D-JT06-1 (every check critical except `permissions.permit_review`; no rain or wind check).
+- **Interfaces others depend on:** `CRITICAL_CHECKS`, `checkPlan`, `summarizeChecks`, `RULE_MODULES` (unchanged
+  signatures). A module's own `critical` flag is overridden by the list.
+- **Unfinished / next:** the final save gate (JT-09) uses these results.
+- **Gotchas:** `npm test` and `npm run lint` also pick up old copies of the repo under `.claude/worktrees/` on this
+  machine; CI does not have them.
+- **Requests:** none
 
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
 

@@ -167,7 +167,48 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
 
+### D-JT03-1 — Freshness limits per source
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies" (Freshness), §3 "Final save gate" (Current evidence)
+- **Decision:** Each item's age is measured from `retrieved_at` to the snapshot's assessment time, once, by the
+  snapshot builder, and stored in `item.freshness`; rules read that status and never use the clock. Live mode
+  assesses at the snapshot's `created_at`. Fixture mode assesses each recorded item at its own recording time and
+  says so in `freshness.note`, because recordings are old by design; fixture evidence never supports real-world
+  finalization. `freshness.conditions` passes only when fresh forecasts with a value (or a known AQI category)
+  cover the full event interval for both temperature and AQI; anything missing or stale is unknown. Precipitation
+  and wind are not required. The save gate (JT-09) refreshes a live snapshot that is older than these limits at
+  finalize time. Limits are based on how often each source updates; they are unreviewed demo values.
+- **Value:** NWS hourly forecast 3 h · AirNow forecast 24 h · AirNow observation 2 h · parks, templates,
+  organizer confirmations: no limit · policy version `unreviewed-demo-policy-v1`
+- **Status:** in use
+
+### D-JT03-2 — Snapshot candidates and IDs
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Shared state and ownership" (evidence snapshot), §3a
+- **Decision:** The builder includes only the brief's allowed parks. Parks without a reviewed coordinate stay in
+  `park_candidates` but get no conditions and no candidates, with a gap. Candidates start every 30 minutes from the
+  earliest to the latest allowed start (inclusive), ID `cand-<park_id>-<HHMM>`. Conditions are requested from the
+  earliest start to the latest start plus the duration plus the longest permitted adaptation. The snapshot ID is
+  `snap-<event_id>-v<version>-<hash>`, a hash of the evidence that ignores freshness and template read times, so
+  unchanged fixture evidence keeps its ID (D-016) and every live fetch gets a new one.
+- **Status:** in use
+
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
+
+### D-JT04-1 — Heat and AQI demo policy (supersedes the TBD values in D-010)
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies" (Heat, Air quality)
+- **Decision:** Heat reads the NWS hourly forecast air temperature for every hour the event overlaps; the hottest
+  hour decides. NWS humidity is not collected, so this is not a heat index; that is a known limitation. AQI uses the
+  highest value across pollutants from AirNow's daily forecast for the event day. A forecast with only a category
+  uses the category's AQI range: it passes when the whole range is within the limit, fails when the whole range is
+  above it, and is unknown otherwise. AQI observations count only for an hour of the event itself; they can fail the
+  check but never cover it. An instructor limit in the brief applies only when it is stricter than the policy. A
+  known reading over the limit fails even when other hours are missing; otherwise missing or stale evidence is
+  unknown. Limits are inclusive. Values are an unreviewed demo policy and are consistent with every eval fixture
+  (passes at 84°F and below, fails at 92°F and above; AQI 28–68).
+- **Value:** heat max 90°F (air temperature) · AQI max 100 · policy version `unreviewed-demo-policy-v1`
+- **Status:** in use
 
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
 
@@ -185,6 +226,17 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - **Status:** in use
 
 ## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
+
+### D-JT06-1 — Critical checks
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies", §3 "Final save gate"
+- **Decision:** Every check is critical except `permissions.permit_review`, which stays a non-critical review
+  warning (D-007, D-018). `CRITICAL_CHECKS` in `src/server/rules/check-plan.ts` is the single list and check_plan
+  applies it to every rule module's results. There is no rain or wind check: the PRD defines no policy for them, so
+  precipitation and wind are shown as information only.
+- **Value:** critical: start_window, allowed_park, equipment, duration, heat, air_quality, freshness, space,
+  surface · non-critical: permit_review
+- **Status:** in use
 
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
 
