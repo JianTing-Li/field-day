@@ -47,7 +47,7 @@ Add newest entries at the bottom. One entry per task or work session.
 ## 2026-10-28 — YT-03: workout templates
 - **Done:** Replaced the 2 placeholders in `src/server/content/workouts.json` with 3 beginner templates: bodyweight circuit, walk-run intervals and resistance band strength. Each has real exercises whose minutes add up to 45, equipment, space layout, surfaces, group size and adaptations. All marked `pending_instructor_review`.
 - **Decisions:** none
-- **Interfaces others depend on:** kept `tpl-bodyweight-45`, `tpl-run-intervals-45` and `adapt-stationary-circuit`. New IDs: `tpl-band-strength-45` (needs `resistance_band` and `exercise_mat`, so YT-04 can test an equipment fail), `adapt-low-impact`, `adapt-short-30` (-15 min), `adapt-loop-path`, `adapt-no-bands`. `min_area_sq_m` is 100 for the stationary sessions (about 2 m x 2 m per person at the largest group).
+- **Interfaces others depend on:** kept `tpl-bodyweight-45`, `tpl-run-intervals-45` and `adapt-stationary-circuit`. New IDs: `tpl-band-strength-45` (needs `resistance_band` and `exercise_mat`, so YT-04 can test an equipment fail), `adapt-low-impact`, `adapt-short-30` (-15 min), `adapt-loop-path`, `adapt-band-short-35` (-10 min). `min_area_sq_m` is 100 for the stationary sessions (about 2 m x 2 m per person at the largest group).
 - **Unfinished / next:** an instructor still needs to review them. YT-04 workout rules next.
 - **Gotchas:** none
 - **Requests:** JT: `referenceEvidence()` in `fixtures/scenarios/helpers.ts` still says "Placeholder template; not instructor-reviewed". The second half is still true; you may want to drop "Placeholder".

@@ -82,11 +82,11 @@
     "group_size": { "min": 4, "max": 20 },
     "permitted_adaptations": [
       {
-        "id": "adapt-no-bands",
-        "description": "Do the same moves as bodyweight exercises (rows become reverse snow angels, press becomes push-ups)",
-        "effect": "Removes the need for resistance bands; mats are still needed",
+        "id": "adapt-band-short-35",
+        "description": "Do 2 sets of each move instead of 3",
+        "effect": "Shortens the session by 10 minutes; warm-up and cool-down stay the same",
         "resulting_layout": null,
-        "duration_delta_minutes": 0
+        "duration_delta_minutes": -10
       }
     ],
     "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
