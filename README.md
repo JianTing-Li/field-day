@@ -107,4 +107,5 @@ outcomes (`expected` in each case file) written before any agent run; cases 4–
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
 - Approval does not establish venue permission, usable space, or guaranteed conditions.
+- The hosted app has no sign-in, so anyone with the link can create, approve and finalize events (D-JT21-1).
 - Open decisions are tracked in [docs/decisions.md](docs/decisions.md).
