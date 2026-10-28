@@ -36,6 +36,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-08** Store: hosted DB, drafts + finalized events, duplicate-save protection (#10) · Wed · needs: JT-21
 - [ ] **JT-09** Final save gate (all 5 checks) (#11) · Wed · needs: JT-06, JT-07, JT-08
 - [x] **JT-10** Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12) · Wed · needs: JT-01
+- [x] **JT-22** Space and surface confirmations tied to the workout layout (follow-up to JT-07, no issue; PR #73) · Wed · needs: JT-07
 
 ### Data and agents
 - [x] **JT-11** NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13) · Tue
@@ -46,8 +47,9 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-14** API routes on the real harness (snapshot builder, orchestrator, save gate) (#16) · Wed · needs: JT-09, JT-10
 - [ ] **JT-15** End-to-end integration with Yadan's agents, adapters and UI (#17) · Wed
 - [x] **JT-16** Fixtures for cases 3–12 with expected outputs (written before first run) (#18) · Wed
-- [ ] **JT-17** Eval runner + comparison: rules vs 1 agent vs 4 agents (#19) · Wed–Thu
-- [ ] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
+- [x] **JT-17** Eval runner + comparison: rules vs 1 agent vs 4 agents (#19) · Wed–Thu
+- [x] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
+- [ ] **JT-23** Eval fixes found by the first real run: grade single on check_plan, raise the Logistics/Reviewer output limit; README eval results (follow-up to JT-17, no issue) · Wed · needs: JT-17
 - [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20
 - [ ] **JT-20** Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40) · Tue
 - [ ] **JT-21** Decide the hosted database and record it in docs/decisions.md (#41) · Tue PM

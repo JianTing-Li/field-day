@@ -71,11 +71,11 @@ npm run dev                  # http://localhost:3000
 | Logistics rules | JT | done |
 | check_plan | JT | done (all rules real, no placeholders) |
 | Orchestrator | JT | done; `FIELDDAY_AGENTS=real` picks real agents; API routes not on it yet (JT-14) |
-| Lifecycle, approval | JT | done (states, versions, approval invalidation, stale-result rejection) |
+| Lifecycle, approval | JT | done (states, versions, approval invalidation, stale-result rejection; space and surface confirmations tied to the workout layout, JT-22) |
 | Final save gate | JT | stub (version, approval, hard constraints only) |
 | Persistence | JT | in-memory stub |
-| Event Logistics agent | JT | built and tested; app still uses the stub |
-| Independent Reviewer agent | JT | built and tested; app still uses the stub |
+| Event Logistics agent | JT | done; the orchestrator and evals use it with `FIELDDAY_AGENTS=real`; API routes not on it yet (JT-14) |
+| Independent Reviewer agent | JT | done; the orchestrator and evals use it with `FIELDDAY_AGENTS=real`; API routes not on it yet (JT-14) |
 | Planning agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout rules | Yadan | done (equipment, duration, space, surface) |
