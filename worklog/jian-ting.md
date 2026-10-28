@@ -40,6 +40,18 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Interfaces others depend on:** `CheckId`; `addConfirmation` now needs `park_id` + `start_time`;
   `toLocalDateTime` / `fromLocalDateTime`.
 
+## 2026-10-27 — JT-01: Agent runner and fake runner (#3)
+- **Done:** Implemented `runAgent` and `createRunner` in `src/server/agents/runner.ts` (Anthropic Messages API call, `allowed_tools` JSON Schema conversion, multi-turn tool loop with `ToolSchemas` validation, final JSON output validation with at most 1 budget-counted repair attempt, `stale_context` rejection on `event_version` / `evidence_snapshot_id` mismatch, `deps.budget.record` usage tracking, and non-throwing `model_error` / `tool_error` handling). Added scripted test runner in `src/server/agents/fake-runner.ts` and unit tests in `src/server/agents/runner.test.ts`. Added `ANTHROPIC_MODEL` to `.env.example` and `README.md`.
+- **Decisions:** D-013 (`ANTHROPIC_MODEL` defaults to `claude-haiku-5-5`), D-014 (fail fast with `tool_error` on disallowed tools, invalid tool input, or thrown tool errors).
+- **Interfaces others depend on:**
+  - `runAgent(definition, input, deps)` in `src/server/agents/runner.ts` (implements `RunAgent`).
+  - `createFakeRunner(steps, options?)` in `src/server/agents/fake-runner.ts` for agent tests (YT-05, YT-06, JT-12, JT-13) with no network calls:
+    - Pass an array of steps: `{ tool_calls: [{ name, input }] }`, `{ output: jsonObject }`, `{ error: new Error(...) }`, or `(call, turn) => step`.
+    - Call `await fake(definition, input, deps)` directly (or `const restore = fake.install()` around `agent.run(input, deps)`), and inspect `fake.calls` for recorded requests.
+- **Unfinished / next:** JT-02 (finish agent tools: time-window filtering and coverage gaps).
+- **Gotchas:** `budget.record` rejects over-limit deltas without recording partial values, so when a final model call exceeds a token or `elapsed_ms` cap, that call's usage appears in `result.usage` but not in `budget.used()` (to handle in JT-10).
+- **Requests:** `CLAUDE.md` needs an ownership row/entry assigning `src/server/agents/fake-runner.ts` to JT (to be done in a separate small PR).
+
 ## 2026-10-27 — JT-07: Lifecycle
 - **Done:** Replaced the stub state handling in `src/server/lifecycle/service.ts`. New: `transitions.ts`
   (transition table, `assertCanStart`, `transition`, `deriveStatus`), `confirmations.ts` (scope matching,
@@ -47,7 +59,7 @@ Add newest entries at the bottom. One entry per task or work session.
   the stored event has not changed since the request loaded it. Tests for each transition, invalid transitions,
   approval invalidation, stale version/snapshot/result rejection, confirmation scope and finalize idempotency,
   plus PRD Case 3.
-- **Decisions:** D-013 (transitions, approval invalidation, confirmation carry-forward), D-014 (finalize idempotency).
+- **Decisions:** D-016 (transitions, approval invalidation, confirmation carry-forward), D-017 (finalize idempotency).
 - **Interfaces others depend on:** exported service functions and API shapes unchanged. Additive contract
   changes in `src/contracts/event.ts`: `PlanVersion.source` gains `"recheck"`; `FinalizedRecord` gains optional
   `idempotency_key`. New API behavior for the UI: invalid actions return 400 `invalid_request` (e.g. confirming
