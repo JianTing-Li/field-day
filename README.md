@@ -76,10 +76,10 @@ npm run dev                  # http://localhost:3000
 | Event Logistics agent | JT | stub |
 | Independent Reviewer agent | JT | stub |
 | Planning agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
-| Workout agent | Yadan | stub |
+| Workout agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout rules | Yadan | done (equipment, duration, space, surface) |
 | Workout templates | Yadan | 3 beginner templates, pending instructor review |
-| UI | Yadan | not started |
+| UI | Yadan | done: event list, brief form, workspace, alternatives, confirm/approve/finalize, states; Claymorphism UI system |
 
 ## Data sources
 <!-- Each person edits only their own sources. Status: proposed · tested · live · fixture-backed -->

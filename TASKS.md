@@ -110,7 +110,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Done when:** against the Case 1 and Case 2 fixtures the output validates against `PlanningOutput`, cites
     only evidence IDs from the snapshot, and never reports a failed or unknown check as passing.
   - **Test:** `npm test -- planning` (tests use JT's fake runner from JT-01; no Anthropic calls)
-- [ ] **YT-06** Workout agent (JT waits on this) (#31) · Wed AM · needs: JT-01, YT-04
+- [x] **YT-06** Workout agent (JT waits on this) (#31) · Wed AM · needs: JT-01, YT-04
   - **Files:** `src/server/agents/workout/agent.ts`, `prompt.md`, `agent.test.ts`, `index.ts`
   - **Uses:** `SpecialistInput`, `WorkoutOutput`
   - **Do:** allowed tools: `get_forecast`, `get_air_quality`, `get_workout_templates`, `check_plan`. At most 3
@@ -121,12 +121,12 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 
 ### UI (built against the stub API: `npm run dev`, seeded events `evt-case-01` and `evt-case-02`)
 API shapes: `src/contracts/api.ts`. Every fixture-backed value must be labeled as fixture data.
-- [ ] **YT-07** Event list (`GET /api/events`): status, current version, finalized version (#32) · Tue
-- [ ] **YT-08** Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33) · Tue
-- [ ] **YT-09** Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34) · Wed
-- [ ] **YT-10** Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35) · Wed
-- [ ] **YT-11** Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36) · Wed
-- [ ] **YT-12** States: loading, data unavailable, stale version (409), fixture banner, save failed (#37) · Thu AM
+- [x] **YT-07** Event list (`GET /api/events`): status, current version, finalized version (#32) · Tue
+- [x] **YT-08** Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33) · Tue
+- [x] **YT-09** Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34) · Wed
+- [x] **YT-10** Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35) · Wed
+- [x] **YT-11** Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36) · Wed
+- [x] **YT-12** States: loading, data unavailable, stale version (409), fixture banner, save failed (#37) · Thu AM
 
 ### Evals
 - [ ] **YT-13** Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38) · Thu AM
