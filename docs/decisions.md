@@ -291,11 +291,11 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   user message.
 - **Status:** in use
 
-## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
+## YT-06 — Workout agent (JT waits on this) (#31)
 
 ### D-YT06-1 — Workout options: the harness has the last word
 - **Date / owner:** 2026-10-28 · Yadan
-- **PRD section:** §3b Workout Adaptation Agent, §3 specialist-option contract
+- **PRD section:** §3b Workout agent (the PRD calls it the Workout Adaptation Agent), §3 specialist-option contract
 - **Decision:** After the model answers, the Workout agent drops any option that is assessed for a park/time
   candidate it wasn't given, whose plan doesn't match its candidate's park and start time, or that changes no part
   of the workout (a park or time move alone is Logistics' job). Every kept option's `checks` come from a fresh

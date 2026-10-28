@@ -12,7 +12,7 @@ import {
 import { runAgent } from "../runner";
 
 /**
- * Workout Adaptation Agent (owner: Yadan, task YT-06). Proposes up to 3 session alternatives
+ * Workout Agent (owner: Yadan, task YT-06). Proposes up to 3 session alternatives
  * from approved templates when a plan hits a conflict. Claude proposes; the harness checks.
  * After the model answers, `enforceWorkoutResults` drops options assessed for park/time
  * candidates it wasn't given (or that change the park or time) or that change nothing about the workout, replaces every option's checks

@@ -114,7 +114,7 @@ const output = (options: WorkoutOutput["options"] = [{ ...option(), checks: plac
 describe("workoutDefinition", () => {
   it("allows exactly the 4 Workout tools and uses the prompt file", () => {
     expect(workoutDefinition.allowed_tools).toEqual(["get_forecast", "get_air_quality", "get_workout_templates", "check_plan"]);
-    expect(workoutDefinition.system_prompt).toContain("Workout Adaptation Agent");
+    expect(workoutDefinition.system_prompt).toContain("Workout Agent");
   });
 
   it("sends the conflict, current plan, allowed candidates and brief, and labels the brief as data", () => {
