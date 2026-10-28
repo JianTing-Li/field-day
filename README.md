@@ -70,8 +70,7 @@ npm run dev                  # http://localhost:3000
 | Logistics rules | JT | placeholder |
 | check_plan | JT | done (combining); rules placeholder |
 | Orchestrator | JT | stub |
-| Lifecycle, approval | JT | done (states, versions, approval invalidation, stale-result rejection) |
-| Final save gate | JT | stub (version, approval, hard constraints only) |
+| Lifecycle, approval, save gate | JT | stub |
 | Persistence | JT | in-memory stub |
 | Event Logistics agent | JT | stub |
 | Independent Reviewer agent | JT | stub |

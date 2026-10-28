@@ -1,12 +1,14 @@
 # Decisions
 
-Decisions the PRD says to select and record. Add new entries at the bottom; never edit someone else's entry.
+Decisions the PRD says to select and record. Add a decision under its task's section at the end of this file
+(tasks added after 2026-10-28 use `docs/decisions/<TASK-ID>.md`); never edit someone else's entry.
+New decisions use task-based IDs (`D-JT03-1`); D-000 to D-024 keep their numbers.
 To change a decision, add a new entry that supersedes the old one.
 
 Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by the appropriate reviewer) · **superseded**
 
 <!--
-## D-000 — Title
+### D-JT03-1 — Title
 - **Date / owner:** YYYY-MM-DD · JT | Yadan | Both
 - **PRD section:** §...
 - **Decision:** ...
@@ -118,6 +120,7 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
   never stands in for a later event. A category-only forecast (AQI -1) becomes a missing value, not a guess. AirNow
   also sends some errors as HTTP 200 with a `WebServiceError` body; those are treated as failures. The API key is
   added only inside the live fetcher and never appears in evidence URLs or gaps.
+- **Status:** in use
 
 ## D-019 — Condition tool coverage rules
 - **Date / owner:** 2026-10-27 · JT
@@ -136,27 +139,6 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
     Gaps about park records or templates go to neither tool.
   - Local times are converted with `src/server/time.ts`; the repeated 1 a.m. hour on the fall-back
     date cannot be told apart in `LocalDateTime`.
-
-## D-016 — Lifecycle transitions and confirmation carry-forward
-- **Date / owner:** 2026-10-27 · JT
-- **PRD section:** §2 "Event lifecycle", §3 "Shared state and ownership", §3c, §4 acceptance criteria
-- **Decision:** Status lives on each plan version; the event's status is its current version's status.
-  Allowed status changes are listed once in `src/server/lifecycle/transitions.ts`; anything else is
-  `invalid_request` (approving `needs_verification` is `blocked` with the blockers). Brief edits, generate,
-  applied options and a recheck that gets a new snapshot ID each create a new version; old versions are kept.
-  Approval is tied to version + snapshot ID and is cleared by any new version, a new confirmation or a
-  reported change (the approved version returns to `ready_for_approval`). Requests or agent results naming an
-  outdated version or snapshot, or finishing after the event changed, are rejected with `stale_version`.
-  Confirmations are re-applied to later versions only for the same check at the same park (and time, if
-  given), and a brief edit retires them. A recheck with an unchanged snapshot ID leaves the plan as is.
-- **Status:** in use
-
-## D-017 — Finalize idempotency
-- **Date / owner:** 2026-10-27 · JT
-- **PRD section:** §3c "Draft persistence and duplicate-save protection"
-- **Decision:** A finalize request for the already-finalized version returns the saved record whatever its
-  key, even after a newer draft exists. The key is stored on `FinalizedRecord.idempotency_key`; reusing it for
-  a different version is `invalid_request`.
 - **Status:** in use
 
 ## Open decisions
@@ -178,3 +160,87 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - **PRD section:** §3a, §3b
 - **Decision:** The agent runner fails fast and returns `tool_error` immediately if the model requests a tool not in `definition.allowed_tools`, if tool input fails `ToolSchemas` validation, or if a tool handler throws. Automatic retry/repair is reserved for the single final JSON output repair attempt.
 - **Status:** in use
+
+---
+
+<!-- Task sections (see CLAUDE.md, "Work logs, decisions and task status"). -->
+
+## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
+
+## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
+
+## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
+
+## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
+
+## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
+
+### D-016 — Lifecycle transitions and confirmation carry-forward
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §2 "Event lifecycle", §3 "Shared state and ownership", §3c, §4 acceptance criteria
+- **Decision:** Status lives on each plan version; the event's status is its current version's status.
+  Allowed status changes are listed once in `src/server/lifecycle/transitions.ts`; anything else is
+  `invalid_request` (approving `needs_verification` is `blocked` with the blockers). Brief edits, generate,
+  applied options and a recheck that gets a new snapshot ID each create a new version; old versions are kept.
+  Approval is tied to version + snapshot ID and is cleared by any new version, a new confirmation or a
+  reported change (the approved version returns to `ready_for_approval`). Requests or agent results naming an
+  outdated version or snapshot, or finishing after the event changed, are rejected with `stale_version`.
+  Confirmations are re-applied to later versions only for the same check at the same park (and time, if
+  given), and a brief edit retires them. A recheck with an unchanged snapshot ID leaves the plan as is.
+- **Status:** in use
+
+### D-017 — Finalize idempotency
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3c "Draft persistence and duplicate-save protection"
+- **Decision:** A finalize request for the already-finalized version returns the saved record whatever its
+  key, even after a newer draft exists. The key is stored on `FinalizedRecord.idempotency_key`; reusing it for
+  a different version is `invalid_request`.
+- **Status:** in use
+
+## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
+
+## JT-09 — Final save gate (all 5 checks) (#11)
+
+## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
+
+## JT-11 — NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13)
+
+## JT-12 — Event Logistics agent (#14)
+
+## JT-13 — Independent Reviewer agent (#15)
+
+## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
+
+## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
+
+## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
+
+## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
+
+## JT-18 — Logistics + Reviewer eval cases (#20)
+
+## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
+
+## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
+
+## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)
+
+## YT-04 — Workout rules (JT waits on this) (#29)
+
+## YT-05 — Planning agent (critical path, JT waits on this) (#30)
+
+## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
+
+## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
+
+## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
+
+## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
+
+## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
+
+## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
+
+## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
+
+## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
