@@ -194,7 +194,44 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-12 — Event Logistics agent (#14)
 
+### 2026-10-28 — JT-12: Event Logistics agent
+- **Done:** `src/server/agents/logistics/agent.ts`: `logisticsDefinition` (tools: get_park_candidates, get_forecast,
+  get_air_quality, check_plan; the PRD's System Prompt v0 in `prompt.md`) and `logisticsAgentImpl`, which runs the
+  agent and then `enforceLogisticsResults`. Tests in `agent.test.ts` use the fake runner (no API calls), including a
+  check that every eval fixture's Logistics output passes the harness's checks unchanged.
+- **Decisions:** the harness drops an option that is assessed for a candidate it wasn't given, whose plan doesn't
+  match its candidate, that changes the workout (template, adaptations or length: Workout Adaptation's job, and the
+  prompt says not to), or that keeps the current park and time. Checks always come from check_plan; unknown
+  critical checks are listed in the option's unknowns; failed critical checks become blocking concerns.
+  `index.ts` still exports the stub, as Planning and Workout do; the orchestrator picks stub or real (JT-10).
+- **Interfaces others depend on:** `logisticsAgentImpl`, `logisticsDefinition`, `enforceLogisticsResults`.
+- **Unfinished / next:** a live run once the orchestrator can choose the real agent (JT-10), then evals (JT-17/18).
+- **Gotchas:** tests compare against the real `check_plan` tool rather than fixed statuses, so they hold before and
+  after the real heat/AQI rules (JT-04) merge.
+- **Requests:** none
+
 ## JT-13 — Independent Reviewer agent (#15)
+
+### 2026-10-28 — JT-13: Independent Reviewer agent
+- **Done:** `src/server/agents/reviewer/agent.ts`: `reviewerDefinition` (only check_plan: the Reviewer cannot
+  retrieve new evidence) and `reviewerAgentImpl`, which runs the agent and then `enforceReviewerResults`. The user
+  message includes both proposals, the harness's combination checks and `revision_available`. Tests in
+  `agent.test.ts` use the fake runner, including every eval fixture's Reviewer output.
+- **Decisions:** the harness drops a combination that cites an option nobody proposed, whose plan isn't its
+  candidate, or whose park/time or workout comes from neither a cited specialist option nor the original plan.
+  Checks always come from check_plan. A recommendation is kept only when every critical check of that combination
+  passes; otherwise it becomes null and its blockers are added to blocking_issues. Revision requests are kept only
+  while the round is available and only for options that specialist proposed. Status is only ever made more
+  cautious: a draft with no passing recommendation, or a revision request with no valid request left, becomes
+  needs_verification, and "no feasible option" becomes needs_verification while any combination is not a
+  demonstrated fail (missing evidence is not infeasibility).
+- **Interfaces others depend on:** `reviewerAgentImpl`, `reviewerDefinition`, `enforceReviewerResults`. The
+  orchestrator (JT-10) must pass `combination_checks` and the run context's `revision_available`.
+- **Unfinished / next:** live run through the orchestrator (JT-10); evals (JT-17/18).
+- **Gotchas:** a combined option may take its park/time from the Logistics option and its workout from the Workout
+  option even when the Workout option was assessed at another time (Case 2, combo-1); the combined plan is checked
+  as a whole.
+- **Requests:** none
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
 

@@ -1,2 +1,3 @@
-// Switch to the real agent here when it passes its tests (JT-13).
+// The real agent (reviewerAgentImpl in ./agent) passes its tests (JT-13), but fixture mode and the lifecycle
+// tests still expect the stub's fixture outputs. The orchestrator chooses stub or real (JT-10).
 export { reviewerStub as reviewerAgent } from "./stub";
