@@ -23,10 +23,16 @@ function plan(p: Partial<CandidatePlan>): CandidatePlan {
 
 function run(
   p: Partial<CandidatePlan>,
-  opts: { scenario?: typeof case01 | typeof case02; brief?: Partial<EventBrief>; extra?: EvidenceItem[] } = {},
+  opts: {
+    scenario?: typeof case01 | typeof case02;
+    brief?: Partial<EventBrief>;
+    extra?: EvidenceItem[];
+    drop?: string[];
+  } = {},
 ) {
   const scenario = opts.scenario ?? case01;
-  const snapshot = scenario.snapshot("evt", 1);
+  const full = scenario.snapshot("evt", 1);
+  const snapshot = { ...full, items: full.items.filter((i) => !opts.drop?.includes(i.id)) };
   const input: RuleInput = {
     plan: plan(p),
     brief: { ...scenario.brief, ...opts.brief },
@@ -82,12 +88,12 @@ describe("workoutRules", () => {
     }
   });
 
-  it("Case 1: passes equipment, duration and space; surface stays unknown without a confirmation", () => {
+  it("Case 1: passes all four checks with the organizer's space and surface confirmations", () => {
     const { get } = run({});
     expect(get("equipment.available").status).toBe("pass");
     expect(get("duration.fits").status).toBe("pass");
     expect(get("space_surface.space")).toMatchObject({ status: "pass", evidence_ids: ["ev-c1-space-confirm"] });
-    expect(get("space_surface.surface").status).toBe("unknown");
+    expect(get("space_surface.surface")).toMatchObject({ status: "pass", evidence_ids: ["ev-c1-surface-confirm"] });
   });
 
   it("cites the template's reference record when the snapshot has it", () => {
@@ -212,31 +218,32 @@ describe("space_surface.space", () => {
 });
 
 describe("space_surface.surface", () => {
+  const noSurface = ["ev-c1-surface-confirm"];
   it("passes a confirmed surface the workout allows", () => {
-    expect(run({}, { extra: [grass] }).get("space_surface.surface")).toMatchObject({
+    expect(run({}, { extra: [grass], drop: noSurface }).get("space_surface.surface")).toMatchObject({
       status: "pass",
       evidence_ids: ["ev-surface-grass"],
     });
   });
 
   it("fails a confirmed surface the workout doesn't allow", () => {
-    const c = run({ workout_template_id: "tpl-run-intervals-45" }, { extra: [grass] }).get("space_surface.surface");
+    const c = run({ workout_template_id: "tpl-run-intervals-45" }, { extra: [grass], drop: noSurface }).get("space_surface.surface");
     expect(c).toMatchObject({ status: "fail", reason: "Surface at park-a (grass) is not suitable; this workout needs paved or track" });
   });
 
   it("follows a yes/no suitability confirmation", () => {
     const no = confirm({ id: "ev-surface-no", check: "space_surface.surface", value: false });
     const yes = confirm({ id: "ev-surface-yes", check: "space_surface.surface", value: true });
-    expect(run({}, { extra: [no] }).get("space_surface.surface").status).toBe("fail");
-    expect(run({}, { extra: [yes] }).get("space_surface.surface").status).toBe("pass");
+    expect(run({}, { extra: [no], drop: noSurface }).get("space_surface.surface").status).toBe("fail");
+    expect(run({}, { extra: [yes], drop: noSurface }).get("space_surface.surface").status).toBe("pass");
   });
 
   it("a surface confirmed at Park A never applies at Park B", () => {
-    expect(run({ park_id: "park-b" }, { extra: [grass] }).get("space_surface.surface").status).toBe("unknown");
+    expect(run({ park_id: "park-b" }, { extra: [grass], drop: noSurface }).get("space_surface.surface").status).toBe("unknown");
   });
 
   it("a space confirmation does not confirm the surface", () => {
-    expect(run({}).get("space_surface.surface").status).toBe("unknown");
+    expect(run({}, { drop: noSurface }).get("space_surface.surface").status).toBe("unknown");
   });
 });
 

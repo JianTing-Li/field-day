@@ -68,6 +68,14 @@ the file. Entries above the task sections are earlier history.
 - **Gotchas:** an adaptation can't say which equipment it removes (the contract has no field for it), so adaptations only change layout and length. I swapped YT-03's "no bands" adaptation for a shorter-session one because of this.
 - **Requests:** JT: (1) Case 1 has no surface confirmation, so with the real rules `space_surface.surface` comes back `unknown` and the plan is no longer an overall `pass`. Adding a surface confirmation for Park A (e.g. `value: "grass"`) to the Case 1 snapshot fixes it. (2) Case 2's `ev-c2-lane-unusable` uses metric `surface_confirmation` but confirms `space_surface.space`; it works (rules read `confirms_check_id`), but `space_confirmation` plus `category: "running_lane"` would be clearer.
 
+### 2026-10-28 — YT-04: update tests after the Case 1 surface confirmation
+- **Done:** JT's #51 added `ev-c1-surface-confirm` (grass) to Case 1, as requested, so Case 1 now passes all four workout checks. Updated 4 tests in `workout.test.ts` that assumed Case 1 had no surface confirmation: the Case 1 test now expects `pass`, and the surface tests drop that item so each test controls its own confirmation. No rule changes.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-06 Workout Adaptation agent.
+- **Gotchas:** none
+- **Requests:** none
+
 ## YT-05 — Planning agent (critical path, JT waits on this) (#30)
 
 ### 2026-10-28 — YT-05: Planning agent
