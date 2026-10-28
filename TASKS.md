@@ -24,7 +24,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 ## JT
 ### Do first (Tue AM)
 - [x] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
-- [ ] **JT-02** Finish agent tools: time-window filtering and coverage gaps (stubs exist) (#4) · Tue AM
+- [x] **JT-02** Finish agent tools: time-window filtering and coverage gaps (stubs exist) (#4) · Tue AM
 
 ### Harness
 - [ ] **JT-03** Evidence snapshot builder + freshness/coverage rules (#5) · Tue
