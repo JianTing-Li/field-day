@@ -1,6 +1,7 @@
 import type { EvidenceItem, ToolContext, ToolRegistry } from "@/contracts";
 import { checkPlan } from "@/server/rules/check-plan";
-import { fromLocalDateTime, toLocalDateTime } from "@/server/time";
+import { findUncoveredIntervals, overlapsWindow } from "@/server/evidence/coverage";
+import { fromLocalDateTime } from "@/server/time";
 
 /**
  * Agent-facing tools (owner: JT, task JT-02). Read-only: they read the evidence snapshot
@@ -23,68 +24,6 @@ const FORECAST_METRICS: ConditionMetric[] = [
   "precipitation_probability",
   "wind_speed",
 ];
-
-/**
- * True when the item's valid period overlaps [reqStart, reqEnd). Periods are half-open, so an
- * hour ending at 09:00 does not overlap a window starting at 09:00. Missing bounds are open-ended.
- */
-function overlapsWindow(
-  item: EvidenceItem,
-  reqStartMs: number,
-  reqEndMs: number,
-): boolean {
-  const fromMs = item.valid_from !== null ? fromLocalDateTime(item.valid_from).getTime() : null;
-  const toMs = item.valid_to !== null ? fromLocalDateTime(item.valid_to).getTime() : null;
-
-  if (fromMs !== null && toMs !== null && fromMs === toMs) {
-    // Point-in-time value (e.g. an observation): include it when it falls inside the window.
-    return fromMs >= reqStartMs && fromMs < reqEndMs;
-  }
-  return (fromMs === null || fromMs < reqEndMs) && (toMs === null || toMs > reqStartMs);
-}
-
-/**
- * Sub-intervals of [reqStartMs, reqEndMs) not covered by the union of the given items' valid
- * periods. Items without both bounds, and point-in-time items, cover nothing.
- */
-function findUncoveredIntervals(
-  items: EvidenceItem[],
-  reqStartMs: number,
-  reqEndMs: number,
-): Array<{ start: string; end: string }> {
-  const spans = items
-    .filter((e) => e.valid_from !== null && e.valid_to !== null)
-    .map((e) => ({
-      start: Math.max(reqStartMs, fromLocalDateTime(e.valid_from!).getTime()),
-      end: Math.min(reqEndMs, fromLocalDateTime(e.valid_to!).getTime()),
-    }))
-    .filter((s) => s.end > s.start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
-
-  const gaps: Array<{ start: string; end: string }> = [];
-  let cursor = reqStartMs;
-
-  for (const span of spans) {
-    if (span.start > cursor) {
-      gaps.push({
-        start: toLocalDateTime(new Date(cursor)),
-        end: toLocalDateTime(new Date(span.start)),
-      });
-    }
-    if (span.end > cursor) {
-      cursor = span.end;
-    }
-  }
-
-  if (cursor < reqEndMs) {
-    gaps.push({
-      start: toLocalDateTime(new Date(cursor)),
-      end: toLocalDateTime(new Date(reqEndMs)),
-    });
-  }
-
-  return gaps;
-}
 
 type Domain = "forecast" | "air_quality";
 

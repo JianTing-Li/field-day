@@ -167,6 +167,32 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
 
+### D-JT03-1 — Freshness limits per source
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies" (Freshness), §3 "Final save gate" (Current evidence)
+- **Decision:** Each item's age is measured from `retrieved_at` to the snapshot's assessment time, once, by the
+  snapshot builder, and stored in `item.freshness`; rules read that status and never use the clock. Live mode
+  assesses at the snapshot's `created_at`. Fixture mode assesses each recorded item at its own recording time and
+  says so in `freshness.note`, because recordings are old by design; fixture evidence never supports real-world
+  finalization. `freshness.conditions` passes only when fresh forecasts with a value (or a known AQI category)
+  cover the full event interval for both temperature and AQI; anything missing or stale is unknown. Precipitation
+  and wind are not required. The save gate (JT-09) refreshes a live snapshot that is older than these limits at
+  finalize time. Limits are based on how often each source updates; they are unreviewed demo values.
+- **Value:** NWS hourly forecast 3 h · AirNow forecast 24 h · AirNow observation 2 h · parks, templates,
+  organizer confirmations: no limit · policy version `unreviewed-demo-policy-v1`
+- **Status:** in use
+
+### D-JT03-2 — Snapshot candidates and IDs
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Shared state and ownership" (evidence snapshot), §3a
+- **Decision:** The builder includes only the brief's allowed parks. Parks without a reviewed coordinate stay in
+  `park_candidates` but get no conditions and no candidates, with a gap. Candidates start every 30 minutes from the
+  earliest to the latest allowed start (inclusive), ID `cand-<park_id>-<HHMM>`. Conditions are requested from the
+  earliest start to the latest start plus the duration plus the longest permitted adaptation. The snapshot ID is
+  `snap-<event_id>-v<version>-<hash>`, a hash of the evidence that ignores freshness and template read times, so
+  unchanged fixture evidence keeps its ID (D-016) and every live fetch gets a new one.
+- **Status:** in use
+
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
 
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)

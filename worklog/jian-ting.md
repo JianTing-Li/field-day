@@ -76,6 +76,28 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
 
+### 2026-10-28 — JT-03: Evidence snapshot builder + freshness/coverage rules
+- **Done:** `buildSnapshot` in `src/server/evidence/snapshot.ts` gathers the allowed curated parks, Parks Properties
+  records, workout templates (as reference evidence) and NWS + AirNow conditions for every candidate, creates a
+  park/time candidate every 30 minutes across the start window, assesses each item's freshness and collects gaps.
+  `freshness.conditions` in `src/server/evidence/freshness.ts` passes only when fresh temperature and AQI forecasts
+  cover the whole event. Coverage helpers moved from the agent tools to `src/server/evidence/coverage.ts` (same
+  behavior, shared by tools and rules). Tests: `snapshot.test.ts` (fixture mode with the recorded responses, live
+  mode with fake adapters), `freshness.test.ts`.
+- **Decisions:** D-JT03-1 (age limits per source, measured against the snapshot's assessment time; fixture
+  freshness assessed at recording time), D-JT03-2 (snapshot IDs and candidates).
+- **Interfaces others depend on:** `buildSnapshot(args, deps?)`, `startTimes`, `CANDIDATE_STEP_MINUTES`;
+  `freshnessRules`, `assessFreshness`, `maxAgeHours`, `isCoveringForecast`, `aqiCategoryRange`;
+  `overlapsWindow`, `findUncoveredIntervals`, `planWindow`, `addMinutes`, `itemsForPark`. Candidate IDs are
+  `cand-<park_id>-<HHMM>`. Rules read `item.freshness.status` and never look at the clock.
+- **Unfinished / next:** the lifecycle service still uses fixture snapshots (`lifecycle/snapshots.ts`); JT-14 switches
+  the API to `buildSnapshot`. The save gate (JT-09) must refresh a live snapshot that is older than the limits at
+  finalize time.
+- **Gotchas:** two parks in the same NWS grid or AirNow reporting area get the same provider record ID; the builder
+  appends the park ID to repeats so IDs stay unique. The snapshot ID ignores freshness and template read times, so
+  a fixture recheck keeps the same ID.
+- **Requests:** none
+
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
 
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
