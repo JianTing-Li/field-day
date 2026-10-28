@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Api, type EventSummary } from "@/contracts";
 import { apiGet, type ApiResult } from "./api-client";
+import { describeError } from "./errors";
 import { formatEventDate, formatUpdated, versionText } from "./format";
 import { StatusBadge } from "./StatusBadge";
 
@@ -32,7 +33,7 @@ export function EventList() {
     return (
       <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
         <p className="font-medium">Events could not be loaded.</p>
-        <p className="mt-1 text-sm">{result.message}. Nothing was changed.</p>
+        <p className="mt-1 text-sm">{describeError(result, "Loading events").title}. Nothing was changed.</p>
         <button
           type="button"
           onClick={load}

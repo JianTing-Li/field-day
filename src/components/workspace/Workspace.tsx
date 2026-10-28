@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
 import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
+import { describeError, type ApiFailure } from "../errors";
 import { Alert, Button, buttonClass, Card } from "../ui";
 import { Alternatives } from "./Alternatives";
 import { ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
@@ -17,9 +18,13 @@ type Loaded = { event: FieldDayEvent; snapshot: EvidenceSnapshot | null };
 
 export function Workspace({ eventId }: { eventId: string }) {
   const [data, setData] = useState<Loaded | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<ApiFailure | null>(null);
+  const [reloading, setReloading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<{
+    label: string;
+    error: ApiFailure;
+  } | null>(null);
   const [showChange, setShowChange] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [gate, setGate] = useState<GateCheck[] | null>(null);
@@ -27,13 +32,16 @@ export function Workspace({ eventId }: { eventId: string }) {
   const base = `/api/events/${encodeURIComponent(eventId)}`;
 
   const load = useCallback(async () => {
+    setReloading(true);
     const r = await apiGet(base, Api.getEvent.response);
+    setReloading(false);
     if (r.ok) {
       setData(r.data);
       setLoadError(null);
     } else {
-      setLoadError(r.message);
+      setLoadError(r);
     }
+    return r.ok;
   }, [base]);
 
   useEffect(() => {
@@ -41,7 +49,7 @@ export function Workspace({ eventId }: { eventId: string }) {
     apiGet(base, Api.getEvent.response).then((r) => {
       if (!live) return;
       if (r.ok) setData(r.data);
-      else setLoadError(r.message);
+      else setLoadError(r);
     });
     return () => {
       live = false;
@@ -49,7 +57,12 @@ export function Workspace({ eventId }: { eventId: string }) {
   }, [base]);
 
   /** Runs one action against the current version, then reloads so the snapshot stays in sync. */
-  async function act<S extends z.ZodType>(label: string, path: string, body: object, schema: S): Promise<ApiResult<z.infer<S>>> {
+  async function act<S extends z.ZodType>(
+    label: string,
+    path: string,
+    body: object,
+    schema: S,
+  ): Promise<ApiResult<z.infer<S>>> {
     setBusy(label);
     setActionError(null);
     setBlockedDetails([]);
@@ -58,7 +71,7 @@ export function Workspace({ eventId }: { eventId: string }) {
       setGate(null);
       await load();
     } else {
-      setActionError(`${label} didn't work: ${r.message}. Nothing was changed.`);
+      setActionError({ label, error: r });
       const ids = CheckId.array().safeParse(r.details);
       if (r.code === "blocked" && ids.success) setBlockedDetails(ids.data);
     }
@@ -67,13 +80,16 @@ export function Workspace({ eventId }: { eventId: string }) {
   }
 
   if (loadError && !data) {
+    const view = describeError(loadError, "Loading this event");
     return (
-      <Alert tone="danger" role="alert" title="This event could not be loaded.">
-        <p>{loadError}.</p>
+      <Alert tone={view.tone} role="alert" title={view.title}>
+        <p>{loadError.code === "not_found" ? view.body : "The event could not be loaded."}</p>
         <div className="mt-3 flex gap-2">
-          <Button variant="danger" onClick={load}>
-            Try again
-          </Button>
+          {loadError.code !== "not_found" && (
+            <Button variant="danger" onClick={load} disabled={reloading}>
+              {reloading ? "Trying…" : "Try again"}
+            </Button>
+          )}
           <Link href="/" className={buttonClass("ghost")}>
             Back to events
           </Link>
@@ -106,12 +122,45 @@ export function Workspace({ eventId }: { eventId: string }) {
       <StatusBar event={event} version={v} />
 
       {actionError && (
-        <Alert tone="danger" role="alert">
-          {actionError}
+        <ActionErrorBanner
+          {...actionError}
+          reloading={reloading}
+          onReload={async () => {
+            if (await load()) setActionError(null);
+          }}
+        />
+      )}
+
+      {loadError && (
+        <Alert tone="warning" role="alert" title="Couldn't refresh this event">
+          Showing what was loaded before. {describeError(loadError).body}
         </Alert>
       )}
 
-      <Card title="Actions" description={busy ? `${busy}…` : "Each action works on the current version."}>
+      {event.last_run && (event.last_run.status === "failed" || event.last_run.status === "budget_exhausted") && (
+        <Alert tone="warning" role="status" title="The last run didn't finish">
+          {event.last_run.status === "budget_exhausted"
+            ? "The agents hit their time or call limit, so nothing from that run was saved."
+            : "Something went wrong during the run, so nothing from it was saved."}{" "}
+          What you see below is v{v.version}, unchanged.
+        </Alert>
+      )}
+
+      {v.evidence_snapshot_id && !snapshot && (
+        <Alert tone="warning" role="status" title="Evidence for this version is unavailable">
+          The checks below were made with evidence snapshot {v.evidence_snapshot_id}, which couldn&apos;t be loaded. Run
+          Recheck to fetch fresh data before approving.
+        </Alert>
+      )}
+
+      <Card
+        title="Actions"
+        description={
+          <span aria-live="polite">
+            {busy ? `${busy}… this can take a little while.` : "Each action works on the current version."}
+          </span>
+        }
+      >
         <div className="flex flex-wrap gap-2">
           <Button
             variant={v.plan ? "secondary" : "primary"}
@@ -131,7 +180,10 @@ export function Workspace({ eventId }: { eventId: string }) {
             </Button>
           )}
           {actions.requestReview && (
-            <Button disabled={!!busy} onClick={() => act("Request review", "review", version, Api.requestReview.response)}>
+            <Button
+              disabled={!!busy}
+              onClick={() => act("Request review", "review", version, Api.requestReview.response)}
+            >
               Request review
             </Button>
           )}
@@ -160,7 +212,12 @@ export function Workspace({ eventId }: { eventId: string }) {
                 busy={!!busy}
                 onCancel={() => setConfirming(null)}
                 onSubmit={async (c) => {
-                  const r = await act("Record confirmation", "confirmations", { ...version, ...c }, Api.addConfirmation.response);
+                  const r = await act(
+                    "Record confirmation",
+                    "confirmations",
+                    { ...version, ...c },
+                    Api.addConfirmation.response,
+                  );
                   if (r.ok) setConfirming(null);
                 }}
               />
@@ -179,7 +236,12 @@ export function Workspace({ eventId }: { eventId: string }) {
         busy={!!busy}
         canApply={actions.applyOption}
         onApply={(o) =>
-          act("Use this option", "apply-option", { ...version, combined_option_id: o.combined_option_id }, Api.applyOption.response)
+          act(
+            "Use this option",
+            "apply-option",
+            { ...version, combined_option_id: o.combined_option_id },
+            Api.applyOption.response,
+          )
         }
       />
       <div className="grid gap-5 lg:grid-cols-2">
@@ -210,6 +272,30 @@ export function Workspace({ eventId }: { eventId: string }) {
   );
 }
 
+function ActionErrorBanner({
+  label,
+  error,
+  reloading,
+  onReload,
+}: {
+  label: string;
+  error: ApiFailure;
+  reloading: boolean;
+  onReload: () => void;
+}) {
+  const view = describeError(error, label);
+  return (
+    <Alert tone={view.tone} role="alert" title={view.title}>
+      <p>{view.body}</p>
+      {view.reload && (
+        <Button variant="primary" className="mt-3" onClick={onReload} disabled={reloading}>
+          {reloading ? "Reloading…" : "Reload the latest version"}
+        </Button>
+      )}
+    </Alert>
+  );
+}
+
 const CHANGE_KINDS: { value: ChangeReport["kind"]; label: string }[] = [
   { value: "time_unavailable", label: "The time doesn't work anymore" },
   { value: "park_issue", label: "Problem at the park" },
@@ -235,7 +321,10 @@ function ChangeForm({
       className="mt-4 space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-4"
       onSubmit={(e) => {
         e.preventDefault();
-        const parsed = ChangeReport.safeParse({ kind, description: description.trim() });
+        const parsed = ChangeReport.safeParse({
+          kind,
+          description: description.trim(),
+        });
         if (!parsed.success) return setError("Describe what changed");
         onSubmit(parsed.data);
       }}

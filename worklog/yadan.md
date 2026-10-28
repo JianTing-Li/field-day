@@ -140,4 +140,12 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
 
+### 2026-10-28 — YT-12: States
+- **Done:** `src/components/errors.ts` turns every API failure (all `ApiError` codes, plus network and unexpected-shape) into a title + plain explanation, and every one says nothing was saved. Workspace: **stale version (409)** shows "This event changed since you opened it" with **Reload the latest version** (not a retry); **data unavailable** (`upstream_unavailable`) says FieldDay never fills gaps with guesses; **budget_exhausted** says the run hit its limit; a failed refresh keeps showing the last loaded data with a warning; a last run that `failed`/`budget_exhausted` gets a "the last run didn't finish, v<n> is unchanged" note; evidence that can't be loaded gets its own warning; **not found** says the event doesn't exist (no pointless retry). Loading: skeletons on list and workspace, and the busy action is announced (`aria-live`). **Fixture banner** (from YT-07) plus a Fixture pill on the evidence card and each fixture item. **Save failed** on the brief form was done in YT-08. The event list uses the same messages. Checked in the browser: stale approve -> warning -> Reload shows v4; unknown event ID -> "This event doesn't exist". 3 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `describeError(failure, action)` in `src/components/errors.ts`.
+- **Unfinished / next:** design-system pass over all screens, then YT-13 evals.
+- **Gotchas:** React 19 reveals streamed Suspense content on an animation frame, so in a hidden browser tab (like the automated test pane) pages can sit on their loading skeleton. Not an app bug; any visible tab loads normally.
+- **Requests:** none
+
 ## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
