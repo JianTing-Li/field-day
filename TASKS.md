@@ -82,7 +82,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
   - **Done when:** a future event uses forecasts only (an observation never stands in for a forecast); missing
     or failed data returns a gap, never an "acceptable" value.
   - **Test:** `npm test -- air`
-- [ ] **YT-03** 2–3 workout templates (JT waits on this) (#28) · Tue
+- [x] **YT-03** 2–3 workout templates (JT waits on this) (#28) · Tue
   - **Files:** `src/server/content/workouts.json` (replace the 2 placeholders)
   - **Uses:** `WorkoutTemplate` (`src/contracts/evidence.ts`)
   - **Do:** real exercises, duration, equipment, `space.layout`, `surfaces`, `group_size`, and `permitted_adaptations`.
