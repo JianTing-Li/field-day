@@ -42,7 +42,7 @@ Add newest entries at the bottom. One entry per task or work session.
 
 ## 2026-10-27 — JT-01: Agent runner and fake runner (#3)
 - **Done:** Implemented `runAgent` and `createRunner` in `src/server/agents/runner.ts` (Anthropic Messages API call, `allowed_tools` JSON Schema conversion, multi-turn tool loop with `ToolSchemas` validation, final JSON output validation with at most 1 budget-counted repair attempt, `stale_context` rejection on `event_version` / `evidence_snapshot_id` mismatch, `deps.budget.record` usage tracking, and non-throwing `model_error` / `tool_error` handling). Added scripted test runner in `src/server/agents/fake-runner.ts` and unit tests in `src/server/agents/runner.test.ts`. Added `ANTHROPIC_MODEL` to `.env.example` and `README.md`.
-- **Decisions:** D-013 (`ANTHROPIC_MODEL` defaults to `claude-haiku-5-5`), D-014 (fail fast with `tool_error` on disallowed tools, invalid tool input, or thrown tool errors).
+- **Decisions:** D-022 (`ANTHROPIC_MODEL` defaults to `claude-haiku-5-5`), D-014 (fail fast with `tool_error` on disallowed tools, invalid tool input, or thrown tool errors).
 - **Interfaces others depend on:**
   - `runAgent(definition, input, deps)` in `src/server/agents/runner.ts` (implements `RunAgent`).
   - `createFakeRunner(steps, options?)` in `src/server/agents/fake-runner.ts` for agent tests (YT-05, YT-06, JT-12, JT-13) with no network calls:
@@ -51,6 +51,22 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** JT-02 (finish agent tools: time-window filtering and coverage gaps).
 - **Gotchas:** `budget.record` rejects over-limit deltas without recording partial values, so when a final model call exceeds a token or `elapsed_ms` cap, that call's usage appears in `result.usage` but not in `budget.used()` (to handle in JT-10).
 - **Requests:** `CLAUDE.md` needs an ownership row/entry assigning `src/server/agents/fake-runner.ts` to JT (to be done in a separate small PR).
+
+## 2026-10-27 — JT-02: Finish agent tools (#4)
+- **Done:** Updated `src/server/tools/index.ts` so `get_forecast` and `get_air_quality` filter `EvidenceItem`s by park (`park_id` or regional `null`), metric, and overlapping `[start_time, end_time]` interval (using `fromLocalDateTime` / `toLocalDateTime`), and compute `coverage_gaps` for missing metrics, `null`-value items (`missing_reason`), partially uncovered time sub-intervals, and relevant snapshot-level gaps. Added unit tests in `src/server/tools/tools.test.ts`.
+- **Decisions:** none (follows PRD §3a and `ToolRegistry` contract).
+- **Interfaces others depend on:** `tools` (`ToolRegistry` in `src/server/tools/index.ts`) — contract unchanged, now returns time-filtered items and accurate `coverage_gaps` for Planning (YT-05), Workout Adaptation (YT-06), and Event Logistics (JT-12).
+- **Unfinished / next:** JT-01 (agent runner) and JT-03 (evidence snapshot builder + freshness).
+- **Gotchas:** Fixture snapshots in Case 1 and Case 2 only include `temperature` (not `precipitation_probability` or `wind_speed`); `get_forecast` requires `temperature` coverage and also checks interval coverage for `precipitation_probability` and `wind_speed` whenever those metrics are present in the snapshot.
+- **Requests:** none
+
+## 2026-10-27 — JT-02: Audit fixes (#4)
+- **Done:** Tightened `get_forecast` / `get_air_quality` after review: snapshot gaps filtered by whole park ID and domain (no `park-ab` vs `park-a` leaks, no park-record/template gaps); inverted or zero-length windows and non-candidate parks return no items plus an explicit gap; only `forecast` items count as coverage (observations never do); null-value gaps name the evidence ID and its own period. Scenario AQI days now end at next-day `00:00`. Added tests for each case.
+- **Decisions:** D-019.
+- **Interfaces others depend on:** gap strings from the condition tools changed wording for null-value items and the new invalid-window / unknown-park cases.
+- **Unfinished / next:** JT-03 should write snapshot gaps that name the park ID and source (NWS / AirNow) so D-019 filtering works.
+- **Gotchas:** A snapshot gap naming a park ID that is nowhere in the snapshot is treated as regional.
+- **Requests:** Yadan (YT-01/YT-02): mark AirNow current values `observation`, use half-open periods ending at the next period's start, and include the park ID and source name in adapter gaps (current placeholders already do).
 
 ## 2026-10-27 — JT-07: Lifecycle
 - **Done:** Replaced the stub state handling in `src/server/lifecycle/service.ts`. New: `transitions.ts`

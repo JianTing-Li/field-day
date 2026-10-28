@@ -43,3 +43,11 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** YT-03 workout templates.
 - **Gotchas:** AirNow's forecast only reaches about 1-2 days ahead (the recording has 2026-10-27 and 10-28, PM2.5 only), so most events further out get a coverage gap. Rate limit is 500 requests per hour per key.
 - **Requests:** JT: fixture scenarios that want real AirNow data need an event on 2026-10-27 or 2026-10-28. D-013 and D-014 were already taken on develop when I rebased, so this is D-015.
+
+## 2026-10-28 — YT-03: workout templates
+- **Done:** Replaced the 2 placeholders in `src/server/content/workouts.json` with 3 beginner templates: bodyweight circuit, walk-run intervals and resistance band strength. Each has real exercises whose minutes add up to 45, equipment, space layout, surfaces, group size and adaptations. All marked `pending_instructor_review`.
+- **Decisions:** none
+- **Interfaces others depend on:** kept `tpl-bodyweight-45`, `tpl-run-intervals-45` and `adapt-stationary-circuit`. New IDs: `tpl-band-strength-45` (needs `resistance_band` and `exercise_mat`, so YT-04 can test an equipment fail), `adapt-low-impact`, `adapt-short-30` (-15 min), `adapt-loop-path`, `adapt-band-short-35` (-10 min). `min_area_sq_m` is 100 for the stationary sessions (about 2 m x 2 m per person at the largest group).
+- **Unfinished / next:** an instructor still needs to review them. YT-04 workout rules next.
+- **Gotchas:** none
+- **Requests:** JT: `referenceEvidence()` in `fixtures/scenarios/helpers.ts` still says "Placeholder template; not instructor-reviewed". The second half is still true; you may want to drop "Placeholder".
