@@ -1,20 +1,140 @@
 @import "tailwindcss";
 
-/* FieldDay is light-only for now: every screen uses the stone/emerald palette directly. */
+/*
+ * FieldDay UI system: Claymorphism (owner: Yadan). Soft, inflated forms lit from the upper left.
+ * The --dp-* tokens are authoritative; Tailwind color names below point at them so components
+ * say `bg-cream` or `text-ink` instead of raw values. Light-only.
+ */
 :root {
-  --background: #fafaf9; /* stone-50 */
-  --foreground: #1c1917; /* stone-900 */
+  --dp-color-ground: #f1f2fa;
+  --dp-color-ink: #383139;
+  --dp-color-ink-secondary: #48404b;
+  --dp-color-accent: #f6a3ca;
+  --dp-color-surface-support: #c0efdc;
+  --dp-color-surface-compare: #ded0f9;
+  --dp-color-surface-warm: #f9e7a8;
+  --dp-color-surface-cool: #c5e5fb;
+  --dp-color-surface: #fffdf7;
+  /* Field error text on cream: a deep plum-pink from the ink/accent family, so errors stay legible. */
+  --dp-color-danger-ink: #8a2453;
+
+  --dp-typography-face: var(--font-instrument), "Claymorphism Instrument", sans-serif;
+  --dp-typography-body: 16px;
+  --dp-typography-small: 15px;
+  --dp-typography-metadata: 13px;
+  --dp-typography-caption: 12px;
+  --dp-typography-reading-leading: 1.55;
+  --dp-typography-emphasis: 700;
+
+  --dp-spacing-gap: 24px;
+  --dp-spacing-gap-compact: 20px;
+  --dp-spacing-paragraph-gap: 18px;
+
+  --dp-radius-surface: 38px;
+  --dp-radius-tray: 70px;
+  --dp-radius-control: 999px;
+  --dp-radius-disclosure: 25px;
+
+  --dp-border-focus-width: 3px;
+  --dp-motion-interaction: 180ms;
+
+  /* One light direction everywhere: highlight upper-left, shade lower-right, broad soft ground shadow. */
+  --dp-shadow-clay: 0 22px 44px -18px rgb(56 49 57 / 0.28), inset 6px 6px 12px rgb(255 255 255 / 0.75),
+    inset -8px -8px 16px rgb(56 49 57 / 0.09);
+  --dp-shadow-clay-sm: 0 8px 16px -8px rgb(56 49 57 / 0.32), inset 3px 3px 6px rgb(255 255 255 / 0.7),
+    inset -4px -4px 8px rgb(56 49 57 / 0.12);
+  --dp-shadow-clay-press: 0 2px 6px -4px rgb(56 49 57 / 0.3), inset 4px 4px 8px rgb(56 49 57 / 0.16),
+    inset -2px -2px 6px rgb(255 255 255 / 0.6);
+  --dp-shadow-recessed: inset 4px 4px 9px rgb(56 49 57 / 0.13), inset -4px -4px 9px rgb(255 255 255 / 0.85);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ground: var(--dp-color-ground);
+  --color-ink: var(--dp-color-ink);
+  --color-ink-2: var(--dp-color-ink-secondary);
+  --color-accent: var(--dp-color-accent);
+  --color-mint: var(--dp-color-surface-support);
+  --color-lavender: var(--dp-color-surface-compare);
+  --color-butter: var(--dp-color-surface-warm);
+  --color-cool: var(--dp-color-surface-cool);
+  --color-cream: var(--dp-color-surface);
+  --color-danger-ink: var(--dp-color-danger-ink);
+  --color-background: var(--dp-color-ground);
+  --color-foreground: var(--dp-color-ink);
+
+  --font-sans: var(--dp-typography-face);
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Tailwind's text-xs/text-sm map to the metadata and small tokens so labels stay readable. */
+  --text-xs: var(--dp-typography-metadata);
+  --text-xs--line-height: 1.4;
+  --text-sm: var(--dp-typography-small);
+  --text-sm--line-height: var(--dp-typography-reading-leading);
+  --text-base: var(--dp-typography-body);
+  --text-base--line-height: var(--dp-typography-reading-leading);
+
+  --radius-surface: var(--dp-radius-surface);
+  --radius-tray: var(--dp-radius-tray);
+  --radius-control: var(--dp-radius-control);
+  --radius-disclosure: var(--dp-radius-disclosure);
+}
+
+/* Molded surfaces. Text never gets these shadows. */
+@utility clay {
+  box-shadow: var(--dp-shadow-clay);
+}
+@utility clay-sm {
+  box-shadow: var(--dp-shadow-clay-sm);
+}
+@utility clay-recessed {
+  box-shadow: var(--dp-shadow-recessed);
+}
+
+/* Thick pill controls: hover raises slightly, press lowers and compresses. */
+@utility clay-control {
+  box-shadow: var(--dp-shadow-clay-sm);
+  transition:
+    transform var(--dp-motion-interaction) ease,
+    box-shadow var(--dp-motion-interaction) ease,
+    background-color var(--dp-motion-interaction) ease;
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: var(--dp-shadow-clay-press);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover:not(:disabled),
+    &:active:not(:disabled) {
+      transform: none;
+    }
+  }
+}
+
+/* Focus is a solid ring, kept separate from the shading. */
+@utility focus-ring {
+  &:focus-visible {
+    outline: var(--dp-border-focus-width) solid var(--dp-color-ink);
+    outline-offset: 3px;
+  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  background: var(--dp-color-ground);
+  color: var(--dp-color-ink);
+  font-family: var(--dp-typography-face);
+  font-size: var(--dp-typography-body);
+  line-height: var(--dp-typography-reading-leading);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

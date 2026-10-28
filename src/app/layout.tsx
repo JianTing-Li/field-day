@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import Link from "next/link";
 import { dataMode } from "@/server/data/mode";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// "Claymorphism Instrument": the UI system's typeface (see globals.css).
+const instrument = Instrument_Sans({
+  variable: "--font-instrument",
   subsets: ["latin"],
 });
 
@@ -22,26 +23,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const fixture = dataMode() === "fixture";
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${instrument.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {fixture && (
-          <div role="note" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-950">
-            <strong className="font-semibold">Demo data.</strong> Weather, air quality, parks and confirmations come
-            from recorded fixtures, not live sources. Do not use them to run a real event.
+          <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
+            <strong className="font-bold">Demo data.</strong> Weather, air quality, parks and confirmations come from
+            recorded fixtures, not live sources. Do not use them to run a real event.
           </div>
         )}
-        <header className="border-b border-stone-200 bg-white">
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-emerald-900">
-              <span
-                aria-hidden="true"
-                className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-800 text-sm text-white"
-              >
+        <header className="px-4 pt-4 sm:px-6">
+          <div className="clay mx-auto flex w-full max-w-5xl items-center justify-between gap-4 rounded-control bg-cream px-4 py-2.5 sm:px-6">
+            <Link href="/" className="focus-ring flex items-center gap-2.5 rounded-control font-bold tracking-tight text-ink">
+              <span aria-hidden="true" className="clay-sm grid h-9 w-9 place-items-center rounded-full bg-accent text-base">
                 F
               </span>
               FieldDay
             </Link>
-            <span className="hidden text-xs text-stone-500 sm:inline">Outdoor workout planning · New York City</span>
+            <span className="hidden text-xs text-ink-2 sm:inline">Outdoor workout planning · New York City</span>
           </div>
         </header>
         {children}

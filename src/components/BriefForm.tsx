@@ -15,6 +15,7 @@ import {
   type BriefFormValues,
 } from "./brief-form";
 import { StatusBadge } from "./StatusBadge";
+import { Alert, buttonClass, fieldClass } from "./ui";
 
 /** Event brief form for creating (POST /api/events) and editing (PUT /api/events/:id/brief). Task YT-08. */
 
@@ -153,17 +154,16 @@ export function BriefForm(props: Props) {
 
   if (loadError) {
     return (
-      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
-        <p className="font-medium">This event could not be loaded.</p>
-        <p className="mt-1 text-sm">{loadError}.</p>
-        <Link href="/" className="mt-3 inline-block text-sm font-medium underline">
+      <Alert tone="danger" role="alert" title="This event could not be loaded.">
+        <p>{loadError}.</p>
+        <Link href="/" className={buttonClass("surface", "mt-3")}>
           Back to events
         </Link>
-      </div>
+      </Alert>
     );
   }
   if (props.mode === "edit" && !event) {
-    return <p role="status" className="text-sm text-stone-600">Loading the event brief…</p>;
+    return <p role="status" className="text-sm text-ink-2">Loading the event brief…</p>;
   }
 
   const errorList = FIELD_ORDER.filter((f) => errors[f]);
@@ -172,7 +172,7 @@ export function BriefForm(props: Props) {
   return (
     <form onSubmit={submit} noValidate className="space-y-6">
       {event && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+        <div className="clay flex flex-wrap items-center gap-3 rounded-surface bg-cool px-6 py-5 text-sm text-ink">
           <StatusBadge status={event.versions.find((v) => v.version === event.current_version)?.status ?? "draft"} />
           <span>
             Editing the brief of <strong>v{event.current_version}</strong>. Saving creates{" "}
@@ -183,12 +183,12 @@ export function BriefForm(props: Props) {
       )}
 
       {(errorList.length > 0 || serverError) && (
-        <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
+        <div ref={summaryRef} tabIndex={-1} role="alert" className="clay focus-ring rounded-surface bg-accent px-6 py-5 text-ink">
           {serverError ? (
-            <p className="font-medium">{serverError}</p>
+            <p className="font-bold">{serverError}</p>
           ) : (
             <>
-              <p className="font-medium">Fix {errorList.length === 1 ? "this field" : `these ${errorList.length} fields`} to continue:</p>
+              <p className="font-bold">Fix {errorList.length === 1 ? "this field" : `these ${errorList.length} fields`} to continue:</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
                 {errorList.map((f) => (
                   <li key={f}>
@@ -280,22 +280,22 @@ export function BriefForm(props: Props) {
 
       <Section title="Parks" hint="The planner only considers the parks you allow.">
         <fieldset id="field-allowed_park_ids" className="sm:col-span-2" {...describedBy("allowed_park_ids", errors.allowed_park_ids)}>
-          <legend className="text-sm font-medium text-stone-800">Allowed parks</legend>
+          <legend className="text-sm font-bold text-ink">Allowed parks</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {parks.map((p) => (
               <label
                 key={p.id}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm has-[:checked]:border-emerald-700 has-[:checked]:bg-emerald-50 ${errors.allowed_park_ids ? "border-rose-300" : "border-stone-200"}`}
+                className={`clay-sm flex cursor-pointer items-center gap-3 rounded-disclosure bg-cream px-4 py-2.5 text-sm has-[:checked]:clay-recessed has-[:checked]:bg-mint has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ink ${errors.allowed_park_ids ? "ring-2 ring-danger-ink" : ""}`}
               >
                 <input
                   type="checkbox"
                   checked={values.allowed_park_ids.includes(p.id)}
                   onChange={() => toggle("allowed_park_ids", p.id)}
-                  className="h-4 w-4 accent-emerald-800"
+                  className="h-4 w-4 accent-ink"
                 />
                 <span>
-                  <span className="block font-medium text-stone-900">{p.name}</span>
-                  <span className="block text-xs text-stone-500">{p.borough}</span>
+                  <span className="block font-bold text-ink">{p.name}</span>
+                  <span className="block text-xs text-ink-2">{p.borough}</span>
                 </span>
               </label>
             ))}
@@ -337,22 +337,22 @@ export function BriefForm(props: Props) {
             ))}
           </select>
           {template && !template.reviewed && (
-            <p className="mt-1.5 text-xs text-amber-800">This template has not been reviewed by an instructor yet.</p>
+            <p className="mt-2 text-xs font-bold text-ink">⚠ This template has not been reviewed by an instructor yet.</p>
           )}
         </Field>
         <fieldset className="sm:col-span-2">
-          <legend className="text-sm font-medium text-stone-800">Equipment you have</legend>
+          <legend className="text-sm font-bold text-ink">Equipment you have</legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {knownEquipment.map((id) => (
               <label
                 key={id}
-                className="flex cursor-pointer items-center gap-2 rounded-full border border-stone-200 px-3 py-1.5 text-sm has-[:checked]:border-emerald-700 has-[:checked]:bg-emerald-50"
+                className="clay-sm flex cursor-pointer items-center gap-2 rounded-control bg-cream px-4 py-2 text-sm has-[:checked]:clay-recessed has-[:checked]:bg-mint has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ink"
               >
                 <input
                   type="checkbox"
                   checked={values.equipment.includes(id)}
                   onChange={() => toggle("equipment", id)}
-                  className="h-4 w-4 accent-emerald-800"
+                  className="h-4 w-4 accent-ink"
                 />
                 {equipmentLabel(id)}
               </label>
@@ -374,7 +374,7 @@ export function BriefForm(props: Props) {
             rows={2}
             value={values.exercise_exclusions}
             onChange={(e) => set("exercise_exclusions", e.target.value)}
-            className={input()}
+            className={input(undefined, true)}
           />
         </Field>
       </Section>
@@ -411,7 +411,7 @@ export function BriefForm(props: Props) {
             rows={2}
             value={values.limit_notes}
             onChange={(e) => set("limit_notes", e.target.value)}
-            className={input()}
+            className={input(undefined, true)}
           />
         </Field>
       </Section>
@@ -423,22 +423,18 @@ export function BriefForm(props: Props) {
             rows={2}
             value={values.priorities}
             onChange={(e) => set("priorities", e.target.value)}
-            className={input()}
+            className={input(undefined, true)}
           />
         </Field>
       </Section>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-emerald-800 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-wait disabled:opacity-60"
-        >
+      <div className="flex flex-wrap items-center gap-4 pt-2">
+        <button type="submit" disabled={saving} className={buttonClass("primary", "px-7 py-3 text-base disabled:cursor-wait")}>
           {saving ? "Saving…" : props.mode === "create" ? "Create event" : `Save as v${(event?.current_version ?? 0) + 1}`}
         </button>
         <Link
           href={props.mode === "edit" ? `/events/${encodeURIComponent(props.eventId)}` : "/"}
-          className="rounded-lg px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-100"
+          className={buttonClass("ghost")}
         >
           Cancel
         </Link>
@@ -447,11 +443,7 @@ export function BriefForm(props: Props) {
   );
 }
 
-function input(error?: string) {
-  return `block w-full rounded-lg border bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 focus:outline-2 focus:outline-offset-0 focus:outline-emerald-700 disabled:bg-stone-100 ${
-    error ? "border-rose-400" : "border-stone-300"
-  }`;
-}
+const input = fieldClass;
 
 function describedBy(field: BriefField, error?: string) {
   return error ? { "aria-invalid": true, "aria-describedby": `error-${field}` } : {};
@@ -459,10 +451,10 @@ function describedBy(field: BriefField, error?: string) {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-5 sm:p-6">
-      <h2 className="text-base font-semibold text-stone-900">{title}</h2>
-      {hint && <p className="mt-0.5 text-sm text-stone-600">{hint}</p>}
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">{children}</div>
+    <section className="clay rounded-surface bg-cream p-6 sm:p-8">
+      <h2 className="text-xl font-bold tracking-tight text-ink">{title}</h2>
+      {hint && <p className="mt-1 text-sm text-ink-2">{hint}</p>}
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">{children}</div>
     </section>
   );
 }
@@ -482,7 +474,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label htmlFor={`field-${id}`} className="mb-1.5 block text-sm font-medium text-stone-800">
+      <label htmlFor={`field-${id}`} className="mb-2 block text-sm font-bold text-ink">
         {label}
       </label>
       {children}
@@ -494,7 +486,7 @@ function Field({
 function FieldError({ id, error }: { id: BriefField; error?: string }) {
   if (!error) return null;
   return (
-    <p id={`error-${id}`} className="mt-1.5 text-sm text-rose-700">
+    <p id={`error-${id}`} className="mt-1.5 text-sm font-bold text-danger-ink">
       {error}
     </p>
   );

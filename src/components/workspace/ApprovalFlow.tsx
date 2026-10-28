@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CheckId, EvidenceSnapshot, FieldDayEvent, GateCheck, OrganizerTask, PlanVersion } from "@/contracts";
 import { formatUpdated } from "../format";
-import { Alert, Button, Card } from "../ui";
+import { Alert, Button, Card, fieldClass } from "../ui";
 import { approveBlockedReason, checkName, formatLocal, parkName } from "./logic";
 
 /** Confirmations, approve and finalize (task YT-11). */
@@ -48,7 +48,7 @@ export function ConfirmTaskForm({
   const id = `confirm-${task.id}`;
   return (
     <form
-      className="mt-2 space-y-3 rounded-lg border border-emerald-200 bg-white p-3"
+      className="clay-recessed mt-3 space-y-4 rounded-disclosure bg-cream p-5"
       onSubmit={(e) => {
         e.preventDefault();
         if (!statement.trim()) return setError("Say what you confirmed");
@@ -61,26 +61,26 @@ export function ConfirmTaskForm({
         });
       }}
     >
-      <dl className="grid gap-2 text-xs text-stone-600 sm:grid-cols-3">
+      <dl className="grid gap-2 text-xs text-ink-2 sm:grid-cols-3">
         <div>
-          <dt className="font-medium uppercase tracking-wide text-stone-500">Check</dt>
-          <dd className="text-sm text-stone-900">{checkName(task.resolves_check_id)}</dd>
+          <dt className="font-bold uppercase tracking-wide text-ink-2">Check</dt>
+          <dd className="text-sm text-ink">{checkName(task.resolves_check_id)}</dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-stone-500">Park</dt>
-          <dd className="text-sm text-stone-900">{parkName(snapshot, task.park_id)}</dd>
+          <dt className="font-bold uppercase tracking-wide text-ink-2">Park</dt>
+          <dd className="text-sm text-ink">{parkName(snapshot, task.park_id)}</dd>
         </div>
         <div>
-          <dt className="font-medium uppercase tracking-wide text-stone-500">Time</dt>
-          <dd className="text-sm text-stone-900">{task.start_time ? formatLocal(task.start_time) : "Any time"}</dd>
+          <dt className="font-bold uppercase tracking-wide text-ink-2">Time</dt>
+          <dd className="text-sm text-ink">{task.start_time ? formatLocal(task.start_time) : "Any time"}</dd>
         </div>
       </dl>
-      <p className="text-xs text-stone-600">
+      <p className="text-xs text-ink-2">
         This confirmation counts only for this check, at this park{task.start_time ? " and time" : ""}. It never carries
         over to another park.
       </p>
       <div>
-        <label htmlFor={`${id}-statement`} className="mb-1 block text-sm font-medium text-stone-800">
+        <label htmlFor={`${id}-statement`} className="mb-2 block text-sm font-bold text-ink">
           What did you confirm?
         </label>
         <textarea
@@ -94,23 +94,23 @@ export function ConfirmTaskForm({
           placeholder="e.g. I walked the east lawn: open, flat grass for 18 people"
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`block w-full rounded-lg border px-3 py-2 text-sm ${error ? "border-rose-400" : "border-stone-300"}`}
+          className={fieldClass(error, true)}
         />
         {error && (
-          <p id={`${id}-error`} className="mt-1 text-sm text-rose-700">
+          <p id={`${id}-error`} className="mt-1.5 text-sm font-bold text-danger-ink">
             {error}
           </p>
         )}
       </div>
       <div>
-        <label htmlFor={`${id}-note`} className="mb-1 block text-sm font-medium text-stone-800">
+        <label htmlFor={`${id}-note`} className="mb-2 block text-sm font-bold text-ink">
           Note (optional)
         </label>
         <input
           id={`${id}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="block w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          className={fieldClass()}
         />
       </div>
       <div className="flex gap-2">
@@ -131,12 +131,12 @@ export function ConfirmationsList({ event, snapshot }: { event: FieldDayEvent; s
     <Card title="Your confirmations" description="Each one resolves a single check at one park (and time).">
       <ul className="space-y-2">
         {event.confirmations.map((c) => (
-          <li key={c.id} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm">
-            <p className="text-stone-900">
+          <li key={c.id} className="clay-sm rounded-disclosure bg-mint px-5 py-3 text-sm">
+            <p className="text-ink">
               <span aria-hidden="true">✓ </span>
               {c.statement}
             </p>
-            <p className="mt-0.5 text-xs text-stone-600">
+            <p className="mt-0.5 text-xs text-ink-2">
               {checkName(c.check_id)} · {parkName(snapshot, c.park_id)} · {c.start_time ? formatLocal(c.start_time) : "any time"} ·{" "}
               {c.confirmed_by}, {formatUpdated(c.confirmed_at)}
               {c.note && ` · ${c.note}`}
@@ -181,24 +181,24 @@ export function ApprovalPanel({
         <li className="flex gap-3">
           <Step n={1} done={approved || finalizedHere} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-stone-900">
+            <p className="text-sm font-bold text-ink">
               Approve <span className="font-mono">v{v.version}</span>
               {v.evidence_snapshot_id && (
-                <span className="font-normal text-stone-600">
+                <span className="font-normal text-ink-2">
                   {" "}
                   with evidence <span className="font-mono text-xs">{v.evidence_snapshot_id}</span>
                 </span>
               )}
             </p>
             {approved || finalizedHere ? (
-              <p className="text-sm text-emerald-800">
+              <p className="text-sm text-ink">
                 Approved {event.approval ? formatUpdated(event.approval.approved_at) : ""}.
               </p>
             ) : (
               <>
-                {blocked && <p className="text-sm text-stone-600">{blocked}</p>}
+                {blocked && <p className="text-sm text-ink-2">{blocked}</p>}
                 {blockedDetails.length > 0 && (
-                  <ul className="mt-1 list-disc pl-5 text-sm text-rose-800">
+                  <ul className="mt-1 list-disc pl-5 text-sm text-ink">
                     {blockedDetails.map((id) => (
                       <li key={id}>{checkName(id)}</li>
                     ))}
@@ -219,17 +219,17 @@ export function ApprovalPanel({
         <li className="flex gap-3">
           <Step n={2} done={finalizedHere} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-stone-900">
+            <p className="text-sm font-bold text-ink">
               Finalize <span className="font-mono">v{v.version}</span>
             </p>
             {finalizedHere ? (
-              <p className="text-sm text-emerald-800">
+              <p className="text-sm text-ink">
                 🔒 Saved as the final event record {formatUpdated(event.finalized!.finalized_at)}. Finalizing again
                 returns this same record; it is never saved twice.
               </p>
             ) : (
               <>
-                <p className="text-sm text-stone-600">
+                <p className="text-sm text-ink-2">
                   {approved
                     ? "Runs the final save checks below. Nothing is booked, published or sent."
                     : "Available after approval."}
@@ -240,7 +240,7 @@ export function ApprovalPanel({
               </>
             )}
             {event.finalized && !finalizedHere && (
-              <p className="mt-2 text-sm text-stone-600">
+              <p className="mt-2 text-sm text-ink-2">
                 v{event.finalized.version} is still the finalized record until this version is finalized.
               </p>
             )}
@@ -256,13 +256,13 @@ export function ApprovalPanel({
           <ul className="mt-3 space-y-1.5">
             {shownGate.map((g) => (
               <li key={g.id} className="flex gap-2 text-sm">
-                <span aria-hidden="true" className={g.status === "pass" ? "text-emerald-700" : "text-rose-700"}>
+                <span aria-hidden="true" className={g.status === "pass" ? "text-ink" : "text-ink"}>
                   {g.status === "pass" ? "✓" : "✕"}
                 </span>
                 <span>
                   <span className="sr-only">{g.status === "pass" ? "Passed: " : "Failed: "}</span>
-                  <span className="font-medium text-stone-900">{GATE_NAMES[g.id]}</span>
-                  <span className="text-stone-600"> · {g.reason}</span>
+                  <span className="font-bold text-ink">{GATE_NAMES[g.id]}</span>
+                  <span className="text-ink-2"> · {g.reason}</span>
                 </span>
               </li>
             ))}
@@ -277,8 +277,8 @@ function Step({ n, done }: { n: number; done: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-semibold ${
-        done ? "bg-emerald-700 text-white" : "bg-stone-200 text-stone-700"
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-ink ${
+        done ? "clay-sm bg-mint" : "clay-recessed bg-lavender"
       }`}
     >
       {done ? "✓" : n}

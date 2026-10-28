@@ -2,12 +2,12 @@ import type { LifecycleStatus } from "@/contracts";
 import { STATUS } from "./format";
 
 const TONE: Record<string, string> = {
-  neutral: "bg-stone-100 text-stone-700 ring-stone-300",
-  warning: "bg-amber-50 text-amber-800 ring-amber-300",
-  info: "bg-sky-50 text-sky-800 ring-sky-300",
-  success: "bg-emerald-50 text-emerald-800 ring-emerald-300",
-  final: "bg-emerald-800 text-white ring-emerald-900",
-  danger: "bg-rose-50 text-rose-800 ring-rose-300",
+  neutral: "bg-lavender text-ink",
+  warning: "bg-butter text-ink",
+  info: "bg-cool text-ink",
+  success: "bg-mint text-ink",
+  final: "bg-ink text-cream",
+  danger: "bg-accent text-ink",
 };
 
 /** A lifecycle status as icon + words. Color only reinforces the text. */
@@ -16,7 +16,7 @@ export function StatusBadge({ status }: { status: LifecycleStatus }) {
   return (
     <span
       title={s.hint}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${TONE[s.tone]}`}
+      className={`clay-sm inline-flex items-center gap-1.5 whitespace-nowrap rounded-control px-3 py-1 text-xs font-bold ${TONE[s.tone]}`}
     >
       <span aria-hidden="true">{s.icon}</span>
       {s.label}

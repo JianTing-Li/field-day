@@ -7,6 +7,7 @@ import { apiGet, type ApiResult } from "./api-client";
 import { describeError } from "./errors";
 import { formatEventDate, formatUpdated, versionText } from "./format";
 import { StatusBadge } from "./StatusBadge";
+import { Alert, Button, buttonClass } from "./ui";
 
 type ListResult = ApiResult<{ events: EventSummary[] }>;
 
@@ -31,36 +32,31 @@ export function EventList() {
 
   if (!result.ok) {
     return (
-      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
-        <p className="font-medium">Events could not be loaded.</p>
-        <p className="mt-1 text-sm">{describeError(result, "Loading events").title}. Nothing was changed.</p>
-        <button
-          type="button"
-          onClick={load}
-          className="mt-3 rounded-lg bg-rose-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-900"
-        >
+      <Alert tone="danger" role="alert" title="Events could not be loaded.">
+        <p>{describeError(result, "Loading events").title}. Nothing was changed.</p>
+        <Button variant="surface" className="mt-3" onClick={load}>
           Try again
-        </button>
-      </div>
+        </Button>
+      </Alert>
     );
   }
 
   const { events } = result.data;
   if (events.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">
-        <p className="font-medium text-stone-900">No events yet</p>
-        <p className="mt-1 text-sm text-stone-600">Start with an event brief: date, time window, parks and workout.</p>
-        <NewEventLink className="mt-4" />
+      <div className="clay rounded-surface bg-cream p-10 text-center md:rounded-tray">
+        <p className="text-xl font-bold text-ink">No events yet</p>
+        <p className="mt-1 text-sm text-ink-2">Start with an event brief: date, time window, parks and workout.</p>
+        <NewEventLink className="mt-5" variant="primary" />
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white">
+    <ul className="clay space-y-1 rounded-surface bg-cream p-3 sm:p-5 md:rounded-tray md:p-8">
       <li
         aria-hidden="true"
-        className="hidden grid-cols-[1fr_9rem_10rem_5rem_7rem] gap-4 bg-stone-50 px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-stone-500 md:grid"
+        className="hidden grid-cols-[1fr_9rem_10rem_5rem_7rem] gap-4 px-5 pb-2 text-xs font-bold tracking-wide text-ink-2 uppercase lg:grid"
       >
         <span>Event</span>
         <span>Date</span>
@@ -81,26 +77,26 @@ function EventRow({ event: e }: { event: EventSummary }) {
     <li>
       <Link
         href={`/events/${encodeURIComponent(e.id)}`}
-        className="grid gap-x-4 gap-y-2 px-5 py-4 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-700 md:grid-cols-[1fr_9rem_10rem_5rem_7rem] md:items-center"
+        className="focus-ring grid gap-x-4 gap-y-2 rounded-disclosure px-5 py-4 transition-colors duration-[var(--dp-motion-interaction)] hover:bg-lavender/50 lg:grid-cols-[1fr_9rem_10rem_5rem_7rem] lg:items-center"
       >
         <span className="min-w-0">
-          <span className="block font-medium text-stone-900 md:truncate">{e.title}</span>
-          <span className="block text-xs text-stone-500">Updated {formatUpdated(e.updated_at)}</span>
+          <span className="block font-bold text-ink lg:truncate">{e.title}</span>
+          <span className="block text-xs text-ink-2">Updated {formatUpdated(e.updated_at)}</span>
         </span>
-        <span className="text-sm text-stone-700">
-          <span className="text-stone-500 md:hidden">Date: </span>
+        <span className="text-sm text-ink-2">
+          <span className="text-ink-2 lg:hidden">Date: </span>
           {formatEventDate(e.date)}
         </span>
         <span>
           <StatusBadge status={e.status} />
         </span>
-        <span className="text-sm text-stone-700">
-          <span className="text-stone-500 md:hidden">Current version: </span>
+        <span className="text-sm text-ink-2">
+          <span className="text-ink-2 lg:hidden">Current version: </span>
           <span className="font-mono">{v.current}</span>
         </span>
-        <span className="text-sm text-stone-700">
-          <span className="text-stone-500 md:hidden">Finalized: </span>
-          <span className={e.finalized_version === null ? "text-stone-400" : "font-mono"}>{v.finalized}</span>
+        <span className="text-sm text-ink-2">
+          <span className="text-ink-2 lg:hidden">Finalized: </span>
+          <span className={e.finalized_version === null ? "text-ink-2" : "font-mono"}>{v.finalized}</span>
         </span>
       </Link>
     </li>
@@ -109,24 +105,28 @@ function EventRow({ event: e }: { event: EventSummary }) {
 
 function ListSkeleton() {
   return (
-    <div role="status" aria-label="Loading events" className="space-y-px overflow-hidden rounded-xl border border-stone-200 bg-white">
+    <div role="status" aria-label="Loading events" className="clay space-y-1 rounded-surface bg-cream p-5 md:rounded-tray md:p-8">
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex animate-pulse items-center gap-4 px-5 py-5">
-          <div className="h-4 flex-1 rounded bg-stone-200" />
-          <div className="h-4 w-24 rounded bg-stone-100" />
-          <div className="h-6 w-28 rounded-full bg-stone-100" />
+          <div className="h-4 flex-1 rounded-control bg-lavender" />
+          <div className="h-4 w-24 rounded-control bg-ground" />
+          <div className="h-7 w-28 rounded-control bg-ground" />
         </div>
       ))}
     </div>
   );
 }
 
-export function NewEventLink({ className = "" }: { className?: string }) {
+/** "+ New event". Cream on the pink hero, pink elsewhere. */
+export function NewEventLink({
+  className = "",
+  variant = "surface",
+}: {
+  className?: string;
+  variant?: "surface" | "primary";
+}) {
   return (
-    <Link
-      href="/events/new"
-      className={`inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 ${className}`}
-    >
+    <Link href="/events/new" className={buttonClass(variant, `px-6 py-3 text-base ${className}`)}>
       <span aria-hidden="true">+</span> New event
     </Link>
   );

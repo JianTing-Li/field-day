@@ -6,7 +6,7 @@ import type { z } from "zod";
 import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
-import { Alert, Button, buttonClass, Card } from "../ui";
+import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
 import { Alternatives } from "./Alternatives";
 import { ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
 import { availableActions, currentVersion, finalizeKey } from "./logic";
@@ -108,8 +108,8 @@ export function Workspace({ eventId }: { eventId: string }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">{event.brief.title}</h1>
-          <p className="mt-1 text-sm text-stone-600">
+          <h1 className="text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
+          <p className="mt-1 text-sm text-ink-2">
             {event.brief.group_size} people · {event.brief.duration_minutes} minutes · starts between{" "}
             {event.brief.start_window.earliest} and {event.brief.start_window.latest}
           </p>
@@ -318,7 +318,7 @@ function ChangeForm({
   const [error, setError] = useState<string | null>(null);
   return (
     <form
-      className="mt-4 space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-4"
+      className="clay-recessed mt-5 space-y-4 rounded-surface bg-lavender/50 p-5 sm:p-6"
       onSubmit={(e) => {
         e.preventDefault();
         const parsed = ChangeReport.safeParse({
@@ -329,18 +329,18 @@ function ChangeForm({
         onSubmit(parsed.data);
       }}
     >
-      <p className="text-sm text-stone-700">
+      <p className="text-sm text-ink-2">
         FieldDay will ask its specialists for alternatives. Your current plan stays as it is until you pick one.
       </p>
       <div>
-        <label htmlFor="change-kind" className="mb-1 block text-sm font-medium text-stone-800">
+        <label htmlFor="change-kind" className="mb-2 block text-sm font-bold text-ink">
           What changed?
         </label>
         <select
           id="change-kind"
           value={kind}
           onChange={(e) => setKind(e.target.value as ChangeReport["kind"])}
-          className="block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+          className={fieldClass()}
         >
           {CHANGE_KINDS.map((k) => (
             <option key={k.value} value={k.value}>
@@ -350,7 +350,7 @@ function ChangeForm({
         </select>
       </div>
       <div>
-        <label htmlFor="change-description" className="mb-1 block text-sm font-medium text-stone-800">
+        <label htmlFor="change-description" className="mb-2 block text-sm font-bold text-ink">
           Details
         </label>
         <textarea
@@ -364,10 +364,10 @@ function ChangeForm({
           placeholder="e.g. The running lane at the park is closed for repairs"
           aria-invalid={!!error}
           aria-describedby={error ? "change-error" : undefined}
-          className={`block w-full rounded-lg border bg-white px-3 py-2 text-sm ${error ? "border-rose-400" : "border-stone-300"}`}
+          className={fieldClass(error, true)}
         />
         {error && (
-          <p id="change-error" className="mt-1 text-sm text-rose-700">
+          <p id="change-error" className="mt-1.5 text-sm font-bold text-danger-ink">
             {error}
           </p>
         )}
@@ -387,11 +387,11 @@ function ChangeForm({
 function WorkspaceSkeleton() {
   return (
     <div role="status" aria-label="Loading the event" className="animate-pulse space-y-5">
-      <div className="h-8 w-2/3 rounded bg-stone-200" />
-      <div className="h-12 rounded-xl bg-stone-100" />
+      <div className="h-12 w-2/3 rounded-control bg-lavender" />
+      <div className="h-14 rounded-control bg-cream" />
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="h-56 rounded-xl bg-stone-100" />
-        <div className="h-56 rounded-xl bg-stone-100" />
+        <div className="h-56 rounded-surface bg-cream" />
+        <div className="h-56 rounded-surface bg-cream" />
       </div>
     </div>
   );
