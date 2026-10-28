@@ -100,6 +100,20 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
 
+### 2026-10-28 — JT-04: Heat/AQI policies + policy-config
+- **Done:** `heat.max_temperature` and `air_quality.max_aqi` in `src/server/rules/environment.ts`, limits in
+  `policy-config.ts` (version `unreviewed-demo-policy-v1`, every reason ends with "unreviewed demo policy").
+  Tests: `environment.test.ts`, plus a check in `check-plan.test.ts` that the real rules give the same heat, AQI and
+  freshness statuses as every plan in the eval fixtures (Case 11 excluded: its output must be rejected).
+- **Decisions:** D-JT04-1 (90°F air temperature, AQI 100, stricter instructor limit wins, category-only AQI).
+- **Interfaces others depend on:** `environmentRules` (same export), `heatCheck`, `airQualityCheck`,
+  `effectiveLimit`, `POLICY_CONFIG`, `AQI_CATEGORY_RANGES`.
+- **Unfinished / next:** values need review by an appropriate reviewer before any real-world use (PRD §3).
+- **Gotchas:** a known reading over the limit fails even when other hours are missing; missing hours with nothing
+  over the limit are unknown. AQI observations can fail the check but never cover an event. Neither check reads the
+  workout, so lowering intensity can never lift a block.
+- **Requests:** none
+
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
 
 ### 2026-10-27 — JT-05: Logistics rules

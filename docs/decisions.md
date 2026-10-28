@@ -195,6 +195,21 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
 
+### D-JT04-1 — Heat and AQI demo policy (supersedes the TBD values in D-010)
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3 "Validation Policies" (Heat, Air quality)
+- **Decision:** Heat reads the NWS hourly forecast air temperature for every hour the event overlaps; the hottest
+  hour decides. NWS humidity is not collected, so this is not a heat index; that is a known limitation. AQI uses the
+  highest value across pollutants from AirNow's daily forecast for the event day. A forecast with only a category
+  uses the category's AQI range: it passes when the whole range is within the limit, fails when the whole range is
+  above it, and is unknown otherwise. AQI observations count only for an hour of the event itself; they can fail the
+  check but never cover it. An instructor limit in the brief applies only when it is stricter than the policy. A
+  known reading over the limit fails even when other hours are missing; otherwise missing or stale evidence is
+  unknown. Limits are inclusive. Values are an unreviewed demo policy and are consistent with every eval fixture
+  (passes at 84°F and below, fails at 92°F and above; AQI 28–68).
+- **Value:** heat max 90°F (air temperature) · AQI max 100 · policy version `unreviewed-demo-policy-v1`
+- **Status:** in use
+
 ## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
 
 ### D-018 — Logistics rules and permit-review warning

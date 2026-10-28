@@ -273,8 +273,8 @@ describe("approval invalidation", () => {
     hooks.snapshot = (s) => ({ ...s, id: "snap-refreshed" });
     const { event } = await svc.recheck(e.id, { version: 2 });
     await expectCleared(event, 2);
-    // Placeholder rules return unknown, which is never treated as pass.
-    expect(cur(event)).toMatchObject({ version: 3, status: "needs_verification", evidence_snapshot_id: "snap-refreshed" });
+    // Same Case 1 evidence under a new ID: check_plan re-runs against it and still passes.
+    expect(cur(event)).toMatchObject({ version: 3, status: "ready_for_approval", evidence_snapshot_id: "snap-refreshed" });
     expect(cur(event).checks?.evidence_snapshot_id).toBe("snap-refreshed");
   });
 

@@ -103,6 +103,7 @@ outcomes (`expected` in each case file) written before any agent run; cases 4–
 <!-- Both: add as you go -->
 - All conditions data is fixture-backed until integrations pass their feasibility checks.
 - Environmental thresholds are unreviewed demo values and cannot support real-world finalization.
+  The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
 - Approval does not establish venue permission, usable space, or guaranteed conditions.
 - Open decisions are tracked in [docs/decisions.md](docs/decisions.md).
