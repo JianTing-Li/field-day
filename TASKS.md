@@ -90,7 +90,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
     Set `review.status` to `"pending_instructor_review"` until an instructor reviews them. Keep the IDs used by
     fixtures (`tpl-bodyweight-45`, `tpl-run-intervals-45`, `adapt-stationary-circuit`) or tell JT if they change.
   - **Done when:** `npm test -- scenarios` passes (it validates this file against the contract).
-- [ ] **YT-04** Workout rules (JT waits on this) (#29) · Tue · needs: YT-03
+- [x] **YT-04** Workout rules (JT waits on this) (#29) · Tue · needs: YT-03
   - **Files:** `src/server/rules/workout.ts`, `workout.test.ts`
   - **Uses:** `RuleFn`, `RuleInput`, `CheckResult` (`src/contracts/checks.ts`)
   - **Do:** use only check IDs from `CheckId` (`src/contracts/common.ts`): `equipment.available`
