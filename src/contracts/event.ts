@@ -3,6 +3,7 @@ import { CheckId, Id, LocalDateTime, Timestamp } from "./common";
 import { EventBrief } from "./brief";
 import { CheckPlanResult } from "./checks";
 import { ReviewerOutput } from "./agents";
+import { WorkoutTemplate } from "./evidence";
 import { CandidatePlan, Concern, Fact, OrganizerTask } from "./plan";
 import { Usage } from "./runner";
 
@@ -51,6 +52,12 @@ export const OrganizerConfirmation = z.object({
   confirmed_by: z.string().min(1),
   confirmed_at: Timestamp,
   note: z.string().nullable(),
+  /**
+   * The workout layout the plan needed when this was confirmed. Space and surface confirmations
+   * only resolve checks for a plan with the same layout; null or missing = layout not known, so
+   * they never resolve a space or surface check.
+   */
+  layout: WorkoutTemplate.shape.space.shape.layout.nullable().optional(),
 });
 export type OrganizerConfirmation = z.infer<typeof OrganizerConfirmation>;
 

@@ -384,7 +384,8 @@ describe("confirmations", () => {
     expect(cur(event).status).toBe("needs_verification");
   });
 
-  it("carries a confirmation to a later version at the same park and time", async () => {
+  it("does not carry a confirmation that was not about the current plan", async () => {
+    // v2 is the running plan at 10 a.m., so a Park A 8 a.m. confirmation has no known layout.
     let { event } = await svc.requestReview("evt-case-02", { version: 2 });
     ({ event } = await svc.addConfirmation(event.id, {
       ...parkB,
@@ -393,9 +394,39 @@ describe("confirmations", () => {
       statement: "Open lawn fits 18 people",
       version: 2,
     }));
-    expect(cur(event).status).toBe("needs_verification"); // v2 (10 a.m.) still fails heat and space
+    expect(event.confirmations[0].layout).toBeNull();
     ({ event } = await svc.applyOption(event.id, { version: 2, combined_option_id: "combo-1" }));
-    expect(cur(event).status).toBe("ready_for_approval");
+    expect(cur(event).status).toBe("needs_verification");
+  });
+
+  it("carries a confirmation to a later version with the same layout, park and time", async () => {
+    let event = await readyCase2(); // v3: stationary at Park A 8 a.m., space confirmed
+    expect(event.confirmations[0].layout).toBe("stationary");
+    ({ event } = await svc.requestReview(event.id, { version: 3 }));
+    ({ event } = await svc.applyOption(event.id, { version: 3, combined_option_id: "combo-1" }));
+    expect(cur(event)).toMatchObject({ version: 4, status: "ready_for_approval" });
+  });
+
+  it("does not carry a space confirmation to a plan with a different layout", async () => {
+    let event = await readyCase2(); // stationary space confirmed at Park A 8 a.m.
+    // The new review offers the running workout (no stationary adaptation) at the same park and time.
+    hooks.review = (r) =>
+      r.ok
+        ? {
+            ...r,
+            review: {
+              ...r.review,
+              ranked_options: r.review.ranked_options.map((o) =>
+                o.combined_option_id === "combo-1" ? { ...o, plan: { ...o.plan, adaptation_ids: [] } } : o,
+              ),
+            },
+          }
+        : r;
+    ({ event } = await svc.requestReview(event.id, { version: 3 }));
+    ({ event } = await svc.applyOption(event.id, { version: 3, combined_option_id: "combo-1" }));
+    const space = cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
+    expect(space.status).toBe("unknown");
+    expect(cur(event).status).toBe("needs_verification");
   });
 
   it("does not resolve a different time at the same park", async () => {
