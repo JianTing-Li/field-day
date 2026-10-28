@@ -205,6 +205,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## YT-04 — Workout rules (JT waits on this) (#29)
 
+### D-023 — Workout rules: what counts as a space or surface confirmation
+- **Date / owner:** 2026-10-28 · Yadan
+- **PRD section:** §3 "Validation Policies" (space/surface), open decision "Acceptable confirmation records"
+- **Decision:** A confirmation counts only if it is an `organizer_confirmation` whose `confirms_check_id` matches,
+  whose `applies_to.park_id` is the plan's park, and, when it has `valid_from`/`valid_to`, whose period covers the
+  plan's start time. Space: the confirmation names the layout it confirms in `category` (e.g. `stationary`); with
+  no `category` it confirms the template's own layout, so a "running lane unusable" report never resolves a
+  stationary adaptation. `value: false` fails, `value: true` passes, a "no" wins over a "yes". Surface: a string
+  value is the surface type, checked against the template's `surfaces`; a boolean is a yes/no on suitability.
+  No matching confirmation means `unknown`. Adaptations change layout and length only, never equipment.
+- **Status:** in use
+
 ## YT-05 — Planning agent (critical path, JT waits on this) (#30)
 
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)

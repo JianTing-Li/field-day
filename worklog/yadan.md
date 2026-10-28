@@ -60,6 +60,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-04 — Workout rules (JT waits on this) (#29)
 
+### 2026-10-28 — YT-04: workout rules
+- **Done:** `src/server/rules/workout.ts` now returns real results for `equipment.available`, `duration.fits`, `space_surface.space` and `space_surface.surface`. 27 tests in `workout.test.ts` cover pass, fail and unknown for each check, plus Case 1 and Case 2 behavior.
+- **Decisions:** D-023 (what counts as a space or surface confirmation).
+- **Interfaces others depend on:** `workoutRules` keeps the `RuleFn` contract. Every check is critical, `policy_version` "workout-rules-v1". An unknown template or an adaptation the template doesn't permit makes all 4 checks unknown.
+- **Unfinished / next:** YT-05 Planning agent.
+- **Gotchas:** an adaptation can't say which equipment it removes (the contract has no field for it), so adaptations only change layout and length. I swapped YT-03's "no bands" adaptation for a shorter-session one because of this.
+- **Requests:** JT: (1) Case 1 has no surface confirmation, so with the real rules `space_surface.surface` comes back `unknown` and the plan is no longer an overall `pass`. Adding a surface confirmation for Park A (e.g. `value: "grass"`) to the Case 1 snapshot fixes it. (2) Case 2's `ev-c2-lane-unusable` uses metric `surface_confirmation` but confirms `space_surface.space`; it works (rules read `confirms_check_id`), but `space_confirmation` plus `category: "running_lane"` would be clearer.
+
 ## YT-05 — Planning agent (critical path, JT waits on this) (#30)
 
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
