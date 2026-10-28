@@ -1,9 +1,11 @@
 # Work log — JT
 
-Add newest entries at the bottom. One entry per task or work session.
+Entries for tasks listed in TASKS.md on 2026-10-28 go under the task's own section at the end of this file,
+oldest first. Tasks added later get their own file in `worklog/jian-ting/`. Never add entries at the end of
+the file. Entries above the task sections are earlier history.
 
 <!--
-## YYYY-MM-DD — TASK-ID: short title
+### YYYY-MM-DD — TASK-ID: short title
 - **Done:** what changed (files, behavior)
 - **Decisions:** anything decided (also add to docs/decisions.md if it's a PRD decision)
 - **Interfaces others depend on:** exports, contract fields, API behavior
@@ -68,7 +70,17 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Gotchas:** A snapshot gap naming a park ID that is nowhere in the snapshot is treated as regional.
 - **Requests:** Yadan (YT-01/YT-02): mark AirNow current values `observation`, use half-open periods ending at the next period's start, and include the park ID and source name in adapter gaps (current placeholders already do).
 
-## 2026-10-27 — JT-05: Logistics rules
+---
+
+<!-- Task sections (see CLAUDE.md, "Work logs, decisions and task status"). -->
+
+## JT-03 — Evidence snapshot builder + freshness/coverage rules (#5)
+
+## JT-04 — Heat/AQI policies + policy-config (labeled "unreviewed demo policy") (#6)
+
+## JT-05 — Logistics rules: allowed parks, start window, permit-review warning (≥20, non-critical) (#7)
+
+### 2026-10-27 — JT-05: Logistics rules
 - **Done:** replaced the placeholder `logisticsRules` in `src/server/rules/logistics.ts` with real
   `event_constraints.start_window`, `event_constraints.allowed_park` and `permissions.permit_review` checks;
   tests in `logistics.test.ts` (incl. Case 1 and Case 2 fixtures).
@@ -80,3 +92,35 @@ Add newest entries at the bottom. One entry per task or work session.
   start time must be at or after `valid_from` and before `valid_to`
   (the same rule as Yadan's workout rules, D-023). Plan and brief time zones are both fixed to New York by the contracts.
 - **Requests:** none
+
+## JT-06 — check_plan: replace placeholder rules, decide critical vs non-critical checks (#8)
+
+## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
+
+## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
+
+## JT-09 — Final save gate (all 5 checks) (#11)
+
+## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
+
+## JT-11 — NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13)
+
+## JT-12 — Event Logistics agent (#14)
+
+## JT-13 — Independent Reviewer agent (#15)
+
+## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
+
+## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
+
+## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
+
+## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
+
+## JT-18 — Logistics + Reviewer eval cases (#20)
+
+## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
+
+## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
+
+## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)

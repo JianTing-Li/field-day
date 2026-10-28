@@ -14,9 +14,10 @@ Before writing any code:
 1. Run `git config user.name` and find your human in the table under "Who you are working for".
 2. Pull the latest `develop` (`git pull origin develop`) if starting a new task.
 3. Read your human's section of `TASKS.md` to find the current or next task.
-4. Read the last few entries of your human's work log (`worklog/<person>.md`) to pick up where they left off.
-5. Read `docs/decisions.md` for decisions that affect the task (policy values, limits, live vs fixture).
-6. If the task depends on or touches the other person's work, read the last few entries of their work log.
+4. Read your human's work log for the task (see "Work logs, decisions and task status" for where it is)
+   and their most recent entries, to pick up where they left off.
+5. Read `docs/decisions.md` and `docs/decisions/` for decisions that affect the task (policy values, limits, live vs fixture).
+6. If the task depends on or touches the other person's work, read their work log for that task.
 7. If the task involves contracts or behavior the PRD defines, check the PRD section it relates to.
 8. State in one or two lines which task you're on and what you'll change, then start.
 
@@ -45,9 +46,10 @@ If `git config user.name` is not in this table, ask your human before editing an
 | `fixtures/scenarios/**`, `evals/runner.ts`, `evals/compare.ts`, `evals/README.md` | JT |
 | `evals/cases/planning/**`, `evals/cases/workout/**` | Yadan |
 | `evals/cases/logistics/**`, `evals/cases/reviewer/**` | JT |
-| `worklog/<person>.md` | That person only |
-| `TASKS.md`, `README.md` | Shared: edit only your own section or rows |
-| `docs/decisions.md` | Shared: add entries at the bottom only; never edit someone else's entry |
+| `worklog/<person>.md`, `worklog/<person>/**` | That person only |
+| `TASKS.md`, `README.md` | Shared: edit only your own section or rows; tick boxes and status rows only in a sync PR |
+| `docs/decisions.md` | Shared: add entries only in your task's section; never edit someone else's entry |
+| `docs/decisions/<TASK-ID>.md` | Shared: the task's owner adds entries; never edit someone else's entry |
 | `CLAUDE.md`, `.github/**`, `package.json`, `package-lock.json`, config files | Shared: small PR, both approve |
 
 A test file is owned by whoever owns the file it tests (`foo.test.ts` next to `foo.ts`).
@@ -70,6 +72,19 @@ Both people build against these types. Never change them as a side effect of oth
 ### `package.json` / `package-lock.json`
 Pull `develop` before adding a dependency. If the lockfile conflicts, regenerate it with
 `npm install` instead of merging it by hand.
+
+### Work logs, decisions and task status
+These rules keep open PRs from conflicting with each other. Never add entries at the end of a file.
+- **Tasks listed in `TASKS.md` on 2026-10-28** have a pre-made section in `worklog/<person>.md` and in
+  `docs/decisions.md` (`## JT-03 — …`). Put every work log entry and decision for that task under its
+  section, oldest first, as `### YYYY-MM-DD — TASK-ID: title` or `### D-… — title`.
+- **Tasks added after that** get their own files: `worklog/<person>/<TASK-ID>.md` and, if the task
+  makes a decision, `docs/decisions/<TASK-ID>.md`.
+- **Decision IDs** for new decisions are task-based (`D-JT03-1`, `D-YT06-1`). Existing IDs (D-000 to D-024) stay.
+- **Task boxes and status rows** (`TASKS.md` checkboxes, README status tables) are not changed in task PRs.
+  After PRs merge, one small sync PR ticks the merged tasks and updates the status rows.
+- **Shared IDs** that other people's code or tests use (fixture park, template and evidence IDs) change only
+  in their own small PR, like a contract change.
 
 ## Architecture rules (from the PRD — never violate)
 - The harness owns all state. Agents return validated JSON; they never write state directly.
@@ -116,10 +131,9 @@ contract type so nothing else has to change.
 3. Before opening the PR, complete the done checklist:
    - [ ] `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` all pass
    - [ ] New logic has tests
-   - [ ] Task checked off in `TASKS.md`
-   - [ ] Work log entry added
-   - [ ] Matching README section/rows updated
-   - [ ] Any new decision recorded in `docs/decisions.md`
+   - [ ] Work log entry added in the task's section (or the task's own file)
+   - [ ] Matching README sections updated (status rows wait for the sync PR)
+   - [ ] Any new decision recorded in the task's section of `docs/decisions.md` (or `docs/decisions/<TASK-ID>.md`)
 4. Open the PR to `develop` using the PR template, with `Closes #N`.
    Never merge your own PR; the other person reviews.
 

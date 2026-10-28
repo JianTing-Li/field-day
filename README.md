@@ -67,7 +67,7 @@ npm run dev                  # http://localhost:3000
 | Agent tools | JT | done |
 | Evidence snapshots, freshness | JT | placeholder |
 | Heat / AQI policies | JT | placeholder |
-| Logistics rules | JT | done |
+| Logistics rules | JT | placeholder |
 | check_plan | JT | done (combining); rules placeholder |
 | Orchestrator | JT | stub |
 | Lifecycle, approval, save gate | JT | stub |
