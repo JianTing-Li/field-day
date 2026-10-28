@@ -318,3 +318,10 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
 
 ## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
+
+### D-YT13-1 — Agent eval cases: rubric graded against check_plan
+- **Date / owner:** 2026-10-28 · Yadan
+- **PRD section:** §3d Eval Card, §2c Success Metrics
+- **Decision:** Each Planning/Workout eval case (`evals/cases/<agent>/index.ts`) reuses a PRD scenario's brief and snapshot and has a rubric of criteria that grade the agent's own output. Criteria judge against the harness `check_plan` the runner passes in (`EvalContext.checkPlan`), never against hard-coded rule results, so they stay correct when JT-03/JT-04 replace the placeholder rules. Every case runs a shared baseline (schema, echoed version/snapshot, snapshot-only evidence, real candidates/templates/adaptations, no ready status or "pass" claims check_plan disagrees with, every blocker reported) plus scenario-specific criteria. A case passes when every critical criterion passes; advisory criteria (e.g. a permit review claimed as pass) are reported only. A blocker counts as reported when a blocking concern or organizer task covers its area. `runAndGrade(case, agent, deps, …)` runs any `AgentImpl` (stub, fake runner or live) and grades it, for JT-17's runner.
+- **Value:** Planning cases 1, 2, 9, 10, 12; Workout cases 2, 4, 6, 7, 9.
+- **Status:** in use

@@ -165,3 +165,11 @@ the file. Entries above the task sections are earlier history.
 - **Requests:** none
 
 ## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
+
+### 2026-10-28 — YT-13: Planning + Workout eval cases
+- **Done:** `evals/cases/planning/rubric.ts` (case/criterion types, `grade`, `runAndGrade`, shared helpers), 5 Planning cases (`planning/index.ts`: normal, heat conflict, no feasible option, outside forecast, untrusted text) and 5 Workout cases (`workout/index.ts`: lane conflict, 11 a.m. heat, kettlebell substitution, duration adjustment, heat advisory). Tests (28) check that each case passes the scenario's ideal output and catches bad ones (ready draft for a conflict, lying checks, made-up evidence, a non-candidate time, echoing the planted instruction, guessed conditions, keeping kettlebells, a park-only option, unknown candidates, >3 options), and that `runAndGrade` runs an agent end to end (stub, no API calls).
+- **Decisions:** D-YT13-1.
+- **Interfaces others depend on:** `planningEvalCases`, `workoutEvalCases`, `grade`, `runAndGrade`, `EvalContext` (JT-17 passes the real `checkPlan`).
+- **Unfinished / next:** live runs of the real agents through these cases belong in JT-17's runner.
+- **Gotchas:** `test-check-plan.ts` is TEST ONLY: stand-ins for heat/AQI/freshness until JT-03/JT-04, so the scenarios' ideal outputs can be graded today.
+- **Requests:** JT: (1) the ideal outputs for cases 6, 7 and 12 claim `permissions.permit_review` is pass, but no permission confirmation is in their snapshots, so the logistics rule says unknown (graded as an advisory warning). (2) Cases 2, 9 and 12's ideal Planning outputs predate the surface rule and never mention `space_surface.surface`; covered here by their space concern/task, but worth a surface task.
