@@ -125,6 +125,24 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
+### 2026-10-28 — JT-10: Orchestrator
+- **Done:** `src/server/orchestrator/index.ts` now runs the full workflow: `runWorkflow` (planning, harness conflict
+  check, then specialists in parallel, `combinationChecks`, review, at most 1 revision round, final review, all in one
+  run and one budget), `runConflictReview` (organizer-triggered review, used by the lifecycle service) and
+  `runPlanning`. Every agent result is checked for its event version and snapshot. `agents.ts` picks stub or real
+  agents from `FIELDDAY_AGENTS` (added to `.env.example` and the README). The lifecycle service records review
+  usage, the revision count and `budget_exhausted`. Tests: `index.test.ts` with scripted fake agents (no API calls).
+- **Decisions:** D-JT10-1 (stub/real switch), D-JT10-2 (conflict trigger), D-JT10-3 (budget and revision round).
+- **Interfaces others depend on:** `runWorkflow`, `runConflictReview` (result now also has `revision_rounds`,
+  `usage`, `agents` and, on failure, `kind`), `runPlanning`, `findConflict`, `combinationChecks`,
+  `MAX_AGENT_EXECUTIONS`, `selectAgents`, `agentMode`, `agentKinds`.
+- **Unfinished / next:** register the real Logistics and Reviewer agents in `REAL_AGENTS` once JT-12/JT-13 (PR #67)
+  merge (two lines; done in the eval PR). JT-14 switches the lifecycle's planning to `runWorkflow`.
+- **Gotchas:** stubs report zero usage to the shared budget tracker, so the orchestrator counts executions itself.
+  Combination checks pair each Logistics option's park and time with each Workout option's workout; a Workout
+  option is also checked alone at its own park and time.
+- **Requests:** none
+
 ## JT-11 — NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13)
 
 ### 2026-10-27 — JT-11: NYC Parks adapter + curated parks

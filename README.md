@@ -38,6 +38,7 @@ npm run dev                  # http://localhost:3000
 | `AIRNOW_API_KEY` | Live air quality | Server-side only |
 | `NWS_USER_AGENT` | Live weather | NWS requires an identifying User-Agent |
 | `FIELDDAY_DATA_MODE` | All | `fixture` (default) or `live` |
+| `FIELDDAY_AGENTS` | Running real agents | `stub` (default: fixture outputs, no API calls) or `real`; an agent with no real version yet stays a stub, and each run reports which ran |
 
 | Script | What it does |
 |---|---|
