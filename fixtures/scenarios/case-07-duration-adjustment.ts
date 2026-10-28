@@ -156,7 +156,7 @@ function checksFor(event_version: number, adjusted: boolean) {
     check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
     check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "pass", reason: "Organizer confirmed stationary space at Park A", evidence_ids: ["ev-c7-space-confirm"] }),
     check(assessed, { check_id: "space_surface.surface", area: "space_surface", status: "pass", reason: "Organizer confirmed a grass surface at Park A", evidence_ids: ["ev-c7-surface-confirm"] }),
-    check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "pass", reason: "Group of 10 is below the 20-person permit-review flag", critical: false }),
+    check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "unknown", reason: "Group of 10 is below the 20-or-more permit-review flag; group size alone does not show whether permission is needed, and permit status is not recorded", critical: false }),
   ]);
 }
 
