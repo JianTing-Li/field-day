@@ -55,7 +55,8 @@ async function runWith(scenario: Scenario, steps: FakeStep[], overrides: Partial
 /** A typical model turn: read the evidence, then check the plan. */
 function readAndCheck(scenario: Scenario): FakeStep {
   const { plan } = scenario.planningOutput(1);
-  const window = { park_id: plan.park_id!, start_time: plan.start_time!, end_time: plan.start_time! };
+  const slot = scenario.snapshot("evt-test", 1).park_time_candidates.find((c) => c.id === plan.park_time_candidate_id);
+  const window = { park_id: plan.park_id!, start_time: plan.start_time!, end_time: slot!.end_time };
   return {
     tool_calls: [
       { name: "get_park_candidates", input: { park_ids: null } },
