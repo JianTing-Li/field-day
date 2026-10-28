@@ -88,6 +88,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
 
+### 2026-10-28 — YT-06: Workout Adaptation agent
+- **Done:** `src/server/agents/workout/agent.ts` (definition + real `AgentImpl`), notes at the end of `prompt.md`, 15 tests in `agent.test.ts` with the fake runner. Case 2: proposes `adapt-stationary-circuit`, keeps 10 a.m. heat as `fail` (using a stand-in heat rule in the test until JT-04) and Park A space as `unknown`; moving to 8 a.m. clears heat but space stays unknown. Also tests: lying checks replaced, a gentler workout never clears heat, options for unsupplied candidates or moved park/time dropped, logistics-only options dropped, made-up evidence removed, unpermitted adaptation, more than 3 options, stale version, disallowed tool. One live run on Case 2 with my key: 3 valid options, all at 8 a.m. to avoid the 93°F forecast, none claimed ready, `needs_verification`, only real evidence IDs. 3 model calls, ~33k in / ~4.8k out tokens, ~19 s.
+- **Decisions:** D-YT06-1 (the harness has the last word on workout options).
+- **Interfaces others depend on:** `workoutAgentImpl`, `workoutDefinition`, `enforceWorkoutResults(output, input, deps)` from `workout/agent.ts`.
+- **Unfinished / next:** `index.ts` still exports the stub, same as Planning; switch both once JT decides how the harness picks real vs stub. YT-07 onward (UI) next.
+- **Gotchas:** the first live run hit the 4096-token output limit, so the prompt asks for placeholder `checks` (the harness fills them) and short lists. The live model also offered a park-only move, which is now dropped as Logistics' job.
+- **Requests:** JT: heat/AQI rules (JT-04) are still placeholders, so live runs show heat as `unknown`, not `fail`. The tests use a stand-in heat rule for now.
+
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
 
 ## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)

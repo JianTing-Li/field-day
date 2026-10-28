@@ -293,6 +293,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
 
+### D-YT06-1 — Workout options: the harness has the last word
+- **Date / owner:** 2026-10-28 · Yadan
+- **PRD section:** §3b Workout Adaptation Agent, §3 specialist-option contract
+- **Decision:** After the model answers, the Workout agent drops any option that is assessed for a park/time
+  candidate it wasn't given, whose plan doesn't match its candidate's park and start time, or that changes no part
+  of the workout (a park or time move alone is Logistics' job). Every kept option's `checks` come from a fresh
+  `check_plan` run (the prompt asks for an empty placeholder to keep the answer short). Evidence IDs not in the
+  snapshot are removed and noted in `unknowns`; every unknown critical check's reason is added to `unknowns`;
+  every failed critical check gets a blocking concern. `options_proposed` with no options left becomes
+  `needs_verification`. Same approach as D-024 for Planning.
+- **Status:** in use
+
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
 
 ## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
