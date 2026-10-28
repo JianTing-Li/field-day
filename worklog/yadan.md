@@ -106,14 +106,62 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
 
+### 2026-10-28 — YT-07: Event list
+- **Done:** Home page (`src/app/page.tsx`) lists events from `GET /api/events` via `src/components/EventList.tsx`: title, date, status, current version, finalized version, last update. Shared pieces for the next screens: `StatusBadge` (every status is icon + words, never color alone), `format.ts` (status labels, New York dates), `api-client.ts` (`apiGet` checks every response against its contract and turns network/HTTP/shape errors into one result type). Loading skeleton, error with "Try again", empty state. `layout.tsx` got the FieldDay header and a "Demo data" banner whenever `FIELDDAY_DATA_MODE` is fixture. Checked in the browser at desktop and 375px (no sideways scroll). 13 tests for the formatters and API client.
+- **Decisions:** none
+- **Interfaces others depend on:** `apiGet(path, schema)`, `StatusBadge`, `STATUS` labels in `src/components/`.
+- **Unfinished / next:** rows link to `/events/[id]` (YT-09) and the button to `/events/new` (YT-08); both 404 until those land. The app is light-only for now.
+- **Gotchas:** dates in the brief are calendar dates, so they're formatted as UTC to stop the day shifting; update times are shown in New York time.
+- **Requests:** none
+
 ## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
+
+### 2026-10-28 — YT-08: Event brief form
+- **Done:** `/events/new` (create, `POST /api/events`) and `/events/[id]/brief` (edit, `PUT /api/events/:id/brief`) share `src/components/BriefForm.tsx`. Sections: event, start window, parks (checkboxes from `parks.json`, preferred park limited to the ones ticked), workout (templates from `workouts.json`, with an "not reviewed by an instructor yet" note), equipment, instructor limits, priorities. `brief-form.ts` turns the text fields into an `EventBrief` and validates with the contract, with a friendly message per field plus an error summary that links to each field. Editing warns that saving makes a new version and clears approval and confirmations; a 409 `stale_version` gets a plain "this event changed, nothing was saved" message. Added `apiSend` (POST/PUT) to `api-client.ts`. Checked in the browser: empty submit, create, edit to v2, and a stale-version PUT (409). 10 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `BriefForm`, `toBrief`/`fromBrief` in `src/components/brief-form.ts`, `apiSend`.
+- **Unfinished / next:** after saving, the page goes to `/events/[id]`, which is YT-09.
+- **Gotchas:** Next 16 blocks a page that awaits `params` outside `<Suspense>` ("runtime data during prerendering"), so the edit page reads the ID in a child component inside Suspense. Briefs that use parks outside `parks.json` (the fixture `park-a`/`park-b`) still show them as "not in the park list" so editing doesn't silently drop them.
+- **Requests:** none
 
 ## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
 
+### 2026-10-28 — YT-09: Event workspace
+- **Done:** `/events/[id]` renders `src/components/workspace/Workspace.tsx` from `GET /api/events/:id`: title and brief summary, status bar (status, version, snapshot, finalized version, last run), actions (Generate, Recheck, Something changed with a kind + details form, Request review, Approve vN with the reason when it's unavailable), blockers + organizer tasks, plan card (park, start, length, workout and adaptations, outline, facts with links to their evidence), checks (fail, then unknown, then pass; icon + word; advisory checks marked), and the evidence list (type, fixture label, value or missing reason, source, valid period, limitations, coverage gaps). Each action reloads the event afterwards. Shared `ui.tsx` (Button, Card, Alert, Pill) for the later design-system pass. 9 tests in `workspace/logic.test.ts`. Checked in the browser on Case 2 and on a new event (Generate -> v3 ready for approval).
+- **Decisions:** none
+- **Interfaces others depend on:** `availableActions` in `workspace/logic.ts` mirrors `ACTION_FROM` in `lifecycle/transitions.ts`; if JT changes that table, this needs the same change.
+- **Unfinished / next:** YT-10 alternatives, YT-11 confirmations/approve/finalize, YT-12 states.
+- **Gotchas:** check names are neutral labels ("Heat limit"), so a fail badge never sits next to a sentence that claims the opposite.
+- **Requests:** none
+
 ## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
+
+### 2026-10-28 — YT-10: Alternatives comparison
+- **Done:** `workspace/Alternatives.tsx` shows `alternatives` on the current version: reviewer status, unresolved blocking issues, the recommendation (or a plain "no option is recommended yet"), and one card per ranked option with park/time/workout, before -> after changes in words, critical checks that aren't passing, unknowns, tradeoffs, and **Use this option** (`POST .../apply-option`, then reload). A recommended option is outlined and starred; an option that still fails a check says it can't be approved as is. Checked on Case 2: Request review -> 2 options, none recommended; Use option 1 -> v3 at 8 a.m. with the stationary circuit and one blocker (Park A stationary space). 4 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-11 confirmations, approve and finalize.
+- **Gotchas:** after applying, the new version carries the review's organizer tasks for both parks (Park B's task too), which reads a little odd on a Park A plan. That comes from the lifecycle/reviewer data, not the UI.
+- **Requests:** JT: should `apply_option` keep only the organizer tasks for the chosen option's park/time?
 
 ## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
 
+### 2026-10-28 — YT-11: Confirmations, approve and finalize
+- **Done:** `workspace/ApprovalFlow.tsx`. Each organizer task that names a check and a park gets **Confirm**, which opens a form locked to that task's check, park and time (shown, not editable) and posts `POST .../confirmations`; recorded confirmations are listed with who/when. **Approve and finalize** card: step 1 approves the exact version + evidence snapshot (button explains why it's unavailable; a `blocked` response lists the blocking checks); step 2 finalizes with a stable idempotency key per version (`finalize-<event>-v<n>`), shows the 5-item gate checklist, and if the gate fails says "Not finalized" with the failing items. Approve moved out of the Actions card into this card. `apiGet`/`apiSend` now pass on API error `details`. Checked on Case 2 v3: empty confirmation rejected, confirmation -> ready_for_approval with all checks passing, approve, finalize, and a repeat finalize returned the same record. 2 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** none
+- **Unfinished / next:** YT-12 states.
+- **Gotchas:** v3 (from apply-option) still shows the v2 facts ("10 a.m. is 93°F"), which no longer describe the plan. Lifecycle data, not UI.
+- **Requests:** JT: should `apply_option` drop or refresh `facts` from the previous version? Also the gate's `current_evidence` and `required_confirmations` are still stubs (JT-09); the UI shows their "Stub:" reasons as they are.
+
 ## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
+
+### 2026-10-28 — YT-12: States
+- **Done:** `src/components/errors.ts` turns every API failure (all `ApiError` codes, plus network and unexpected-shape) into a title + plain explanation, and every one says nothing was saved. Workspace: **stale version (409)** shows "This event changed since you opened it" with **Reload the latest version** (not a retry); **data unavailable** (`upstream_unavailable`) says FieldDay never fills gaps with guesses; **budget_exhausted** says the run hit its limit; a failed refresh keeps showing the last loaded data with a warning; a last run that `failed`/`budget_exhausted` gets a "the last run didn't finish, v<n> is unchanged" note; evidence that can't be loaded gets its own warning; **not found** says the event doesn't exist (no pointless retry). Loading: skeletons on list and workspace, and the busy action is announced (`aria-live`). **Fixture banner** (from YT-07) plus a Fixture pill on the evidence card and each fixture item. **Save failed** on the brief form was done in YT-08. The event list uses the same messages. Checked in the browser: stale approve -> warning -> Reload shows v4; unknown event ID -> "This event doesn't exist". 3 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `describeError(failure, action)` in `src/components/errors.ts`.
+- **Unfinished / next:** design-system pass over all screens, then YT-13 evals.
+- **Gotchas:** React 19 reveals streamed Suspense content on an animation frame, so in a hidden browser tab (like the automated test pane) pages can sit on their loading skeleton. Not an app bug; any visible tab loads normally.
+- **Requests:** none
 
 ## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
