@@ -90,6 +90,14 @@ the file. Entries above the task sections are earlier history.
 
 ## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
 
+### 2026-10-28 — YT-07: Event list
+- **Done:** Home page (`src/app/page.tsx`) lists events from `GET /api/events` via `src/components/EventList.tsx`: title, date, status, current version, finalized version, last update. Shared pieces for the next screens: `StatusBadge` (every status is icon + words, never color alone), `format.ts` (status labels, New York dates), `api-client.ts` (`apiGet` checks every response against its contract and turns network/HTTP/shape errors into one result type). Loading skeleton, error with "Try again", empty state. `layout.tsx` got the FieldDay header and a "Demo data" banner whenever `FIELDDAY_DATA_MODE` is fixture. Checked in the browser at desktop and 375px (no sideways scroll). 13 tests for the formatters and API client.
+- **Decisions:** none
+- **Interfaces others depend on:** `apiGet(path, schema)`, `StatusBadge`, `STATUS` labels in `src/components/`.
+- **Unfinished / next:** rows link to `/events/[id]` (YT-09) and the button to `/events/new` (YT-08); both 404 until those land. The app is light-only for now.
+- **Gotchas:** dates in the brief are calendar dates, so they're formatted as UTC to stop the day shifting; update times are shown in New York time.
+- **Requests:** none
+
 ## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
 
 ## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
