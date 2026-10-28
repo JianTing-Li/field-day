@@ -2,7 +2,8 @@
 
 Deadline: **Thursday Oct 29, 2026, noon.**
 
-Rules: check off tasks only in your own section, in the same PR that implements them.
+Rules: check off tasks only in your own section, in a sync PR after the task's PR merges (not in the task's PR;
+see "Work logs, decisions and task status" in CLAUDE.md). Tasks added later get their own work log file.
 Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 "JT waits on this" marks Yadan tasks that JT's integration depends on.
 
@@ -37,7 +38,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-10** Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12) · Wed · needs: JT-01
 
 ### Data and agents
-- [x] **JT-11** NYC Parks adapter + curated parks with reviewed coordinates (replace placeholder parks; 10 parks, see D-020) (#13) · Tue
+- [ ] **JT-11** NYC Parks adapter + 3–5 curated parks with reviewed coordinates (replace placeholder parks) (#13) · Tue
 - [ ] **JT-12** Event Logistics agent (#14) · Wed · needs: JT-01, JT-02
 - [ ] **JT-13** Independent Reviewer agent (#15) · Wed · needs: JT-01, JT-02
 

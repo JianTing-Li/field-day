@@ -84,7 +84,7 @@ npm run dev                  # http://localhost:3000
 <!-- Each person edits only their own sources. Status: proposed · tested · live · fixture-backed -->
 | Source | Owner | Status |
 |---|---|---|
-| NYC Parks Open Data | JT | in use: 10 curated parks (D-020); fixture recorded 2026-10-27, live mode untested in CI |
+| NYC Parks Open Data | JT | proposed; placeholder parks in use |
 | National Weather Service | Yadan | tested; fixture-backed (live mode needs `NWS_USER_AGENT`) |
 | AirNow | Yadan | tested live; fixture-backed (live mode needs `AIRNOW_API_KEY`) |
 | Workout templates | Yadan | placeholder, not instructor-reviewed |
