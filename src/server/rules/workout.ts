@@ -102,7 +102,7 @@ function durationCheck(
 /**
  * The layout the session needs (the last adaptation that changes it, else the template's) must be
  * confirmed by the organizer for this park and time. A confirmation names its layout in `category`;
- * one with no category confirms the template's own layout (see decision D-016).
+ * one with no category confirms the template's own layout (see decision D-023).
  */
 function spaceCheck(input: RuleInput, t: WorkoutTemplate, adaptations: Adaptation[], make: Make): CheckResult {
   const layout = adaptations.reduce<Layout>((l, a) => a.resulting_layout ?? l, t.space.layout);
