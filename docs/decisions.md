@@ -114,3 +114,16 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - Freshness limits per source (JT-03)
 - Acceptable confirmation records for space, surface and permission
 - Ranking priorities for equally valid alternatives
+
+## D-013 — Default Anthropic model
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3
+- **Decision:** The agent runner reads the model ID from `ANTHROPIC_MODEL` and defaults to `claude-haiku-5-5` when unset (completing the model choice left open in D-002).
+- **Value:** `claude-haiku-5-5`
+- **Status:** in use
+
+## D-014 — Agent runner tool error handling
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §3a, §3b
+- **Decision:** The agent runner fails fast and returns `tool_error` immediately if the model requests a tool not in `definition.allowed_tools`, if tool input fails `ToolSchemas` validation, or if a tool handler throws. Automatic retry/repair is reserved for the single final JSON output repair attempt.
+- **Status:** in use

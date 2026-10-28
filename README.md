@@ -34,6 +34,7 @@ npm run dev                  # http://localhost:3000
 | Variable | Needed for | Notes |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Running real agents | Server-side only; each developer uses their own key |
+| `ANTHROPIC_MODEL` | Running real agents | Defaults to `claude-haiku-5-5` |
 | `AIRNOW_API_KEY` | Live air quality | Server-side only |
 | `NWS_USER_AGENT` | Live weather | NWS requires an identifying User-Agent |
 | `FIELDDAY_DATA_MODE` | All | `fixture` (default) or `live` |
@@ -62,7 +63,7 @@ npm run dev                  # http://localhost:3000
 | Feature | Owner | Status |
 |---|---|---|
 | Contracts | Shared | done (v0) |
-| Agent runner | JT | stub |
+| Agent runner | JT | done |
 | Agent tools | JT | stub |
 | Evidence snapshots, freshness | JT | placeholder |
 | Heat / AQI policies | JT | placeholder |
