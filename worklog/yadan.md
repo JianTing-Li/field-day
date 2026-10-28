@@ -1,9 +1,11 @@
 # Work log — Yadan
 
-Add newest entries at the bottom. One entry per task or work session.
+Entries for tasks listed in TASKS.md on 2026-10-28 go under the task's own section at the end of this file,
+oldest first. Tasks added later get their own file in `worklog/yadan/`. Never add entries at the end of
+the file. Entries above the task sections are earlier history.
 
 <!--
-## YYYY-MM-DD — TASK-ID: short title
+### YYYY-MM-DD — TASK-ID: short title
 - **Done:** what changed (files, behavior)
 - **Decisions:** anything decided (also add to docs/decisions.md if it's a PRD decision)
 - **Interfaces others depend on:** exports, contract fields, API behavior
@@ -51,3 +53,27 @@ Add newest entries at the bottom. One entry per task or work session.
 - **Unfinished / next:** an instructor still needs to review them. YT-04 workout rules next.
 - **Gotchas:** none
 - **Requests:** JT: `referenceEvidence()` in `fixtures/scenarios/helpers.ts` still says "Placeholder template; not instructor-reviewed". The second half is still true; you may want to drop "Placeholder".
+
+---
+
+<!-- Task sections (see CLAUDE.md, "Work logs, decisions and task status"). -->
+
+## YT-04 — Workout rules (JT waits on this) (#29)
+
+## YT-05 — Planning agent (critical path, JT waits on this) (#30)
+
+## YT-06 — Workout Adaptation agent (JT waits on this) (#31)
+
+## YT-07 — Event list (`GET /api/events`): status, current version, finalized version (#32)
+
+## YT-08 — Event brief form (`POST /api/events`, `PUT /api/events/:id/brief`) with field validation from `EventBrief` (#33)
+
+## YT-09 — Event workspace (`GET /api/events/:id`): status bar, blockers + organizer tasks, plan card, checks (pass/fail/unknown with icons + text), evidence list; actions: Generate, Recheck, Something changed, Request review, Approve vN (#34)
+
+## YT-10 — Alternatives comparison (`alternatives` on the current version): ranked combined options, before/after changes, checks, unknowns, recommendation; "Use this option" (`POST .../apply-option`) (#35)
+
+## YT-11 — Confirmations, approve and finalize flow (`POST .../confirmations`, `.../approve`, `.../finalize`): each confirmation names its check, park and time (from the organizer task); exact version shown, gate checklist, blocked explanations, no duplicate finalize (#36)
+
+## YT-12 — States: loading, data unavailable, stale version (409), fixture banner, save failed (#37)
+
+## YT-13 — Planning + Workout eval cases (`evals/cases/planning/`, `evals/cases/workout/`) (#38)
