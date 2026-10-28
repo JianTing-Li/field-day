@@ -66,16 +66,16 @@ npm run dev                  # http://localhost:3000
 | Contracts | Shared | done (v0) |
 | Agent runner | JT | done |
 | Agent tools | JT | done |
-| Evidence snapshots, freshness | JT | placeholder |
-| Heat / AQI policies | JT | placeholder |
+| Evidence snapshots, freshness | JT | done |
+| Heat / AQI policies | JT | done (unreviewed demo policy) |
 | Logistics rules | JT | done |
-| check_plan | JT | done (combining); logistics and workout rules real, heat/AQI placeholder |
-| Orchestrator | JT | stub |
+| check_plan | JT | done (all rules real, no placeholders) |
+| Orchestrator | JT | done; `FIELDDAY_AGENTS=real` picks real agents; API routes not on it yet (JT-14) |
 | Lifecycle, approval | JT | done (states, versions, approval invalidation, stale-result rejection) |
 | Final save gate | JT | stub (version, approval, hard constraints only) |
 | Persistence | JT | in-memory stub |
-| Event Logistics agent | JT | stub |
-| Independent Reviewer agent | JT | stub |
+| Event Logistics agent | JT | built and tested; app still uses the stub |
+| Independent Reviewer agent | JT | built and tested; app still uses the stub |
 | Planning agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout agent | Yadan | built and tested (one live run); app still uses the stub until JT picks how to switch |
 | Workout rules | Yadan | done (equipment, duration, space, surface) |
