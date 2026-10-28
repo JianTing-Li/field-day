@@ -146,6 +146,22 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-12 — Event Logistics agent (#14)
 
+### 2026-10-28 — JT-12: Event Logistics agent
+- **Done:** `src/server/agents/logistics/agent.ts`: `logisticsDefinition` (tools: get_park_candidates, get_forecast,
+  get_air_quality, check_plan; the PRD's System Prompt v0 in `prompt.md`) and `logisticsAgentImpl`, which runs the
+  agent and then `enforceLogisticsResults`. Tests in `agent.test.ts` use the fake runner (no API calls), including a
+  check that every eval fixture's Logistics output passes the harness's checks unchanged.
+- **Decisions:** the harness drops an option that is assessed for a candidate it wasn't given, whose plan doesn't
+  match its candidate, that changes the workout (template, adaptations or length: Workout Adaptation's job, and the
+  prompt says not to), or that keeps the current park and time. Checks always come from check_plan; unknown
+  critical checks are listed in the option's unknowns; failed critical checks become blocking concerns.
+  `index.ts` still exports the stub, as Planning and Workout do; the orchestrator picks stub or real (JT-10).
+- **Interfaces others depend on:** `logisticsAgentImpl`, `logisticsDefinition`, `enforceLogisticsResults`.
+- **Unfinished / next:** a live run once the orchestrator can choose the real agent (JT-10), then evals (JT-17/18).
+- **Gotchas:** tests compare against the real `check_plan` tool rather than fixed statuses, so they hold before and
+  after the real heat/AQI rules (JT-04) merge.
+- **Requests:** none
+
 ## JT-13 — Independent Reviewer agent (#15)
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
