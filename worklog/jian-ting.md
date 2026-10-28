@@ -97,6 +97,28 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-07 — Lifecycle: states, versions, approval invalidation, stale-result rejection (replace stub service) (#9)
 
+### 2026-10-27 — JT-07: Lifecycle
+- **Done:** Replaced the stub state handling in `src/server/lifecycle/service.ts`. New: `transitions.ts`
+  (transition table, `assertCanStart`, `transition`, `deriveStatus`), `confirmations.ts` (scope matching,
+  `applyConfirmations`), `snapshots.ts` (fixture snapshot per version, stub until JT-03). Every save checks
+  the stored event has not changed since the request loaded it. Tests for each transition, invalid transitions,
+  approval invalidation, stale version/snapshot/result rejection, confirmation scope and finalize idempotency,
+  plus PRD Case 3.
+- **Decisions:** D-016 (transitions, approval invalidation, confirmation carry-forward), D-017 (finalize idempotency).
+- **Interfaces others depend on:** exported service functions and API shapes unchanged. Additive contract
+  changes in `src/contracts/event.ts`: `PlanVersion.source` gains `"recheck"`; `FinalizedRecord` gains optional
+  `idempotency_key`. New API behavior for the UI: invalid actions return 400 `invalid_request` (e.g. confirming
+  a finalized version), stale requests 409 `stale_version`, approving `needs_verification` 409 `blocked`.
+  A confirmation or reported change on an approved version clears approval; request review does not.
+  A brief edit clears `event.confirmations`.
+- **Unfinished / next:** JT-09 full save gate (freshness, required confirmations). JT-03 snapshot builder:
+  `snapshotFor` must return a new snapshot ID whenever evidence changes, so recheck revalidates. JT-08 should
+  make the stale-write check atomic (compare-and-swap on `updated_at`) in the hosted store.
+- **Gotchas:** fixture snapshot IDs never change (agent stubs look fixtures up by ID), so in fixture mode
+  recheck always reports "evidence unchanged". Tests swap in a new snapshot ID with `vi.mock`. A recheck with
+  a new snapshot revalidates with `checkPlan`, whose placeholder rules return unknown → `needs_verification`.
+- **Requests:** none
+
 ## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
 
 ## JT-09 — Final save gate (all 5 checks) (#11)

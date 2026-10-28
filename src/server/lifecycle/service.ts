@@ -1,30 +1,34 @@
 import { case01, case02 } from "@fixtures/scenarios";
-import type {
-  ApiRequest,
-  ApiResponse,
-  CheckPlanResult,
-  CheckResult,
-  EventBrief,
-  EventSummary,
-  EvidenceSnapshot,
-  FieldDayEvent,
-  GateCheck,
-  LifecycleStatus,
-  PlanVersion,
-  PlanningOutput,
+import {
+  ZERO_USAGE,
+  type ApiRequest,
+  type ApiResponse,
+  type EventBrief,
+  type EventSummary,
+  type FieldDayEvent,
+  type GateCheck,
+  type PlanVersion,
+  type RunState,
+  type Usage,
 } from "@/contracts";
 import { runConflictReview, runPlanning } from "@/server/orchestrator";
-import { summarizeChecks } from "@/server/rules/check-plan";
+import { checkPlan } from "@/server/rules/check-plan";
 import { getStore } from "@/server/store/memory";
 import type { EventStore } from "@/server/store/types";
+import { applyConfirmations } from "./confirmations";
 import { ServiceError } from "./errors";
+import { snapshotFor } from "./snapshots";
+import { assertCanStart, deriveStatus, transition } from "./transitions";
 
 /**
  * Lifecycle service (owner: JT, tasks JT-07, JT-09). One function per API endpoint.
  *
- * STUB: fixture-backed. New events use the Case 1 fixture snapshot. Two seeded events
- * (Case 1 ready for approval, Case 2 blocked) give the UI every main state.
- * Not yet real: evidence refresh, the final save gate, durable persistence.
+ * The harness owns all state. Every change to the brief, plan or evidence creates a new plan
+ * version (old versions are kept) or clears approval in place; approval is tied to an exact
+ * version + snapshot. Requests and agent results that name an outdated version or snapshot
+ * are rejected with stale_version. Allowed status changes live in ./transitions.ts.
+ *
+ * Still stubbed: fixture snapshots (JT-03), the full save gate (JT-09), in-memory store (JT-08).
  */
 
 const now = () => new Date().toISOString();
@@ -32,12 +36,6 @@ const newId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`
 
 function current(event: FieldDayEvent): PlanVersion {
   return event.versions.find((v) => v.version === event.current_version)!;
-}
-
-function statusFrom(checks: CheckPlanResult | null, agentStatus: PlanningOutput["status"]): LifecycleStatus {
-  if (agentStatus === "no_feasible_option") return "no_feasible_option";
-  if (agentStatus === "draft" && checks?.overall === "pass") return "ready_for_approval";
-  return "needs_verification";
 }
 
 function requireCurrent(event: FieldDayEvent, version: number) {
@@ -86,14 +84,43 @@ function newEvent(id: string, brief: EventBrief): FieldDayEvent {
   };
 }
 
-/** Stub snapshot selection: Case 2 for the seeded Case 2 event, Case 1 for everything else. */
-function fixtureSnapshot(event: FieldDayEvent): EvidenceSnapshot {
-  const scenario = event.id === "evt-case-02" ? case02 : case01;
-  return scenario.snapshot(event.id, event.current_version);
-}
-
 function progress(message: string) {
   return { at: now(), message };
+}
+
+function run(status: RunState["status"], steps: string[], usage: Usage = ZERO_USAGE): RunState {
+  return { run_id: newId("run"), status, revision_count: 0, usage, progress: steps.map(progress) };
+}
+
+/** Clears approval. The approved version goes back to ready_for_approval. */
+function clearApproval(event: FieldDayEvent) {
+  if (!event.approval) return;
+  const approved = event.versions.find((v) => v.version === event.approval!.version);
+  if (approved?.status === "approved") transition(approved, "ready_for_approval", "invalidate_approval");
+  event.approval = null;
+}
+
+/** Adds a new current version. The previous version is frozen from here on. */
+function pushVersion(event: FieldDayEvent, v: PlanVersion) {
+  clearApproval(event);
+  event.versions.push(v);
+  event.current_version = v.version;
+}
+
+/** Rejects an agent result that names a different version or snapshot than the run used. */
+function requireMatchingResult(
+  what: string,
+  out: { event_version: number; evidence_snapshot_id: string },
+  version: number,
+  snapshotId: string,
+) {
+  if (out.event_version !== version || out.evidence_snapshot_id !== snapshotId) {
+    throw new ServiceError(
+      "stale_version",
+      `${what} result for version ${out.event_version} / snapshot ${out.evidence_snapshot_id} ` +
+        `does not match version ${version} / snapshot ${snapshotId}`,
+    );
+  }
 }
 
 async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
@@ -102,16 +129,31 @@ async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
   return event;
 }
 
-async function save(store: EventStore, event: FieldDayEvent): Promise<FieldDayEvent> {
-  event.updated_at = now();
+/**
+ * Saves the event. `base` is the updated_at the request loaded; if the stored event has
+ * changed since (another request or a slower agent run), the write is rejected so a stale
+ * result never overwrites newer state. Pass null for a new event.
+ * Every save moves updated_at past `base`, even within the same millisecond, so a change is
+ * always detectable.
+ */
+async function commit(store: EventStore, event: FieldDayEvent, base: string | null): Promise<FieldDayEvent> {
+  if (base !== null) {
+    const stored = await store.getEvent(event.id);
+    if (stored && stored.updated_at !== base) {
+      throw new ServiceError("stale_version", "The event changed while this request was running; reload and retry");
+    }
+  }
+  const t = Date.now();
+  event.updated_at = new Date(base === null ? t : Math.max(t, Date.parse(base) + 1)).toISOString();
   await store.saveEvent(event);
   return event;
 }
 
+/** Runs the Planning Agent and adds its draft as a new version. */
 async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEvent> {
   const base = current(event);
   const next = event.current_version + 1;
-  const snapshot = fixtureSnapshot({ ...event, current_version: next });
+  const snapshot = await snapshotFor(event, next);
   await store.saveSnapshot(snapshot);
   const result = await runPlanning({
     event_id: event.id,
@@ -119,37 +161,32 @@ async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEv
     brief: event.brief,
     snapshot,
   });
-  const run_id = newId("run");
   if (!result.ok) {
-    event.last_run = {
-      run_id,
-      status: result.error.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
-      revision_count: 0,
-      usage: result.usage,
-      progress: [progress("Drafting plan"), progress(`Could not draft a plan: ${result.error.message}`)],
-    };
+    event.last_run = run(
+      result.error.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
+      ["Drafting plan", `Could not draft a plan: ${result.error.message}`],
+      result.usage,
+    );
     return event;
   }
   const out = result.output;
-  event.versions.push({
+  requireMatchingResult("Planning", out, next, snapshot.id);
+  const checks = out.rule_checks ? applyConfirmations(out.rule_checks, event.confirmations).checks : null;
+  pushVersion(event, {
     ...emptyVersion(next, base.version, "planning"),
-    status: statusFrom(out.rule_checks, out.status),
+    status: deriveStatus(out.plan, checks, out.status),
     plan: out.plan,
     evidence_snapshot_id: snapshot.id,
-    checks: out.rule_checks,
+    checks,
     facts: out.facts,
     concerns: out.concerns,
     organizer_tasks: out.organizer_tasks,
   });
-  event.current_version = next;
-  event.approval = null;
-  event.last_run = {
-    run_id,
-    status: "completed",
-    revision_count: 0,
-    usage: result.usage,
-    progress: [progress("Reading park, weather and air-quality evidence"), progress("Drafted plan")],
-  };
+  event.last_run = run(
+    "completed",
+    ["Reading park, weather and air-quality evidence", "Drafted plan"],
+    result.usage,
+  );
   return event;
 }
 
@@ -159,8 +196,8 @@ let seeded: Promise<void> | null = null;
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
     if (await store.getEvent("evt-case-01")) return;
-    await save(store, await plan(store, newEvent("evt-case-01", case01.brief)));
-    await save(store, await plan(store, newEvent("evt-case-02", case02.brief)));
+    await commit(store, await plan(store, newEvent("evt-case-01", case01.brief)), null);
+    await commit(store, await plan(store, newEvent("evt-case-02", case02.brief)), null);
   })();
   return seeded;
 }
@@ -193,7 +230,7 @@ export async function listEvents(): Promise<ApiResponse<"listEvents">> {
 
 export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiResponse<"createEvent">> {
   const store = await withStore();
-  return { event: await save(store, newEvent(newId("evt"), req.brief)) };
+  return { event: await commit(store, newEvent(newId("evt"), req.brief), null) };
 }
 
 export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
@@ -203,111 +240,157 @@ export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
 
+/** A brief edit starts a new draft version and retires confirmations made under the old brief. */
 export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): Promise<ApiResponse<"updateBrief">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.based_on_version);
-  const next = event.current_version + 1;
+  assertCanStart("update_brief", current(event));
   event.brief = req.brief;
-  event.versions.push(emptyVersion(next, event.current_version, "organizer_edit"));
-  event.current_version = next;
-  event.approval = null;
-  return { event: await save(store, event) };
+  event.confirmations = [];
+  pushVersion(event, emptyVersion(event.current_version + 1, event.current_version, "organizer_edit"));
+  return { event: await commit(store, event, base) };
 }
 
 export async function generateDraft(id: string, req: ApiRequest<"generateDraft">): Promise<ApiResponse<"generateDraft">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.version);
-  return { event: await save(store, await plan(store, event)) };
+  assertCanStart("generate", current(event));
+  return { event: await commit(store, await plan(store, event), base) };
 }
 
+/**
+ * Refreshes evidence. Unchanged evidence (same snapshot ID) leaves the plan as is. A new
+ * snapshot revalidates the current plan with check_plan as a new version and clears approval.
+ */
 export async function recheck(id: string, req: ApiRequest<"recheck">): Promise<ApiResponse<"recheck">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.version);
-  event.last_run = {
-    run_id: newId("run"),
-    status: "completed",
-    revision_count: 0,
-    usage: { agent_executions: 0, model_requests: 0, tool_calls: 0, input_tokens: 0, output_tokens: 0, elapsed_ms: 0 },
-    progress: [progress("Evidence refresh is not implemented yet (JT-03); plan unchanged")],
-  };
-  return { event: await save(store, event) };
+  const v = current(event);
+  assertCanStart("recheck", v);
+  if (!v.plan) throw new ServiceError("invalid_request", "No plan to recheck; generate a draft first");
+  const next = v.version + 1;
+  const snapshot = await snapshotFor(event, next);
+  if (snapshot.id === v.evidence_snapshot_id) {
+    event.last_run = run("completed", [`Evidence unchanged (snapshot ${snapshot.id}); plan still valid`]);
+    return { event: await commit(store, event, base) };
+  }
+  await store.saveSnapshot(snapshot);
+  const raw = checkPlan({ plan: v.plan, brief: event.brief, snapshot, event_version: next });
+  const { checks } = applyConfirmations(raw, event.confirmations);
+  pushVersion(event, {
+    ...emptyVersion(next, v.version, "recheck"),
+    status: deriveStatus(v.plan, checks),
+    plan: v.plan,
+    evidence_snapshot_id: snapshot.id,
+    checks,
+    // Facts and alternatives cite the old snapshot, so they are not carried over.
+    concerns: v.concerns,
+    organizer_tasks: v.organizer_tasks,
+  });
+  event.last_run = run("completed", [
+    "Refreshed park, weather and air-quality evidence",
+    `Revalidated the plan against snapshot ${snapshot.id}`,
+  ]);
+  return { event: await commit(store, event, base) };
 }
 
-async function review(id: string, version: number, description: string, source: "harness" | "organizer") {
+async function review(
+  id: string,
+  version: number,
+  description: string,
+  action: "report_change" | "request_review",
+) {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, version);
   const v = current(event);
+  assertCanStart(action, v);
   if (!v.plan || !v.evidence_snapshot_id) {
     throw new ServiceError("invalid_request", "Generate a draft before requesting review");
   }
   const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
   if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
+  // A reported change is new information about the plan, so it clears approval.
+  if (action === "report_change") clearApproval(event);
   const result = await runConflictReview({
     event_id: event.id,
     event_version: v.version,
     brief: event.brief,
     snapshot,
     current_plan: v.plan,
-    conflict: { source, description, check_ids: v.checks?.blockers ?? [] },
+    conflict: { source: "organizer", description, check_ids: v.checks?.blockers ?? [] },
   });
-  const steps = [progress("Checking alternative parks and times"), progress("Checking workout adaptations")];
+  const steps = ["Checking alternative parks and times", "Checking workout adaptations"];
   if (result.ok) {
+    requireMatchingResult("Review", result.review, v.version, v.evidence_snapshot_id);
     v.alternatives = result.review;
-    steps.push(progress("Independent review complete"));
+    steps.push("Independent review complete");
   } else {
-    steps.push(progress(`Review could not complete: ${result.message}`));
+    steps.push(`Review could not complete: ${result.message}`);
   }
-  event.last_run = {
-    run_id: newId("run"),
-    status: result.ok ? "completed" : "failed",
-    revision_count: 0,
-    usage: { agent_executions: 0, model_requests: 0, tool_calls: 0, input_tokens: 0, output_tokens: 0, elapsed_ms: 0 },
-    progress: steps,
-  };
-  return { event: await save(store, event) };
+  event.last_run = run(result.ok ? "completed" : "failed", steps);
+  return { event: await commit(store, event, base) };
 }
 
 export async function reportChange(id: string, req: ApiRequest<"reportChange">): Promise<ApiResponse<"reportChange">> {
-  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "organizer");
+  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change");
 }
 
 export async function requestReview(id: string, req: ApiRequest<"requestReview">): Promise<ApiResponse<"requestReview">> {
-  return review(id, req.version, "Organizer requested conflict review", "organizer");
+  return review(id, req.version, "Organizer requested conflict review", "request_review");
 }
 
 export async function applyOption(id: string, req: ApiRequest<"applyOption">): Promise<ApiResponse<"applyOption">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.version);
   const v = current(event);
-  const option = v.alternatives?.ranked_options.find((o) => o.combined_option_id === req.combined_option_id);
-  if (!option) throw new ServiceError("not_found", `Option ${req.combined_option_id} not found`);
-  const next = event.current_version + 1;
-  event.versions.push({
+  assertCanStart("apply_option", v);
+  const review = v.alternatives;
+  const option = review?.ranked_options.find((o) => o.combined_option_id === req.combined_option_id);
+  if (!review || !option) throw new ServiceError("not_found", `Option ${req.combined_option_id} not found`);
+  requireMatchingResult("Review", review, v.version, v.evidence_snapshot_id ?? "");
+  requireMatchingResult("Option checks", option.checks, v.version, v.evidence_snapshot_id ?? "");
+  const next = v.version + 1;
+  const { checks } = applyConfirmations({ ...option.checks, event_version: next }, event.confirmations);
+  pushVersion(event, {
     ...emptyVersion(next, v.version, "review"),
-    status: option.checks.overall === "pass" ? "ready_for_approval" : "needs_verification",
+    status: deriveStatus(option.plan, checks),
     plan: option.plan,
     evidence_snapshot_id: v.evidence_snapshot_id,
-    checks: { ...option.checks, event_version: next },
+    checks,
     facts: v.facts,
-    concerns: option.unknowns.map((u, i) => ({ id: `unknown-${i + 1}`, description: u, blocking: true, related_check_ids: option.checks.blockers })),
-    organizer_tasks: v.alternatives?.organizer_tasks ?? [],
+    concerns: option.unknowns.map((u, i) => ({
+      id: `unknown-${i + 1}`,
+      description: u,
+      blocking: true,
+      related_check_ids: option.checks.blockers,
+    })),
+    organizer_tasks: review.organizer_tasks,
   });
-  event.current_version = next;
-  event.approval = null;
-  return { event: await save(store, event) };
+  return { event: await commit(store, event, base) };
 }
 
+/**
+ * Records a confirmation for one check at one park (and time). It resolves matching unknown
+ * checks on the current version and on later versions; it is new evidence, so it clears approval.
+ */
 export async function addConfirmation(id: string, req: ApiRequest<"addConfirmation">): Promise<ApiResponse<"addConfirmation">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.version);
   const v = current(event);
-  event.confirmations.push({
+  assertCanStart("add_confirmation", v);
+  const conf = {
     id: newId("conf"),
     check_id: req.check_id,
     park_id: req.park_id,
@@ -316,64 +399,81 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
     confirmed_by: "Organizer",
     confirmed_at: now(),
     note: req.note,
-  });
-  // A confirmation resolves only the stated unknown check at the stated park (and time, if given).
-  // It never overrides a failed check and never carries over to another park.
-  const matches = (c: CheckResult) =>
-    c.check_id === req.check_id &&
-    c.assessed.park_id === req.park_id &&
-    (req.start_time === null || c.assessed.start_time === req.start_time);
-  if (v.checks && v.evidence_snapshot_id) {
-    const checks = v.checks.checks.map((c) =>
-      matches(c) && c.status === "unknown"
-        ? { ...c, status: "pass" as const, reason: `Organizer confirmed: ${req.statement}` }
-        : c,
-    );
-    v.checks = summarizeChecks(v.version, v.evidence_snapshot_id, checks);
-    if (v.status === "needs_verification" && v.checks.overall === "pass") v.status = "ready_for_approval";
+  };
+  event.confirmations.push(conf);
+  clearApproval(event);
+  if (v.checks) {
+    const { checks, changed } = applyConfirmations(v.checks, [conf]);
+    v.checks = checks;
+    if (changed && v.status === "needs_verification" && checks.overall === "pass") {
+      transition(v, "ready_for_approval", "add_confirmation");
+    }
   }
-  return { event: await save(store, event) };
+  return { event: await commit(store, event, base) };
 }
 
+/** Approves the exact current version + evidence snapshot. Repeating the same approval is a no-op. */
 export async function approve(id: string, req: ApiRequest<"approve">): Promise<ApiResponse<"approve">> {
   const store = await withStore();
   const event = await load(store, id);
+  const base = event.updated_at;
   requireCurrent(event, req.version);
   const v = current(event);
+  if (
+    v.status === "approved" &&
+    event.approval?.version === v.version &&
+    event.approval.evidence_snapshot_id === req.evidence_snapshot_id
+  ) {
+    return { event };
+  }
+  assertCanStart("approve", v);
   if (v.evidence_snapshot_id !== req.evidence_snapshot_id) {
     throw new ServiceError("stale_version", "Approval does not match the current evidence snapshot");
   }
-  if (v.status !== "ready_for_approval") {
-    throw new ServiceError("blocked", `Version ${v.version} is ${v.status}, not ready for approval`, v.checks?.blockers);
-  }
-  v.status = "approved";
+  transition(v, "approved", "approve");
   event.approval = { version: v.version, evidence_snapshot_id: req.evidence_snapshot_id, approved_at: now() };
-  return { event: await save(store, event) };
+  return { event: await commit(store, event, base) };
 }
 
-/** STUB save gate (JT-09): checks version, approval and hard constraints only. */
+/**
+ * STUB save gate (JT-09): checks version, approval and hard constraints only.
+ * Idempotent: a repeat for the finalized version returns the saved record, whatever its key.
+ */
 export async function finalize(id: string, req: ApiRequest<"finalize">): Promise<ApiResponse<"finalize">> {
   const store = await withStore();
   const event = await load(store, id);
-  if (event.finalized?.version === req.version) {
-    return { event, gate: event.finalized.gate, finalized: true };
+  const base = event.updated_at;
+  const done = event.finalized;
+  if (done?.version === req.version) {
+    return { event, gate: done.gate, finalized: true };
   }
-  const v = event.versions.find((x) => x.version === req.version);
-  const approved = event.approval?.version === req.version && req.version === event.current_version;
+  if (done?.idempotency_key === req.idempotency_key) {
+    throw new ServiceError(
+      "invalid_request",
+      `Idempotency key already used to finalize version ${done.version}`,
+    );
+  }
+  requireCurrent(event, req.version);
+  const v = current(event);
+  const approved =
+    v.status === "approved" &&
+    event.approval?.version === v.version &&
+    event.approval.evidence_snapshot_id === v.evidence_snapshot_id;
   const gate: GateCheck[] = [
-    { id: "complete_inputs", status: v?.plan ? "pass" : "fail", reason: v?.plan ? "Plan present" : "No plan for this version" },
-    { id: "correct_version", status: approved ? "pass" : "fail", reason: approved ? "Approval matches this version" : "This exact version is not the approved current version" },
+    { id: "complete_inputs", status: v.plan ? "pass" : "fail", reason: v.plan ? "Plan present" : "No plan for this version" },
+    { id: "correct_version", status: approved ? "pass" : "fail", reason: approved ? "Approval matches this version and evidence snapshot" : "This exact version and snapshot are not approved" },
     { id: "current_evidence", status: "pass", reason: "Stub: freshness gate not implemented yet (JT-09)" },
-    { id: "hard_constraints", status: v?.checks?.overall === "pass" ? "pass" : "fail", reason: v?.checks?.overall === "pass" ? "All critical checks pass" : "Critical checks failed or unknown" },
+    { id: "hard_constraints", status: v.checks?.overall === "pass" ? "pass" : "fail", reason: v.checks?.overall === "pass" ? "All critical checks pass" : "Critical checks failed or unknown" },
     { id: "required_confirmations", status: "pass", reason: "Stub: confirmations gate not implemented yet (JT-09)" },
   ];
-  if (!v || gate.some((g) => g.status === "fail")) return { event, gate, finalized: false };
-  v.status = "finalized";
+  if (gate.some((g) => g.status === "fail")) return { event, gate, finalized: false };
+  transition(v, "finalized", "finalize");
   event.finalized = {
     version: v.version,
     evidence_snapshot_id: v.evidence_snapshot_id!,
     finalized_at: now(),
     gate,
+    idempotency_key: req.idempotency_key,
   };
-  return { event: await save(store, event), gate, finalized: true };
+  return { event: await commit(store, event, base), gate, finalized: true };
 }

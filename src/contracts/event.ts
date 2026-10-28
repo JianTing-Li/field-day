@@ -22,7 +22,8 @@ export const PlanVersion = z.object({
   version: z.number().int().positive(),
   based_on_version: z.number().int().positive().nullable(),
   created_at: Timestamp,
-  source: z.enum(["brief", "planning", "review", "organizer_edit"]),
+  /** "recheck": created when refreshed evidence (a new snapshot) revalidated the previous plan. */
+  source: z.enum(["brief", "planning", "review", "organizer_edit", "recheck"]),
   status: LifecycleStatus,
   /** Null until a plan is generated. */
   plan: CandidatePlan.nullable(),
@@ -81,6 +82,8 @@ export const FinalizedRecord = z.object({
   evidence_snapshot_id: Id,
   finalized_at: Timestamp,
   gate: z.array(GateCheck),
+  /** Key of the finalize request that saved this record; repeats return this record. */
+  idempotency_key: z.string().min(1).optional(),
 });
 export type FinalizedRecord = z.infer<typeof FinalizedRecord>;
 
