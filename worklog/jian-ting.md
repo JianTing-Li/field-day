@@ -154,6 +154,25 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
 
+### 2026-10-27 — JT-16: Fixtures for eval cases 3–12
+- **Done:** `fixtures/scenarios/case-03` to `case-12` (brief, snapshot, expected agent outputs, `expected`
+  outcome), `expected.ts` (`ExpectedOutcome`), `expected` added to cases 1–2, registry + `evalCases` in
+  `index.ts`, helpers for per-case retrieval time, fixture-only templates and plans. `scenarios.test.ts` now
+  checks all 12 cases: contracts, fixture labels, ID references, template/adaptation IDs, confirmation scoping,
+  and agreement between fixture outputs and `expected`.
+- **Decisions:** D-021 (case definitions).
+- **Interfaces others depend on:** `evalCases` and `ExpectedOutcome` (for JT-17); `case03.refreshed` is the
+  snapshot-B registry entry; `case11.malformedOutputs`; `case12.INJECTED_TEXT`.
+- **Unfinished / next:** JT-17 eval runner grades against `expected`. Case 3 gate failures and case 11
+  rejection are asserted by the harness/runner later, not by these fixture tests.
+- **Gotchas:** a space confirmation names the layout it confirms in `category` (D-023, Yadan's workout rules).
+  Every case expected to pass has a surface confirmation, because the real rules treat an unconfirmed surface as
+  unknown. Cases 1, 2, 4, 5, 8, 10–12 read their templates from `workouts.json`, so template edits can change them.
+- **Requests:** Yadan: review the expected outcomes for cases 6 and 7 (workout substitution and duration).
+  Yadan: Case 1 now has a surface confirmation (`ev-c1-surface-confirm`, as you asked), which breaks 4 tests in
+  `workout.test.ts` that add their own surface evidence to Case 1. Dropping the base snapshot's surface
+  confirmations in `run()` fixes all 4.
+
 ## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
 
 ## JT-18 — Logistics + Reviewer eval cases (#20)

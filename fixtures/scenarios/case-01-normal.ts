@@ -7,6 +7,7 @@ import {
   placeholderTemplates,
   referenceEvidence,
 } from "./helpers";
+import type { ExpectedOutcome } from "./expected";
 
 /**
  * PRD eval Case 1 — Normal planning and successful finalization.
@@ -16,6 +17,34 @@ import {
  */
 
 export const SNAPSHOT_ID = "snap-case-01";
+
+export const expected: ExpectedOutcome = {
+  case_number: 1,
+  title: "Normal planning and successful finalization",
+  known_feasible: false,
+  specialists_run: false,
+  final_status: "draft",
+  overall: "pass",
+  checks: {
+    "duration.fits": "pass",
+    "equipment.available": "pass",
+    "event_constraints.start_window": "pass",
+    "heat.max_temperature": "pass",
+    "air_quality.max_aqi": "pass",
+    "space_surface.space": "pass",
+    "space_surface.surface": "pass",
+  },
+  finalize: "allowed",
+  gate_failures: [],
+  required_gaps: [],
+  max_revision_rounds: 0,
+  agent_error: null,
+  notes: [
+    "Reopening FieldDay preserves the saved draft",
+    "Repeated finalize for the same approved version creates exactly 1 finalized event",
+    "No booking, publishing or attendee message",
+  ],
+};
 const PARK = "park-a";
 const START = "2026-10-29T09:00";
 const END = "2026-10-29T09:45";
@@ -81,8 +110,18 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         evidence_type: "organizer_confirmation",
         value: true,
         source: "Organizer",
+        category: "stationary",
         park_id: PARK,
         confirms_check_id: "space_surface.space",
+      }),
+      evidence({
+        id: "ev-c1-surface-confirm",
+        metric: "surface_confirmation",
+        evidence_type: "organizer_confirmation",
+        value: "grass",
+        source: "Organizer",
+        park_id: PARK,
+        confirms_check_id: "space_surface.surface",
       }),
       evidence({
         id: "ev-c1-permit-confirm",
@@ -142,6 +181,7 @@ export function planningOutput(event_version: number): PlanningOutput {
       check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "AQI 32 is below the 100 fixture limit", evidence_ids: ["ev-c1-aqi-0900"] }),
       check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
       check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "pass", reason: "Organizer confirmed stationary space", evidence_ids: ["ev-c1-space-confirm"] }),
+      check(assessed, { check_id: "space_surface.surface", area: "space_surface", status: "pass", reason: "Organizer confirmed a grass surface", evidence_ids: ["ev-c1-surface-confirm"] }),
       check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "pass", reason: "Organizer recorded permit review", evidence_ids: ["ev-c1-permit-confirm"], critical: false }),
     ]),
     concerns: [],

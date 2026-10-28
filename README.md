@@ -95,7 +95,8 @@ Not started.
 
 ## Eval results
 <!-- Owner: JT -->
-Not run yet. Targets are in the PRD §2c; 12 fixtures, defined before testing.
+Not run yet. Targets are in the PRD §2c. All 12 fixtures are defined in `fixtures/scenarios/` with expected
+outcomes (`expected` in each case file) written before any agent run; cases 4–8 are the 5 known-feasible conflicts.
 
 ## Limitations and open decisions
 <!-- Both: add as you go -->

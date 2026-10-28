@@ -244,6 +244,16 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
 
+### D-021 — Eval case definitions (cases 3–12)
+- **Date / owner:** 2026-10-27 · JT
+- **PRD section:** §2c Success Metrics, §3d Eval Card
+- **Decision:** The PRD defines cases 1–3 in full and outlines 4–12. Inputs and expected outcomes for 4–12 are
+  defined in `fixtures/scenarios/case-NN-*.ts` and were written before any agent run. Each case exports an
+  `expected: ExpectedOutcome` (`fixtures/scenarios/expected.ts`); evals grade on these fields, not on matching
+  the full fixture agent outputs. Cases 4–8 are the known-feasible conflicts. Cases 6, 7 and 9 use fixture-only
+  templates so later edits to `workouts.json` never change an eval input.
+- **Status:** proposed
+
 ## JT-17 — Eval runner + comparison: rules vs 1 agent vs 4 agents (#19)
 
 ## JT-18 — Logistics + Reviewer eval cases (#20)
