@@ -123,9 +123,10 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
       }),
       evidence({
         id: "ev-c2-lane-unusable",
-        metric: "surface_confirmation",
+        metric: "space_confirmation",
         evidence_type: "organizer_confirmation",
         value: false,
+        category: "running_lane",
         source: "Organizer",
         park_id: "park-a",
         confirms_check_id: "space_surface.space",

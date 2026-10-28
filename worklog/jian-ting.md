@@ -79,7 +79,10 @@ Add newest entries at the bottom. One entry per task or work session.
   snapshot-B registry entry; `case11.malformedOutputs`; `case12.INJECTED_TEXT`.
 - **Unfinished / next:** JT-17 eval runner grades against `expected`. Case 3 gate failures and case 11
   rejection are asserted by the harness/runner later, not by these fixture tests.
-- **Gotchas:** organizer confirmations do not say which layout they confirm (running lane vs stationary);
-  fixtures put it in `limitations` ("Layout: …"). Rules may need an additive contract field for this.
-  Cases 1, 2, 4, 5, 8, 10–12 still read placeholder templates from `workouts.json`.
+- **Gotchas:** a space confirmation names the layout it confirms in `category` (D-023, Yadan's workout rules).
+  Every case expected to pass has a surface confirmation, because the real rules treat an unconfirmed surface as
+  unknown. Cases 1, 2, 4, 5, 8, 10–12 read their templates from `workouts.json`, so template edits can change them.
 - **Requests:** Yadan: review the expected outcomes for cases 6 and 7 (workout substitution and duration).
+  Yadan: Case 1 now has a surface confirmation (`ev-c1-surface-confirm`, as you asked), which breaks 4 tests in
+  `workout.test.ts` that add their own surface evidence to Case 1. Dropping the base snapshot's surface
+  confirmations in `run()` fixes all 4.

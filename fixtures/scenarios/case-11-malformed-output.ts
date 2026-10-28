@@ -96,7 +96,8 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         valid_to: "2026-10-30T23:59",
         limitations: ["Regional reporting-area value, not a park-level measurement"],
       }),
-      evidence({ id: "ev-c11-space-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", limitations: ["Layout: stationary"] }),
+      evidence({ id: "ev-c11-space-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", category: "stationary" }),
+      evidence({ id: "ev-c11-surface-confirm", metric: "surface_confirmation", evidence_type: "organizer_confirmation", value: "grass", source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.surface" }),
     ],
     coverage_gaps: [],
   };

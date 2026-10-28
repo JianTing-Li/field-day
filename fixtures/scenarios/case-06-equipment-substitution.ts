@@ -68,7 +68,7 @@ export const expected: ExpectedOutcome = {
   specialists_run: true,
   final_status: "draft",
   overall: "pass",
-  checks: { "equipment.available": "pass", "duration.fits": "pass", "space_surface.space": "pass" },
+  checks: { "equipment.available": "pass", "duration.fits": "pass", "space_surface.space": "pass", "space_surface.surface": "pass" },
   finalize: "allowed",
   gate_failures: [],
   required_gaps: [],
@@ -124,7 +124,8 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         valid_to: "2026-10-30T23:59",
         limitations: ["Regional reporting-area value, not a park-level measurement"],
       }),
-      evidence({ id: "ev-c6-space-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", limitations: ["Layout: stationary"] }),
+      evidence({ id: "ev-c6-space-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", category: "stationary" }),
+      evidence({ id: "ev-c6-surface-confirm", metric: "surface_confirmation", evidence_type: "organizer_confirmation", value: "grass", source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.surface" }),
     ],
     coverage_gaps: [],
   };
@@ -159,6 +160,7 @@ function checksFor(event_version: number, templateId: string) {
     check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "Regional AQI 35 is below the 100 fixture limit", evidence_ids: ["ev-c6-aqi"] }),
     check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
     check(assessed, { check_id: "space_surface.space", area: "space_surface", status: "pass", reason: "Organizer confirmed stationary space at Park A", evidence_ids: ["ev-c6-space-confirm"] }),
+    check(assessed, { check_id: "space_surface.surface", area: "space_surface", status: "pass", reason: "Organizer confirmed a grass surface at Park A", evidence_ids: ["ev-c6-surface-confirm"] }),
     check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "pass", reason: "Group of 14 is below the 20-person permit-review flag", critical: false }),
   ]);
 }

@@ -43,7 +43,7 @@ export const expected: ExpectedOutcome = {
   specialists_run: true,
   final_status: "draft",
   overall: "pass",
-  checks: { "heat.max_temperature": "pass", "space_surface.space": "pass" },
+  checks: { "heat.max_temperature": "pass", "space_surface.space": "pass", "space_surface.surface": "pass" },
   finalize: "allowed",
   gate_failures: [],
   required_gaps: [],
@@ -102,8 +102,9 @@ export function snapshot(event_id: string, event_version: number): EvidenceSnaps
         limitations: ["Regional reporting-area value, not a park-level measurement"],
         retrieved_at: RETRIEVED,
       }),
-      evidence({ id: "ev-c8-lane-unusable", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: false, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", limitations: ["Layout: running_lane", "Organizer report: Park A running lane is unusable"], retrieved_at: RETRIEVED }),
-      evidence({ id: "ev-c8-stationary-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", limitations: ["Layout: stationary", "Open stationary area for 18 people"], retrieved_at: RETRIEVED }),
+      evidence({ id: "ev-c8-lane-unusable", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: false, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", category: "running_lane", limitations: ["Organizer report: Park A running lane is unusable"], retrieved_at: RETRIEVED }),
+      evidence({ id: "ev-c8-stationary-confirm", metric: "space_confirmation", evidence_type: "organizer_confirmation", value: true, source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.space", category: "stationary", limitations: ["Open stationary area for 18 people"], retrieved_at: RETRIEVED }),
+      evidence({ id: "ev-c8-surface-confirm", metric: "surface_confirmation", evidence_type: "organizer_confirmation", value: "paved", source: "Organizer", park_id: PARK, confirms_check_id: "space_surface.surface", retrieved_at: RETRIEVED }),
     ],
     coverage_gaps: [],
   };
@@ -135,6 +136,7 @@ function checksFor(event_version: number, c: typeof A_0800, adapted: boolean) {
     check(assessed, { check_id: "air_quality.max_aqi", area: "air_quality", status: "pass", reason: "Regional AQI 47 is below the 100 fixture limit", evidence_ids: ["ev-c8-aqi"] }),
     check(assessed, { check_id: "freshness.conditions", area: "freshness", status: "pass", reason: "Fixture evidence covers the full event interval" }),
     space,
+    check(assessed, { check_id: "space_surface.surface", area: "space_surface", status: "pass", reason: "Organizer confirmed a paved surface at Park A", evidence_ids: ["ev-c8-surface-confirm"] }),
     check(assessed, { check_id: "permissions.permit_review", area: "permissions", status: "unknown", reason: "Group of 18 is close to the 20-person permit-review flag; permit status not recorded", critical: false }),
   ]);
 }

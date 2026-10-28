@@ -103,7 +103,7 @@ export function referenceEvidence(
         value: t.name,
         source: "FieldDay templates",
         park_id: null,
-        limitations: ["Placeholder template; not instructor-reviewed"],
+        limitations: ["Not yet reviewed by an instructor"],
         retrieved_at,
       }),
     ),
