@@ -1,0 +1,12 @@
+{
+  "url": "https://www.airnowapi.org/aq/forecast/current/?format=application/json&latitude=40.7812&longitude=-73.9665",
+  "status": 401,
+  "retrieved_at": "2026-10-27T19:22:15Z",
+  "body": {
+    "WebServiceError": [
+      {
+        "Message": "Invalid API key"
+      }
+    ]
+  }
+}

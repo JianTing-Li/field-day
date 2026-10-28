@@ -23,7 +23,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 
 ## JT
 ### Do first (Tue AM)
-- [ ] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
+- [x] **JT-01** Agent runner: Claude call, tool loop, output validation, stale-context rejection, usage counting, plus a fake runner for agent tests (#3) · Tue AM · needs: S-06
 - [x] **JT-02** Finish agent tools: time-window filtering and coverage gaps (stubs exist) (#4) · Tue AM
 
 ### Harness
@@ -54,12 +54,12 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 ## Yadan
 ### Setup (today)
 - [x] **YT-00a** Add your `git config user.name` to the table in `CLAUDE.md` (small PR) (#22) · Mon
-- [ ] **YT-00b** Review and approve the setup PR (S-13) (#23) · Mon
-- [ ] **YT-00c** Copy `.env.example` to `.env.local` and add your own Anthropic API key (#24) · Mon
-- [ ] **YT-00d** Register an AirNow API key (needed for live mode and deploy) (#25) · Tue
+- [x] **YT-00b** Review and approve the setup PR (S-13) (#23) · Mon
+- [x] **YT-00c** Copy `.env.example` to `.env.local` and add your own Anthropic API key (#24) · Mon
+- [x] **YT-00d** Register an AirNow API key (needed for live mode and deploy) (#25) · Tue
 
 ### Data and content
-- [ ] **YT-01** NWS weather adapter (port of weather.py) (#26) · Tue AM
+- [x] **YT-01** NWS weather adapter (port of weather.py) (#26) · Tue AM
   - **Files:** `src/server/data/weather.ts`, `weather.test.ts`, `fixtures/sources/nws/*.json`
   - **Uses:** `FetchForecast`, `ConditionsRequest`, `AdapterResult` (`src/contracts/data.ts`); `EvidenceItem` (`src/contracts/evidence.ts`)
   - **Do:** live mode: `GET https://api.weather.gov/points/{lat},{lon}`, follow `properties.forecastHourly`,
@@ -72,7 +72,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
     periods gives a `coverage_gaps` entry (never a guessed value); an HTTP failure returns empty items plus a
     gap instead of throwing.
   - **Test:** `npm test -- weather` (fixtures only; no live calls in tests)
-- [ ] **YT-02** AirNow adapter (#27) · Tue
+- [x] **YT-02** AirNow adapter (#27) · Tue
   - **Files:** `src/server/data/air.ts`, `air.test.ts`, `fixtures/sources/airnow/*.json`
   - **Uses:** `FetchAirQuality` (`src/contracts/data.ts`); `EvidenceItem`
   - **Do:** pick the forecast and observation endpoints from AirNow's current docs; key from `AIRNOW_API_KEY`,
