@@ -1,4 +1,12 @@
-import type { CheckPlanResult, EvidenceItem, EvidenceSnapshot, FieldDayEvent, OrganizerTask, PlanVersion } from "@/contracts";
+import {
+  isConfirmableCheck,
+  type CheckPlanResult,
+  type EvidenceItem,
+  type EvidenceSnapshot,
+  type FieldDayEvent,
+  type OrganizerTask,
+  type PlanVersion,
+} from "@/contracts";
 import { formatUpdated } from "../format";
 import { Card, Pill } from "../ui";
 import {
@@ -6,10 +14,12 @@ import {
   adaptationName,
   checkName,
   formatLocal,
+  gapSummary,
+  overallLabel,
   parkName,
+  plainText,
   sortChecks,
   templateName,
-  withParkNames,
 } from "./logic";
 
 /** Read-only sections of the event workspace (YT-09). */
@@ -63,21 +73,21 @@ export function BlockersCard({
   const blocking = version.concerns.filter((c) => c.blocking && !settled(c));
   const other = version.concerns.filter((c) => !c.blocking);
   if (blocking.length === 0 && other.length === 0 && version.organizer_tasks.length === 0) return null;
+  // Once approved or locked in, every critical check passed: a red "blocking" card would contradict it.
+  if (version.status === "approved" || version.status === "finalized") return null;
   // Every check passed (D-JT23-1): the agent's concerns are notes to review, not blockers.
   const ready = version.status === "ready_for_approval";
-  // Tasks that clear a current blocker come first; the rest are helpful but don't block approval.
-  const blockers = new Set<string>(version.checks?.blockers ?? []);
-  // A task only blocks this plan if it's about this plan's park (and time, when it names one).
+  // A task is about this plan if it names this plan's park (and time, when it names one).
   const forThisPlan = (t: OrganizerTask) =>
     t.park_id === null ||
     (t.park_id === version.plan?.park_id && (t.start_time === null || t.start_time === version.plan?.start_time));
   const done = version.organizer_tasks.filter(
     (t) => t.resolves_check_id !== null && passedNow.has(t.resolves_check_id) && forThisPlan(t),
   );
-  const mustDo = version.organizer_tasks.filter(
-    (t) => t.resolves_check_id !== null && blockers.has(t.resolves_check_id) && forThisPlan(t),
-  );
-  const goodToKnow = version.organizer_tasks.filter((t) => !mustDo.includes(t) && !done.includes(t));
+  // Space, surface and permit for this plan are confirmed in "Only you can check these", not here.
+  const inConfirmPanel = (t: OrganizerTask) =>
+    t.resolves_check_id !== null && isConfirmableCheck(t.resolves_check_id) && !passedNow.has(t.resolves_check_id) && forThisPlan(t);
+  const goodToKnow = version.organizer_tasks.filter((t) => !done.includes(t) && !inConfirmPanel(t));
   return (
     <Card
       title={ready ? "Review before approving" : "What's blocking this plan"}
@@ -97,7 +107,7 @@ export function BlockersCard({
               </span>
               <span>
                 <span className="sr-only">{ready ? "Agent concern: " : "Blocking: "}</span>
-                {withParkNames(c.description, snapshot)}
+                {plainText(c.description, snapshot)}
               </span>
             </li>
           ))}
@@ -107,13 +117,12 @@ export function BlockersCard({
         <ul className="mt-4 space-y-1.5">
           {other.map((c) => (
             <li key={c.id} className="text-sm text-ink-2">
-              <span className="sr-only">Note: </span>• {withParkNames(c.description, snapshot)}
+              <span className="sr-only">Note: </span>• {plainText(c.description, snapshot)}
             </li>
           ))}
         </ul>
       )}
       {[
-        { title: "Must do before approving", tasks: mustDo, isDone: false },
         { title: "Good to know", tasks: goodToKnow, isDone: false },
         { title: "Done", tasks: done, isDone: true },
       ].map(
@@ -130,7 +139,7 @@ export function BlockersCard({
                   >
                     {group.isDone && <span aria-hidden="true">✓ </span>}
                     {group.isDone && <span className="sr-only">Done: </span>}
-                    {withParkNames(t.description, snapshot)}
+                    {plainText(t.description, snapshot)}
                     {(t.park_id || t.start_time) && (
                       <span className="mt-0.5 block text-xs text-ink-2">
                         {t.park_id && parkName(snapshot, t.park_id)}
@@ -233,12 +242,11 @@ export function ChecksList({
   title?: string;
 }) {
   if (!checks) return null;
-  const overall = CHECK_STATUS[checks.overall];
   return (
     <Card
       title={title}
-      description="FieldDay's rules check every plan, not the AI. Anything unconfirmed never counts as safe."
-      actions={<CheckStatusPill status={checks.overall} label={`Overall: ${overall.label}`} />}
+      description="FieldDay's rules check every plan, not the AI. Anything not checked yet never counts as safe."
+      actions={<CheckStatusPill status={checks.overall} label={overallLabel(checks)} />}
     >
       <ul className="divide-y divide-ink/10">
         {sortChecks(checks.checks).map((c) => (
@@ -247,9 +255,9 @@ export function ChecksList({
             <div className="min-w-0 text-sm">
               <p className="font-bold text-ink">
                 {checkName(c.check_id)}
-                {!c.critical && <span className="ml-2 text-xs font-normal text-ink-2">(advisory, doesn&apos;t block)</span>}
+                {!c.critical && <span className="ml-2 text-xs font-normal text-ink-2">(doesn&apos;t block approval)</span>}
               </p>
-              <p className="text-ink-2">{withParkNames(c.reason, snapshot)}</p>
+              <p className="text-ink-2">{plainText(c.reason, snapshot)}</p>
               {c.evidence_ids.length > 0 && (
                 <p className="mt-0.5">
                   <SourceLinks ids={c.evidence_ids} snapshot={snapshot} />
@@ -293,7 +301,7 @@ export function EvidenceList({ snapshot }: { snapshot: EvidenceSnapshot | null }
       </summary>
       {snapshot.coverage_gaps.length > 0 && (
         <ul className="clay-sm mt-4 space-y-1 rounded-disclosure bg-butter px-5 py-3 text-ink">
-          {snapshot.coverage_gaps.map((g, i) => (
+          {gapSummary(snapshot.coverage_gaps, snapshot).map((g, i) => (
             <li key={i}>⚠ {g}</li>
           ))}
         </ul>
@@ -339,8 +347,12 @@ function EvidenceRow({ item: e }: { item: EvidenceItem }) {
 }
 
 /** Evidence links point into the collapsed list, so open it before the browser jumps there. */
-function openEvidence() {
-  const list = document.getElementById("evidence-items");
+/**
+ * Opens this page's sources before the browser jumps there. Next keeps pages you left mounted but
+ * hidden, so the lookup stays inside this workspace instead of the first match in the document.
+ */
+function openEvidence(e: React.MouseEvent<HTMLAnchorElement>) {
+  const list = e.currentTarget.closest("[data-workspace]")?.querySelector("#evidence-items");
   if (list instanceof HTMLDetailsElement) list.open = true;
 }
 

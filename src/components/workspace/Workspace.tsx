@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { z } from "zod";
 import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
-import { startWindowText } from "../format";
+import { AUTODRAFT_KEY } from "../BriefForm";
+import { formatUpdated, startWindowText, todayInNewYork } from "../format";
 import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
 import { Alternatives } from "./Alternatives";
-import { aboutCurrentPlan, ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
-import { availableActions, currentVersion, finalizeKey } from "./logic";
+import { ApprovalPanel, ConfirmationsList, ConfirmPanel } from "./ApprovalFlow";
+import { availableActions, confirmItems, currentVersion, finalizeKey } from "./logic";
 import { PlanSummary } from "./NextStep";
 import { nextStep, type NextStep } from "./next-step";
 import { BlockersCard, ChecksList, EvidenceList, PlanCard, TechnicalDetails } from "./sections";
@@ -30,8 +31,10 @@ export function Workspace({ eventId }: { eventId: string }) {
     error: ApiFailure;
   } | null>(null);
   const [showChange, setShowChange] = useState(false);
-  const [confirming, setConfirming] = useState<string | null>(null);
   const [gate, setGate] = useState<GateCheck[] | null>(null);
+  // Next keeps pages you left mounted but hidden; scroll targets are looked up inside this page only.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const today = useSyncExternalStore(noSubscribe, todayInNewYork, () => null);
   const [blockedDetails, setBlockedDetails] = useState<CheckId[]>([]);
   const router = useRouter();
   const base = `/api/events/${encodeURIComponent(eventId)}`;
@@ -60,6 +63,22 @@ export function Workspace({ eventId }: { eventId: string }) {
       live = false;
     };
   }, [base]);
+
+  // A brief that was just saved with no plan gets drafted right away, instead of waiting for a click.
+  const waitingToDraft = data !== null && !currentVersion(data.event).plan && data.event.last_run === null;
+  useEffect(() => {
+    if (!waitingToDraft || busy) return;
+    let flagged = false;
+    try {
+      flagged = sessionStorage.getItem(AUTODRAFT_KEY) === eventId;
+      if (flagged) sessionStorage.removeItem(AUTODRAFT_KEY);
+    } catch {
+      // Storage can be blocked; the organizer then clicks "Draft a plan".
+    }
+    if (flagged) void act("Drafting a plan", "generate", { version: currentVersion(data!.event).version }, Api.generateDraft.response);
+    // act is recreated every render; this runs once when the page first has a plan-less event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingToDraft, eventId]);
 
   /** Runs one action against the current version, then reloads so the snapshot stays in sync. */
   async function act<S extends z.ZodType>(
@@ -108,13 +127,22 @@ export function Workspace({ eventId }: { eventId: string }) {
   const v = currentVersion(event);
   const actions = availableActions(v);
   const version = { version: v.version };
-  const step = nextStep(v, gate, event.last_run);
+  const items = actions.confirm ? confirmItems(v, snapshot, event.brief.group_size) : [];
+  // The last failed lock-in survives a reload (F-18) until the plan changes.
+  const shownGate = gate ?? (v.status === "approved" && event.last_gate?.version === v.version ? event.last_gate.gate : null);
+  const demoOnly = event.finalized?.version === v.version && event.finalized.demo_only === true;
+  const step = nextStep(v, shownGate, event.last_run, { confirm: items, today, demoOnly });
 
   const draftPlan = () => act("Drafting a plan", "generate", version, Api.generateDraft.response);
   const recheck = () => act("Checking the latest weather", "recheck", version, Api.recheck.response);
   const findAlternatives = () => act("Finding alternatives", "review", version, Api.requestReview.response);
   const approve = () =>
     act("Approving", "approve", { ...version, evidence_snapshot_id: v.evidence_snapshot_id }, Api.approve.response);
+  /** One click for the usual path: approve this exact version, then run the final save gate. */
+  const approveAndLock = async () => {
+    const r = await approve();
+    if (r.ok) await lockIn();
+  };
   const lockIn = async () => {
     const r = await act(
       "Locking it in",
@@ -123,6 +151,12 @@ export function Workspace({ eventId }: { eventId: string }) {
       Api.finalize.response,
     );
     if (r.ok && !r.data.finalized) setGate(r.data.gate);
+  };
+
+  /** Scrolls to a section of this page, without animation for people who prefer reduced motion. */
+  const scrollTo = (id: string) => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    rootRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   };
 
   /** Runs the next step's action, or takes the organizer to the part of the page that needs them. */
@@ -136,6 +170,8 @@ export function Workspace({ eventId }: { eventId: string }) {
         return findAlternatives();
       case "approve":
         return approve();
+      case "approve_and_lock":
+        return approveAndLock();
       case "finalize":
         return lockIn();
       case "edit":
@@ -143,16 +179,12 @@ export function Workspace({ eventId }: { eventId: string }) {
       case "alternatives":
         return scrollTo("alternatives");
       case "confirm":
-        if (s.taskId) {
-          setConfirming(s.taskId);
-          requestAnimationFrame(() => scrollTo(`task-${s.taskId}`));
-        }
-        return;
+        return scrollTo(s.checkId ? `confirm-${s.checkId.replace(".", "-")}` : "confirm-checks");
     }
   };
 
   return (
-    <div className="space-y-5 pb-28 md:pb-0">
+    <div ref={rootRef} data-workspace className="animate-enter space-y-5 pb-28 md:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
@@ -200,38 +232,17 @@ export function Workspace({ eventId }: { eventId: string }) {
         </Alert>
       )}
 
-      <BlockersCard
-        version={v}
-        snapshot={snapshot}
-        taskAction={(t) =>
-          actions.confirm && confirmable(t) && !aboutCurrentPlan(t, v.plan) ? (
-            <p className="mt-2 text-xs font-bold text-ink-2">
-              This is about a different park or time than the current plan. Confirm it after you choose an option
-              there; a confirmation only counts for the plan it was made for.
-            </p>
-          ) : actions.confirm && confirmable(t) ? (
-            confirming === t.id ? (
-              <ConfirmTaskForm
-                task={t}
-                snapshot={snapshot}
-                busy={!!busy}
-                onCancel={() => setConfirming(null)}
-                onSubmit={async (c) => {
-                  const r = await act(
-                    "Saving your confirmation",
-                    "confirmations",
-                    { ...version, ...c },
-                    Api.addConfirmation.response,
-                  );
-                  if (r.ok) setConfirming(null);
-                }}
-              />
-            ) : (
-              <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming(t.id)}>
-                Confirm
-              </Button>
-            )
-          ) : null
+      <BlockersCard version={v} snapshot={snapshot} />
+      <ConfirmPanel
+        items={items}
+        busy={!!busy}
+        onConfirm={(item, statement) =>
+          act(
+            "Saving your confirmation",
+            "confirmations",
+            { ...version, check_id: item.check_id, park_id: item.park_id, start_time: item.start_time, statement, note: null },
+            Api.addConfirmation.response,
+          )
         }
       />
       <Card
@@ -269,6 +280,18 @@ export function Workspace({ eventId }: { eventId: string }) {
             </Button>
           )}
         </div>
+        {(event.change_reports ?? []).length > 0 && (
+          <div className="mt-5 text-sm">
+            <h3 className="font-bold text-ink">You reported</h3>
+            <ul className="mt-1.5 space-y-1 text-ink-2">
+              {(event.change_reports ?? []).slice(-3).map((r) => (
+                <li key={r.at}>
+                  “{r.description}” · {formatUpdated(r.at)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {showChange && (
           <ChangeForm
             disabled={!!busy}
@@ -304,7 +327,7 @@ export function Workspace({ eventId }: { eventId: string }) {
         event={event}
         version={v}
         busy={!!busy}
-        gate={gate}
+        gate={shownGate}
         blockedDetails={blockedDetails}
         onApprove={approve}
         onFinalize={lockIn}
@@ -315,11 +338,7 @@ export function Workspace({ eventId }: { eventId: string }) {
   );
 }
 
-/** Scrolls to a section, without animation for people who prefer reduced motion. */
-function scrollTo(id: string) {
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  document.getElementById(id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-}
+const noSubscribe = () => () => {};
 
 function ActionErrorBanner({
   label,

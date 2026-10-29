@@ -56,7 +56,11 @@ export function PlanSummary({
           </p>
         )}
 
-        <div className={`clay-sm mt-6 rounded-disclosure p-5 ${TONE_BG[step.tone === "danger" ? "danger" : step.tone]}`}>
+        {/* Keyed by the step, so a new next step eases in and the change is noticed. */}
+        <div
+          key={step.title}
+          className={`clay-sm animate-enter mt-6 rounded-disclosure p-5 transition-colors ${TONE_BG[step.tone === "danger" ? "danger" : step.tone]}`}
+        >
           <p className="text-xs font-bold tracking-wide text-ink uppercase">Next step</p>
           <p className="mt-1 text-lg leading-snug font-bold text-ink">{step.title}</p>
           <p className="mt-1 text-sm text-ink">{step.body}</p>
@@ -109,7 +113,7 @@ function Working({ label }: { label: string }) {
   }, [label]);
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   return (
-    <div role="status" aria-live="polite" className="clay-recessed mt-4 rounded-disclosure bg-cream px-4 py-3 text-sm text-ink">
+    <div role="status" aria-live="polite" className="clay-recessed animate-enter mt-4 rounded-disclosure bg-cream px-4 py-3 text-sm text-ink">
       <p className="font-bold">
         <span aria-hidden="true" className="mr-2 inline-block animate-spin motion-reduce:animate-none">
           ◐

@@ -1,11 +1,13 @@
-import type {
-  CheckId,
-  CheckResult,
-  CheckStatus,
-  EvidenceSnapshot,
-  FieldDayEvent,
-  LifecycleStatus,
-  PlanVersion,
+import {
+  isConfirmableCheck,
+  type CheckId,
+  type CheckPlanResult,
+  type CheckResult,
+  type CheckStatus,
+  type EvidenceSnapshot,
+  type FieldDayEvent,
+  type LifecycleStatus,
+  type PlanVersion,
 } from "@/contracts";
 
 /**
@@ -137,4 +139,105 @@ export function withParkNames(text: string, snapshot: EvidenceSnapshot | null): 
   return text
     .replace(/\s*\((park-[a-z0-9-]+)\)/g, (m, id: string) => (name(id) ? "" : m))
     .replace(/\bpark-[a-z0-9-]+\b/g, (id) => name(id) ?? id);
+}
+
+/** Swaps check IDs inside a harness message for their plain names ("space_surface.surface" -> "ground surface"). */
+export function plainIds(text: string): string {
+  return text.replace(/\b[a-z_]+\.[a-z_]+\b/g, (id) => {
+    const name = checkName(id as CheckId);
+    return name === id ? id : name.toLowerCase();
+  });
+}
+
+/**
+ * Agent and rule text, in the organizer's words (F-13, F-17): park, template and check IDs become
+ * names, and the "(unreviewed demo policy)" label is dropped because the banner states it once.
+ */
+export function plainText(text: string, snapshot: EvidenceSnapshot | null): string {
+  const template = (id: string) => snapshot?.workout_templates.find((t) => t.id === id)?.name;
+  return plainIds(withParkNames(text, snapshot))
+    .replace(/\s*\((tpl-[a-z0-9-]+)\)/g, (m, id: string) => (template(id) ? "" : m))
+    .replace(/\btpl-[a-z0-9-]+\b/g, (id) => template(id) ?? id)
+    .replace(/\s*\(unreviewed demo policy\)/g, "");
+}
+
+/** The overall result in a few plain words: "All checks pass", "2 to confirm", "1 problem". */
+export function overallLabel(checks: CheckPlanResult): string {
+  const critical = checks.checks.filter((c) => c.critical);
+  const failed = critical.filter((c) => c.status === "fail").length;
+  const unknown = critical.filter((c) => c.status === "unknown").length;
+  if (failed > 0) return `${failed} problem${failed === 1 ? "" : "s"}`;
+  if (unknown > 0) return `${unknown} not checked yet`;
+  return "All checks pass";
+}
+
+/** Something only the organizer can check at the park, with the sentence they confirm (F-15). */
+export interface ConfirmItem {
+  check_id: CheckId;
+  park_id: string;
+  start_time: string | null;
+  /** Blocks approval until confirmed (space and surface); permit is advisory. */
+  required: boolean;
+  question: string;
+  statement: string;
+}
+
+/**
+ * What the organizer can confirm for the current plan, taken from the harness's own checks rather
+ * than from agent to-dos (D-JT24-1): every space, surface or permit check that is still unknown at
+ * the plan's park. Nothing else can be confirmed, so nothing else is offered.
+ */
+export function confirmItems(v: PlanVersion, snapshot: EvidenceSnapshot | null, groupSize: number): ConfirmItem[] {
+  const p = v.plan;
+  if (!p?.park_id || !v.checks) return [];
+  const park = parkName(snapshot, p.park_id);
+  const when = formatLocal(p.start_time);
+  const template = snapshot?.workout_templates.find((t) => t.id === p.workout_template_id);
+  const layout =
+    p.adaptation_ids
+      .map((id) => template?.permitted_adaptations.find((a) => a.id === id)?.resulting_layout)
+      .filter(Boolean)
+      .at(-1) ?? template?.space.layout;
+  const room = layout === "running_lane" || layout === "loop_path" ? "a clear running path" : "open, flat space";
+  const surfaces = template?.surfaces.length ? template.surfaces.join(", ") : "a safe surface";
+  return v.checks.checks
+    .filter((c) => c.status === "unknown" && isConfirmableCheck(c.check_id) && c.assessed.park_id === p.park_id)
+    .map((c) => {
+      const base = { check_id: c.check_id, park_id: p.park_id!, start_time: c.assessed.start_time, required: c.critical };
+      if (c.check_id === "space_surface.space") {
+        return {
+          ...base,
+          question: `Is there room at ${park}?`,
+          statement: `I checked: there's ${room} for ${groupSize} people at ${park} at ${when}.`,
+        };
+      }
+      if (c.check_id === "space_surface.surface") {
+        return {
+          ...base,
+          question: `Is the ground right at ${park}?`,
+          statement: `I checked: the ground at ${park} is suitable for this workout (${surfaces}).`,
+        };
+      }
+      return {
+        ...base,
+        question: `Do you need a permit at ${park}?`,
+        statement: `I checked: a permit is sorted, or not needed, for ${groupSize} people at ${park} at ${when}.`,
+      };
+    })
+    .sort((a, b) => Number(b.required) - Number(a.required));
+}
+
+/**
+ * Coverage gaps in one or two plain lines (F-26): the snapshot lists one gap per park and provider,
+ * which for a far-off date is twenty lines saying the same thing.
+ */
+export function gapSummary(gaps: string[], snapshot: EvidenceSnapshot | null): string[] {
+  const weather = gaps.filter((g) => /^NWS hourly forecast .* does not cover/.test(g));
+  const air = gaps.filter((g) => /^AirNow has no forecast/.test(g));
+  const rest = gaps.filter((g) => !weather.includes(g) && !air.includes(g));
+  return [
+    ...(weather.length > 0 ? ["No weather forecast reaches this time yet."] : []),
+    ...(air.length > 0 ? ["No air-quality forecast for this date yet."] : []),
+    ...rest.map((g) => plainText(g, snapshot)),
+  ];
 }

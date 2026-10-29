@@ -1,6 +1,6 @@
 import type { CombinedOption, EvidenceSnapshot, PlanChange, PlanVersion } from "@/contracts";
 import { Alert, Button, Pill } from "../ui";
-import { adaptationName, checkName, formatLocal, parkName, sortChecks, templateName } from "./logic";
+import { adaptationName, checkName, formatLocal, overallLabel, parkName, plainText, sortChecks, templateName } from "./logic";
 import { CheckStatusPill } from "./sections";
 
 /** Ranked alternatives from conflict review (alternatives on the current version). Task YT-10. */
@@ -32,13 +32,12 @@ export function Alternatives({
   const recommended = review.recommendation?.combined_option_id ?? null;
 
   return (
-    <section id="alternatives" className="clay scroll-mt-24 rounded-surface bg-lavender p-6 sm:p-8 md:rounded-tray md:p-10">
+    <section id="alternatives" className="clay animate-enter scroll-mt-24 rounded-surface bg-lavender p-6 sm:p-8 md:rounded-tray md:p-10">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-ink">Alternatives</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Ranked by the reviewer. Picking one creates a new draft version, which is checked again before you can
-            approve it.
+            Ranked by the reviewer. Picking one makes it your plan, and FieldDay checks it again before you approve.
           </p>
         </div>
         <Pill tone={review.status === "draft" ? "success" : "warning"}>{reviewStatus(review.status)}</Pill>
@@ -48,7 +47,7 @@ export function Alternatives({
           <Alert tone="warning" title="Still unresolved">
             <ul className="list-disc space-y-0.5 pl-5">
               {review.blocking_issues.map((b, i) => (
-                <li key={i}>{b}</li>
+                <li key={i}>{plainText(b, snapshot)}</li>
               ))}
             </ul>
           </Alert>
@@ -57,7 +56,7 @@ export function Alternatives({
       <p className="mb-5 text-sm text-ink">
         {review.recommendation ? (
           <>
-            <strong className="font-bold">Recommendation:</strong> {review.recommendation.reason}
+            <strong className="font-bold">Recommendation:</strong> {plainText(review.recommendation.reason, snapshot)}
           </>
         ) : (
           "No option is recommended yet: each one still has something unconfirmed. Compare them and confirm what you can."
@@ -104,6 +103,9 @@ function OptionShelf({
   onApply: () => void;
 }) {
   const problems = sortChecks(o.checks.checks).filter((c) => c.critical && c.status !== "pass");
+  // The reviewer often repeats a check's reason as an unknown; show each one once.
+  const reasons = new Set(problems.map((c) => plainText(c.reason, snapshot).toLowerCase()));
+  const unknowns = [...new Set(o.unknowns.map((u) => plainText(u, snapshot)))].filter((u) => !reasons.has(u.toLowerCase()));
   const p = o.plan;
   return (
     <li
@@ -127,11 +129,11 @@ function OptionShelf({
             ` · ${p.adaptation_ids.map((a) => adaptationName(snapshot, p.workout_template_id, a)).join("; ")}`}
         </p>
         <div className="mt-3">
-          <CheckStatusPill status={o.checks.overall} label={`Checks: ${o.checks.overall}`} />
+          <CheckStatusPill status={o.checks.overall} label={overallLabel(o.checks)} />
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-4 min-[1300px]:grid-cols-2">
         {o.changes_from_original.length > 0 && (
           <div>
             <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">What changes</h4>
@@ -149,7 +151,7 @@ function OptionShelf({
             </ul>
           </div>
         )}
-        {(problems.length > 0 || o.unknowns.length > 0) && (
+        {(problems.length > 0 || unknowns.length > 0) && (
           <div>
             <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">Not resolved yet</h4>
             <ul className="mt-1.5 space-y-1.5">
@@ -157,14 +159,14 @@ function OptionShelf({
                 <li key={c.check_id} className="flex gap-2 text-sm">
                   <CheckStatusPill status={c.status} />
                   <span className="text-ink">
-                    {checkName(c.check_id)}: {c.reason}
+                    {checkName(c.check_id)}: {plainText(c.reason, snapshot)}
                   </span>
                 </li>
               ))}
             </ul>
-            {o.unknowns.length > 0 && (
+            {unknowns.length > 0 && (
               <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-ink">
-                {o.unknowns.map((u, i) => (
+                {unknowns.map((u, i) => (
                   <li key={i}>{u}</li>
                 ))}
               </ul>
@@ -174,7 +176,7 @@ function OptionShelf({
         {o.tradeoffs.length > 0 && (
           <ul className="space-y-0.5 text-sm text-ink-2 sm:col-span-2">
             {o.tradeoffs.map((t, i) => (
-              <li key={i}>⚖ {t}</li>
+              <li key={i}>⚖ {plainText(t, snapshot)}</li>
             ))}
           </ul>
         )}

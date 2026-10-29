@@ -43,14 +43,17 @@ describe("BlockersCard to-dos", () => {
     organizer_tasks: [task("t-a", "park-a"), task("t-b", "park-b")],
   } as unknown as PlanVersion;
 
-  it("puts tasks that unblock this plan first, and other parks' tasks under Good to know", () => {
+  it("leaves this plan's space check to the confirm panel and lists other parks' tasks under Good to know", () => {
     const html = renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
-    const must = html.indexOf("Must do before approving");
     const good = html.indexOf("Good to know");
-    expect(must).toBeGreaterThan(-1);
-    expect(good).toBeGreaterThan(must);
-    expect(html.indexOf("Confirm space at park-a")).toBeLessThan(good);
+    expect(good).toBeGreaterThan(-1);
+    expect(html).not.toContain("Confirm space at park-a");
     expect(html.indexOf("Confirm space at park-b")).toBeGreaterThan(good);
+  });
+
+  it("is hidden once the plan is approved, so it never contradicts the status", () => {
+    const approved = { ...version, status: "approved" } as PlanVersion;
+    expect(renderToStaticMarkup(createElement(BlockersCard, { version: approved, snapshot: null }))).toBe("");
   });
 });
 

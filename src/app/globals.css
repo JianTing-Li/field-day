@@ -39,6 +39,7 @@
 
   --dp-border-focus-width: 3px;
   --dp-motion-interaction: 180ms;
+  --dp-motion-enter: 220ms;
 
   /* One light direction everywhere: highlight upper-left, shade lower-right, broad soft ground shadow. */
   --dp-shadow-clay: 0 22px 44px -18px rgb(56 49 57 / 0.28), inset 6px 6px 12px rgb(255 255 255 / 0.75),
@@ -114,6 +115,28 @@
       transform: none;
     }
   }
+}
+
+/*
+ * Entrances (JT-24): new content eases in instead of popping. Short and small, so it reads as a
+ * change, not a show; the reduced-motion rule below cuts it to nothing.
+ */
+@keyframes fd-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-enter {
+  animation: fd-enter var(--dp-motion-enter) ease-out both;
+}
+/* Folded sections slide open the same way. */
+details[open] > :not(summary) {
+  animation: fd-enter var(--dp-motion-enter) ease-out both;
 }
 
 /* Focus is a solid ring, kept separate from the shading. */
