@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LifecycleStatus } from "@/contracts";
-import { STATUS, formatEventDate, formatUpdated, versionText } from "./format";
+import { STATUS, formatClock, formatEventDate, formatUpdated, startWindowText, versionText } from "./format";
 
 describe("STATUS", () => {
   it("has a label, hint and icon for every lifecycle status", () => {
@@ -47,5 +47,19 @@ describe("versionText", () => {
 
   it("shows an older finalized version once a newer draft exists", () => {
     expect(versionText(4, 3)).toEqual({ current: "v4", finalized: "v3" });
+  });
+});
+
+describe("formatClock and startWindowText", () => {
+  it("shows AM/PM times", () => {
+    expect(formatClock("08:00")).toBe("8:00 AM");
+    expect(formatClock("00:30")).toBe("12:30 AM");
+    expect(formatClock("12:00")).toBe("12:00 PM");
+    expect(formatClock("13:45")).toBe("1:45 PM");
+  });
+
+  it("says 'starts at' when the window is one time, 'between' otherwise", () => {
+    expect(startWindowText("09:00", "09:00")).toBe("starts at 9:00 AM");
+    expect(startWindowText("08:00", "10:00")).toBe("starts between 8:00 AM and 10:00 AM");
   });
 });
