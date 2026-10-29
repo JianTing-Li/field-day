@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import Link from "next/link";
 import { dataMode } from "@/server/data/mode";
+import { agentMode } from "@/server/orchestrator/agents";
+import { AGENT_RUN_LIMITS } from "./api/_lib/rate-limit";
 import "./globals.css";
 
 // "Claymorphism Instrument": the UI system's typeface (see globals.css).
@@ -22,6 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   const fixture = dataMode() === "fixture";
+  const realAgents = agentMode() === "real";
   return (
     <html lang="en" className={`${instrument.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
@@ -29,6 +32,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
             <strong className="font-bold">Demo data.</strong> Weather, air quality, parks and confirmations come from
             recorded fixtures, not live sources. Do not use them to run a real event.
+            {realAgents && (
+              <>
+                {" "}
+                Plans are drafted by Claude on shared demo credits, limited to {AGENT_RUN_LIMITS.per_visitor_per_hour} agent
+                runs per visitor per hour.
+              </>
+            )}
           </div>
         )}
         <header className="px-4 pt-4 sm:px-6">

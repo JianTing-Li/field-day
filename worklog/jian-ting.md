@@ -316,6 +316,21 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 
+### 2026-10-29 — JT-19: Rate limit, demo labeling, time limit
+- **Done:** `src/app/api/_lib/rate-limit.ts` limits agent runs (generate, changes, review) to 10 per visitor per hour
+  and 100 per day when agents are real; over the limit the route answers 429 `rate_limited` with `Retry-After`.
+  Every event route sets `maxDuration = 300`. README "Deployed demo" covers the limit, the Anthropic spend limit,
+  labeling and the time limit. Tests in `rate-limit.test.ts`.
+- **Decisions:** D-JT19-1 (rate limit), D-JT19-2 (demo mode is labeling), D-JT19-3 (time limit).
+- **Interfaces others depend on:** additive `ApiError` code `rate_limited` (HTTP 429). `AGENT_RUN_LIMITS`,
+  `limitAgentRuns`.
+- **Unfinished / next:** the limit is per server instance. If the demo ever runs on several instances, move the
+  counts to the database.
+- **Gotchas:** with the in-memory store, every new server instance seeds the demo events by running Planning, which
+  the limit does not count. JT-08 (Neon) makes seeding happen once.
+- **Requests:** Yadan, two small changes in your files, as agreed: `src/app/layout.tsx` adds one sentence to the demo
+  banner when agents are real, and `src/components/errors.ts` gets a `rate_limited` message. Please check the wording.
+
 ## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
 
 ## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)

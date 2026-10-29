@@ -369,6 +369,35 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 
+### D-JT19-1 — Agent-run rate limit for the public demo
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3 "Execution budgets"; open decision "Persistence, deployment, and user-access approach"
+- **Decision:** The deployed app has no sign-in and runs real agents on shared credits, so the three routes that run
+  agents (generate, changes, review) are rate limited when `FIELDDAY_AGENTS=real`: 10 runs per visitor (IP address)
+  per rolling hour and 100 runs per UTC day in total. Over the limit the API returns 429 `rate_limited` (an additive
+  `ApiError` code) with `Retry-After`, and nothing runs. Recheck is not limited: it runs check_plan, not agents.
+  Counts are in memory per server instance, so PR 6 does not depend on the database; a second instance starts at
+  zero. The Anthropic workspace spend limit is the backstop. Seeding the demo events on a server's first request runs
+  Planning and is not counted.
+- **Value:** 10 per visitor per hour; 100 per day; `src/app/api/_lib/rate-limit.ts`
+- **Status:** in use
+
+### D-JT19-2 — What "demo mode" means
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §4 "Prototype definition of done" ("Live integrations and fixtures are clearly identified")
+- **Decision:** Demo mode is labeling, not a separate mode: the fixture banner, the seeded scenario events, and (with
+  real agents) a line saying plans are drafted by Claude on shared demo credits with the rate limit. No feature is
+  turned off for visitors.
+- **Status:** in use
+
+### D-JT19-3 — Function time limit
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3 "Execution budgets"
+- **Decision:** Every event route sets `maxDuration = 300` seconds, so a conflict review (run budget 240 s, D-004) or a
+  server's first request (which seeds the demo events with Planning) is never cut off by the platform's default limit.
+- **Value:** 300 s
+- **Status:** in use
+
 ## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
 
 ## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)
