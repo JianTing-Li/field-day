@@ -316,7 +316,46 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 
+### 2026-10-29 — JT-19: Rate limit, demo labeling, time limit
+- **Done:** `src/app/api/_lib/rate-limit.ts` limits agent runs (generate, changes, review) to 18 per visitor per hour
+  and 180 per day when agents are real (chosen with JT to leave room for shared Wi-Fi at the demo); over the limit the route answers 429 `rate_limited` with `Retry-After`.
+  Every event route sets `maxDuration = 300`. README "Deployed demo" covers the limit, the Anthropic spend limit,
+  labeling and the time limit. Tests in `rate-limit.test.ts`.
+- **Decisions:** D-JT19-1 (rate limit), D-JT19-2 (demo mode is labeling), D-JT19-3 (time limit).
+- **Interfaces others depend on:** additive `ApiError` code `rate_limited` (HTTP 429). `AGENT_RUN_LIMITS`,
+  `limitAgentRuns`.
+- **Unfinished / next:** the limit is per server instance. If the demo ever runs on several instances, move the
+  counts to the database.
+- **Gotchas:** with the in-memory store, every new server instance seeds the demo events by running Planning, which
+  the limit does not count. JT-08 (Neon) makes seeding happen once.
+- **Requests:** Yadan, two small changes in your files, as agreed: `src/app/layout.tsx` adds one sentence to the demo
+  banner when agents are real, and `src/components/errors.ts` gets a `rate_limited` message. Please check the wording.
+
 ## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
+
+### 2026-10-29 — JT-20: Early deploy to Vercel
+- **Done:** deployed `develop` to Vercel (team Calm Forge, Hobby) at https://field-day-sepia.vercel.app, region `iad1`.
+  Env vars: `FIELDDAY_DATA_MODE=fixture`, `FIELDDAY_AGENTS=real`, `ANTHROPIC_API_KEY` (team's free credits),
+  `ANTHROPIC_MODEL`, `AIRNOW_API_KEY`, `NWS_USER_AGENT`. Added Neon (`field-day-db`, Free, Washington D.C. / iad1,
+  Auth and Realtime off, no per-deployment branches) connected to Production and Preview with the `DATABASE` prefix,
+  so the app gets `DATABASE_URL` (D-JT21-1). Nothing reads it until JT-08.
+- **Checked:** build and deploy succeeded. Home page, event list and the Case 1 workspace load with no console errors.
+  The "Demo data" fixture banner shows, so env vars are read. `GET /api/events` returned the same two events with the
+  same `updated_at` on 8 requests in a row.
+- **Decisions:** none new (D-JT21-1 covers the database).
+- **Interfaces others depend on:** none.
+- **Unfinished / next:** JT-08 moves events to Neon. JT-19 added the rate limit, the spend-limit note and an explicit
+  `maxDuration` (D-JT19-1 to 3).
+- **Gotchas:**
+  - The API routes already run the agents through the orchestrator (`service.ts` → `runPlanning`), so with
+    `FIELDDAY_AGENTS=real` the public link calls Anthropic on every Generate, "Something changed" or Request review. There was no
+    rate limit before JT-19; each run is capped by the run budget (7 agent executions, 60k output tokens, 240 s), but the
+    number of runs is not. Set a spend limit on the key's workspace in the Anthropic console.
+  - Events live in the in-memory store. They survived 8 back-to-back requests (one warm instance served them all), but
+    they will disappear on every redeploy, after the function goes cold, and whenever Vercel starts a second instance.
+  - No route set `maxDuration`, so a conflict review relied on Vercel's default limit. Fixed in JT-19 (D-JT19-3).
+  - Case 1 shows "Needs checking" although all checks pass: the agent-status problem fixed in JT-23 (#77), not deployed yet.
+- **Requests:** none
 
 ## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)
 

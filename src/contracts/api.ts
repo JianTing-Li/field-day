@@ -17,6 +17,8 @@ export const ApiError = z.object({
       "stale_version",
       "blocked",
       "budget_exhausted",
+      /** Too many agent runs from this visitor or for the demo today (JT-19). */
+      "rate_limited",
       "upstream_unavailable",
       "internal",
     ]),

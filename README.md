@@ -48,6 +48,19 @@ npm run dev                  # http://localhost:3000
 | `npm run lint` | Lint |
 | `npm run build` | Production build |
 
+### Deployed demo
+https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with fixture data
+and real agents on shared demo credits.
+
+- **Rate limit (D-JT19-1):** with `FIELDDAY_AGENTS=real`, Generate, Something changed and Request review allow 18 agent
+  runs per visitor per hour and 180 per day in total. Over the limit, the API answers 429 `rate_limited` and nothing
+  runs. Counts are kept in memory per server instance.
+- **Spend limit:** set a monthly spend limit on the Anthropic workspace that owns the deployed key. It is the backstop
+  for anything the in-memory rate limit misses.
+- **Demo labeling (D-JT19-2):** the "Demo data" banner says the data is recorded and, with real agents, that plans are
+  drafted by Claude on shared demo credits.
+- **Time limit (D-JT19-3):** every event route sets `maxDuration = 300`; the run budget stops agents at 240 s.
+
 ## Architecture
 <!-- Owner: JT -->
 - **Contracts** (`src/contracts/`): shared Zod schemas and types for every handoff.

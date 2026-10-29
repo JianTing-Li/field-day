@@ -8,6 +8,7 @@ const STATUS: Record<ServiceErrorCode, number> = {
   stale_version: 409,
   blocked: 409,
   budget_exhausted: 429,
+  rate_limited: 429,
   upstream_unavailable: 503,
   internal: 500,
 };

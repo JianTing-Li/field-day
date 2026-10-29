@@ -40,6 +40,13 @@ export function describeError(e: ApiFailure, action = "That"): ErrorView {
         reload: false,
         tone: "warning",
       };
+    case "rate_limited":
+      return {
+        title: "The demo's agent limit was reached",
+        body: `${e.message} Nothing was saved.`,
+        reload: false,
+        tone: "warning",
+      };
     case "network":
       return {
         title: "Can't reach FieldDay",
