@@ -70,3 +70,18 @@ export function versionText(current: number, finalized: number | null): { curren
     finalized: finalized === null ? "Not finalized" : finalized === current ? `v${finalized} (current)` : `v${finalized}`,
   };
 }
+
+/** "08:00" -> "8:00 AM", "13:30" -> "1:30 PM". Event times are New York wall-clock times. */
+export function formatClock(time: string): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!m) return time;
+  const h = Number(m[1]);
+  return `${((h + 11) % 12) + 1}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** "starts at 9:00 AM" when the window is a single time, otherwise "starts between 8:00 AM and 10:00 AM". */
+export function startWindowText(earliest: string, latest: string): string {
+  return earliest === latest
+    ? `starts at ${formatClock(earliest)}`
+    : `starts between ${formatClock(earliest)} and ${formatClock(latest)}`;
+}

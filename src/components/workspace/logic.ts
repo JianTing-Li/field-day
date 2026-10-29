@@ -87,7 +87,7 @@ export function approveBlockedReason(v: PlanVersion): string | null {
     case "draft":
       return v.plan ? "Generate the plan before approving." : "Generate a plan first.";
     case "needs_verification":
-      return "Some critical checks failed or are not confirmed. Resolve the blockers below first.";
+      return "Some critical checks failed or are not confirmed. Resolve what's blocking this plan, listed above, first.";
     case "no_feasible_option":
       return "No workable option was found. Edit the brief or request a review.";
     case "approved":

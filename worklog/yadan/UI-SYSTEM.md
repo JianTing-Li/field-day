@@ -15,3 +15,11 @@
 - **Unfinished / next:** none.
 - **Gotchas:** the dev server again kept the old stylesheet until `.next/dev` was deleted.
 - **Requests:** none
+
+### 2026-10-29 — UI-SYSTEM: polish pass (6 fixes)
+- **Done:** (1) Approve note pointed to blockers "below"; now "listed above". (2) A one-time start window says "starts at 9:00 AM", not "between 09:00 and 09:00". (3) Event header times use AM/PM like the rest of the app (`formatClock`, `startWindowText` in `format.ts`). (4) Event list gives the name column more room and wraps to 2 lines instead of cutting names off. (5) "What's blocking this plan" now comes before Actions, so phones see it first. (6) On phones, "Finalized: Not finalized" is hidden until something is finalized. Checked with headless Playwright at 390px and 1280px; 4 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `formatClock`, `startWindowText`.
+- **Unfinished / next:** none
+- **Gotchas:** none
+- **Requests:** none

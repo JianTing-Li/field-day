@@ -56,7 +56,7 @@ export function EventList() {
     <ul className="clay space-y-1 rounded-surface bg-cream p-3 sm:p-5 md:rounded-tray md:p-8">
       <li
         aria-hidden="true"
-        className="hidden grid-cols-[1fr_9rem_10rem_5rem_7rem] gap-4 px-5 pb-2 text-xs font-bold tracking-wide text-ink-2 uppercase lg:grid"
+        className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_3.5rem_6.5rem] gap-4 px-5 pb-2 text-xs font-bold tracking-wide text-ink-2 uppercase lg:grid"
       >
         <span>Event</span>
         <span>Date</span>
@@ -77,10 +77,10 @@ function EventRow({ event: e }: { event: EventSummary }) {
     <li>
       <Link
         href={`/events/${encodeURIComponent(e.id)}`}
-        className="focus-ring grid gap-x-4 gap-y-2 rounded-disclosure px-5 py-4 transition-colors duration-[var(--dp-motion-interaction)] hover:bg-lavender/50 lg:grid-cols-[1fr_9rem_10rem_5rem_7rem] lg:items-center"
+        className="focus-ring grid gap-x-4 gap-y-2 rounded-disclosure px-5 py-4 transition-colors duration-[var(--dp-motion-interaction)] hover:bg-lavender/50 lg:grid-cols-[minmax(0,1fr)_8.5rem_10rem_3.5rem_6.5rem] lg:items-center"
       >
         <span className="min-w-0">
-          <span className="block font-bold text-ink lg:truncate">{e.title}</span>
+          <span className="block font-bold text-ink lg:line-clamp-2">{e.title}</span>
           <span className="block text-xs text-ink-2">Updated {formatUpdated(e.updated_at)}</span>
         </span>
         <span className="text-sm text-ink-2">
@@ -94,7 +94,8 @@ function EventRow({ event: e }: { event: EventSummary }) {
           <span className="text-ink-2 lg:hidden">Current version: </span>
           <span className="font-mono">{v.current}</span>
         </span>
-        <span className="text-sm text-ink-2">
+        {/* On phones, only show this line once something is finalized. */}
+        <span className={`text-sm text-ink-2 ${e.finalized_version === null ? "hidden lg:inline" : ""}`}>
           <span className="text-ink-2 lg:hidden">Finalized: </span>
           <span className={e.finalized_version === null ? "text-ink-2" : "font-mono"}>{v.finalized}</span>
         </span>

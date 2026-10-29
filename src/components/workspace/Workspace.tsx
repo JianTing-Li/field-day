@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
+import { startWindowText } from "../format";
 import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
 import { Alternatives } from "./Alternatives";
 import { aboutCurrentPlan, ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
@@ -110,8 +111,8 @@ export function Workspace({ eventId }: { eventId: string }) {
         <div>
           <h1 className="text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
           <p className="mt-1 text-sm text-ink-2">
-            {event.brief.group_size} people · {event.brief.duration_minutes} minutes · starts between{" "}
-            {event.brief.start_window.earliest} and {event.brief.start_window.latest}
+            {event.brief.group_size} people · {event.brief.duration_minutes} minutes ·{" "}
+            {startWindowText(event.brief.start_window.earliest, event.brief.start_window.latest)}
           </p>
         </div>
         <Link href={`/events/${encodeURIComponent(event.id)}/brief`} className={buttonClass("secondary")}>
@@ -153,6 +154,40 @@ export function Workspace({ eventId }: { eventId: string }) {
         </Alert>
       )}
 
+      <BlockersCard
+        version={v}
+        snapshot={snapshot}
+        taskAction={(t) =>
+          actions.confirm && confirmable(t) && !aboutCurrentPlan(t, v.plan) ? (
+            <p className="mt-2 text-xs font-bold text-ink-2">
+              This is about a different park or time than the current plan. Confirm it after you choose an option
+              there; a confirmation only counts for the plan it was made for.
+            </p>
+          ) : actions.confirm && confirmable(t) ? (
+            confirming === t.id ? (
+              <ConfirmTaskForm
+                task={t}
+                snapshot={snapshot}
+                busy={!!busy}
+                onCancel={() => setConfirming(null)}
+                onSubmit={async (c) => {
+                  const r = await act(
+                    "Record confirmation",
+                    "confirmations",
+                    { ...version, ...c },
+                    Api.addConfirmation.response,
+                  );
+                  if (r.ok) setConfirming(null);
+                }}
+              />
+            ) : (
+              <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming(t.id)}>
+                Confirm
+              </Button>
+            )
+          ) : null
+        }
+      />
       <Card
         title="Actions"
         description={
@@ -200,40 +235,6 @@ export function Workspace({ eventId }: { eventId: string }) {
         )}
       </Card>
 
-      <BlockersCard
-        version={v}
-        snapshot={snapshot}
-        taskAction={(t) =>
-          actions.confirm && confirmable(t) && !aboutCurrentPlan(t, v.plan) ? (
-            <p className="mt-2 text-xs font-bold text-ink-2">
-              This is about a different park or time than the current plan. Confirm it after you choose an option
-              there; a confirmation only counts for the plan it was made for.
-            </p>
-          ) : actions.confirm && confirmable(t) ? (
-            confirming === t.id ? (
-              <ConfirmTaskForm
-                task={t}
-                snapshot={snapshot}
-                busy={!!busy}
-                onCancel={() => setConfirming(null)}
-                onSubmit={async (c) => {
-                  const r = await act(
-                    "Record confirmation",
-                    "confirmations",
-                    { ...version, ...c },
-                    Api.addConfirmation.response,
-                  );
-                  if (r.ok) setConfirming(null);
-                }}
-              />
-            ) : (
-              <Button className="mt-2" disabled={!!busy} onClick={() => setConfirming(t.id)}>
-                Confirm
-              </Button>
-            )
-          ) : null
-        }
-      />
       <ConfirmationsList event={event} snapshot={snapshot} />
       <Alternatives
         version={v}
