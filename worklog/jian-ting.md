@@ -301,6 +301,24 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
 
+### 2026-10-29 — JT-15: End-to-end run on Neon and the UI
+- **Done:** ran the app locally (`next dev`) with this branch:
+  - **On Neon** (`DATABASE_URL` from `.env.local`, real agents): the three demo events were seeded once by real
+    Planning runs; after a server restart they loaded from Neon unchanged in 49 ms, with no re-seeding.
+  - **In memory with stub agents** (no credits): Case 1 approved, then two finalize requests at once → both
+    `finalized`, one identical record, all five gate checks pass. Case 3 approved on snapshot A → finalize refreshed
+    to snapshot B, failed heat (92°F) and AQI, cleared approval, added v3 and saved nothing; the workspace shows v3
+    "drafted by a recheck" with the failing checks. A new event at a curated park got a JT-03 builder snapshot.
+  - **Store on the real database:** `RUN_DB=1` integration test passed (JT-08).
+- **Decisions:** none.
+- **Interfaces others depend on:** none new.
+- **Unfinished / next:** the full approve-and-finalize path with real agents needs JT-23 (#77): without it, Planning's
+  `needs_verification` keeps all-pass plans from approval, so the seeded demo events on Neon are stuck at "Needs
+  checking". After #77 and this PR merge, run `npm run db:reset` once so the demo events are seeded again.
+- **Gotchas:** running the app locally with `DATABASE_URL` in `.env.local` uses the deployed database. Seeding with
+  real agents costs three Planning runs, once per empty database.
+- **Requests:** none
+
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
 
 ### 2026-10-27 — JT-16: Fixtures for eval cases 3–12
