@@ -350,6 +350,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
 
+### D-JT14-1 — Where each event's evidence comes from
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3a evidence snapshots; §4 "Live integrations and fixtures are clearly identified"
+- **Decision:** The seeded demo events keep their scenario fixtures (Case 1 normal, Case 2 conflict, Case 3
+  disruption), so the demo is the same every time. Every other event gets its snapshot from the JT-03 builder:
+  recorded provider data in fixture mode, live NWS, AirNow and NYC Parks data in live mode, so
+  `FIELDDAY_DATA_MODE=live` now takes effect. Case 3 is the disruption demo: it is planned on snapshot A and any
+  refresh (Recheck, or the save gate) returns snapshot B, whose forecast fails heat and has no AQI. Evidence counts as
+  unchanged when a refresh built for the same version has the same snapshot ID (built IDs are a hash of the
+  evidence); a live refresh always counts as changed, because retrieval times change.
+- **Status:** in use
+
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
 
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)

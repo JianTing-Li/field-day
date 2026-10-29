@@ -269,6 +269,20 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
 
+### 2026-10-29 — JT-14: Routes on the real snapshot builder and save gate
+- **Done:** the routes already ran Planning and the conflict review through the orchestrator; the last stubs behind
+  them are gone. `src/server/lifecycle/snapshots.ts` routes the seeded events to their scenarios and everything else
+  to the JT-03 builder, adds `refreshedSnapshot` (Case 3 refreshes to snapshot B), and Recheck uses it. Finalize runs
+  the full save gate (JT-09) and the Neon store (JT-08). Seeding now adds Case 3. Tests in `snapshots.test.ts`.
+- **Decisions:** D-JT14-1.
+- **Interfaces others depend on:** API shapes unchanged. New seeded event `evt-case-03` ("Morning bodyweight class
+  (Case 3 fixture)"). A finalize that finds changed evidence can now add a version and clear approval.
+- **Unfinished / next:** none.
+- **Gotchas:** with stub agents, a new event's plan fails with "No planning fixture" (stubs only know the scenario
+  snapshots); real agents plan it. A live Recheck always adds a version, because live evidence is always new.
+- **Requests:** none. The workspace reloads the event after every action, so after a blocked finalize it shows the
+  recheck version the gate added (Case 3) together with the gate's explanation.
+
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
 
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
