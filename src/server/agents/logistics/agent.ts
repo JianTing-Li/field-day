@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { z } from "zod";
 import {
   LogisticsOutput,
   type AgentDefinition,
@@ -10,6 +9,7 @@ import {
   type Concern,
   type SpecialistInput,
 } from "@/contracts";
+import { LOGISTICS_SCHEMA_JSON, LogisticsModelOutput } from "../model-output";
 import { runAgent } from "../runner";
 
 /**
@@ -24,18 +24,19 @@ import { runAgent } from "../runner";
 
 const SYSTEM_PROMPT = readFileSync(path.join(process.cwd(), "src/server/agents/logistics/prompt.md"), "utf8");
 
-/** The exact output shape, so the model doesn't have to guess field names. */
-const OUTPUT_SCHEMA = JSON.stringify(z.toJSONSchema(LogisticsOutput, { io: "input" }));
+/** The exact output shape, without the checks the harness fills in (D-JT24-3). */
+const OUTPUT_SCHEMA = LOGISTICS_SCHEMA_JSON;
 
 export const logisticsDefinition: AgentDefinition<"logistics"> = {
   name: "logistics",
   system_prompt: SYSTEM_PROMPT,
   allowed_tools: ["get_park_candidates", "get_forecast", "get_air_quality", "check_plan"],
-  output_schema: LogisticsOutput,
+  output_schema: LogisticsModelOutput,
   build_user_message: (input: SpecialistInput) =>
     [
       "Propose up to 3 park/time alternatives for this conflict. Keep the current workout unchanged. Read the",
       "evidence with your tools, call check_plan on each option's plan, then answer with only the JSON object.",
+      "Leave each option's checks out: the application runs check_plan on every option and fills them in.",
       "",
       `event_version: ${input.context.event_version}`,
       `evidence_snapshot_id: ${input.context.evidence_snapshot_id}`,

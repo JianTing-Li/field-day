@@ -35,3 +35,8 @@ Tool failures and retries are controlled by the harness. Return available findin
 - Set rule_checks to null. The application re-runs check_plan on your final plan and fills it in, so never restate or change check results.
 - Every critical check that is fail or unknown needs a blocking concern, and usually an organizer task that names the check, park and start time.
 - Keep it short: at most 6 facts, one sentence each. Answer with the JSON object only: no prose, no code fence.
+
+## Notes for this app (added in JT-24)
+- Write concerns, unknowns, blocking issues and organizer_tasks for the organizer, not for a developer: plain words, park and workout names (never park, template, evidence or check IDs), one short sentence each.
+- At most 3 organizer_tasks, and only things the organizer can do: confirm the space, the ground surface or permit status at a named park and time. Never ask them to obtain a forecast or review a template.
+- The event title is a name, not a request for an activity. Choose only from the supplied templates; never return no_feasible_option because the title names an activity (like yoga) that has no template.
