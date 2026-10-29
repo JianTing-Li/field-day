@@ -455,6 +455,61 @@ describe("confirmations", () => {
     expect(cur(event).status).toBe("needs_verification");
   });
 
+  it("rejects confirming anything but space, surface or permit (D-JT24-1)", async () => {
+    const { event } = await svc.requestReview("evt-case-02", { version: 2 });
+    for (const check_id of ["heat.max_temperature", "air_quality.max_aqi", "freshness.conditions", "duration.fits"] as const) {
+      await expect(
+        svc.addConfirmation(event.id, { ...parkB, check_id, park_id: "park-a", start_time: "2026-07-16T10:00", version: 2 }),
+      ).rejects.toMatchObject({ code: "invalid_request" });
+    }
+    expect((await svc.getEvent(event.id)).event.confirmations).toEqual([]);
+  });
+
+  it("a stored heat confirmation never turns missing heat data into a pass, at approval or at the gate", async () => {
+    const e = await approvedCase1();
+    const { getStore } = await import("@/server/store");
+    const stored = (await getStore().getEvent(e.id))!;
+    const plan = cur(stored).plan!;
+    // Saved before the rule existed (the audit's bypass): it must be ignored, not trusted.
+    stored.confirmations.push({
+      id: "conf-legacy-heat",
+      check_id: "heat.max_temperature",
+      park_id: plan.park_id!,
+      start_time: plan.start_time,
+      statement: "yes it's confirmed",
+      confirmed_by: "Organizer",
+      confirmed_at: new Date().toISOString(),
+      note: null,
+      layout: "stationary",
+    });
+    await getStore().saveEvent(stored, stored.updated_at);
+    hooks.checks = (r) => ({
+      ...r,
+      overall: "unknown",
+      blockers: ["heat.max_temperature"],
+      checks: r.checks.map((c) =>
+        c.check_id === "heat.max_temperature" ? { ...c, status: "unknown", reason: "No forecast", evidence_ids: [] } : c,
+      ),
+    });
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(r.gate.find((g) => g.id === "hard_constraints")).toMatchObject({ status: "fail" });
+  });
+
+  it("saves a repeated confirmation only once", async () => {
+    let event = await readyCase2();
+    const before = event.confirmations.length;
+    ({ event } = await svc.addConfirmation(event.id, {
+      version: 3,
+      check_id: "space_surface.space",
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+      statement: "Open lawn fits 18 people, again",
+      note: null,
+    }));
+    expect(event.confirmations).toHaveLength(before);
+  });
+
   it("a brief edit retires confirmations made under the old brief", async () => {
     const event = await readyCase2();
     expect(event.confirmations).toHaveLength(1);

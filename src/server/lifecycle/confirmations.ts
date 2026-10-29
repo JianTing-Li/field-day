@@ -1,4 +1,11 @@
-import type { CandidatePlan, CheckPlanResult, CheckResult, OrganizerConfirmation, WorkoutTemplate } from "@/contracts";
+import {
+  isConfirmableCheck,
+  type CandidatePlan,
+  type CheckPlanResult,
+  type CheckResult,
+  type OrganizerConfirmation,
+  type WorkoutTemplate,
+} from "@/contracts";
 import { summarizeChecks } from "@/server/rules/check-plan";
 
 /**
@@ -39,8 +46,12 @@ export function confirmationLayout(
   return planLayout(plan, templates);
 }
 
-/** `layout` is the layout of the plan the check belongs to. */
+/**
+ * `layout` is the layout of the plan the check belongs to. Only space, surface and permit checks can
+ * be confirmed (D-JT24-1); a stored confirmation for any other check, made before that rule, is ignored.
+ */
 export function confirmationMatches(conf: Scope, check: CheckResult, layout: Layout | null): boolean {
+  if (!isConfirmableCheck(check.check_id)) return false;
   if (check.area === "space_surface" && (layout === null || (conf.layout ?? null) !== layout)) return false;
   return (
     check.check_id === conf.check_id &&

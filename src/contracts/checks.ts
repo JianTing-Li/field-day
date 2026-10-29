@@ -17,6 +17,21 @@ export const PolicyArea = z.enum([
 ]);
 export type PolicyArea = z.infer<typeof PolicyArea>;
 
+/**
+ * The only checks an organizer confirmation can resolve (D-JT24-1): things a person can see at the
+ * park. Heat, air quality, freshness and every rule check need provider evidence or a plan change;
+ * a typed sentence never turns them into a pass.
+ */
+export const CONFIRMABLE_CHECK_IDS = [
+  "space_surface.space",
+  "space_surface.surface",
+  "permissions.permit_review",
+] as const satisfies readonly CheckId[];
+
+export function isConfirmableCheck(id: CheckId): boolean {
+  return (CONFIRMABLE_CHECK_IDS as readonly CheckId[]).includes(id);
+}
+
 export const CheckResult = z.object({
   /** Organizer confirmations and tasks reference it, together with the assessed park/time. */
   check_id: CheckId,

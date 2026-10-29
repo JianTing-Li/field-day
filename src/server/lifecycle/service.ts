@@ -1,5 +1,6 @@
 import {
   EventBrief,
+  isConfirmableCheck,
   ZERO_USAGE,
   type ApiRequest,
   type ApiResponse,
@@ -437,7 +438,22 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   requireCurrent(event, req.version);
   const v = current(event);
   assertCanStart("add_confirmation", v);
+  if (!isConfirmableCheck(req.check_id)) {
+    throw new ServiceError(
+      "invalid_request",
+      `${req.check_id} can't be confirmed by the organizer; only space, surface and permit checks can (D-JT24-1)`,
+    );
+  }
   const templates = await templatesFor(store, v.evidence_snapshot_id);
+  const layout = confirmationLayout(req, v.plan, templates);
+  const repeat = event.confirmations.some(
+    (c) =>
+      c.check_id === req.check_id &&
+      c.park_id === req.park_id &&
+      c.start_time === req.start_time &&
+      (c.layout ?? null) === layout,
+  );
+  if (repeat) return { event };
   const conf = {
     id: newId("conf"),
     check_id: req.check_id,
@@ -448,7 +464,7 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
     confirmed_at: now(),
     note: req.note,
     // Space and surface confirmations only resolve plans with this layout (D-JT22-1).
-    layout: confirmationLayout(req, v.plan, templates),
+    layout,
   };
   event.confirmations.push(conf);
   clearApproval(event);
