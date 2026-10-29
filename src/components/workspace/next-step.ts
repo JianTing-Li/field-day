@@ -169,7 +169,11 @@ function needsVerification(v: PlanVersion): NextStep {
         };
   }
 
-  const tasks = v.organizer_tasks.filter((t) => confirmable(t) && aboutCurrentPlan(t, v.plan));
+  // Only tasks that still matter: about this plan, and their check isn't confirmed yet.
+  const open = new Set(checks.filter((c) => c.status !== "pass").map((c) => c.check_id));
+  const tasks = v.organizer_tasks.filter(
+    (t) => confirmable(t) && aboutCurrentPlan(t, v.plan) && open.has(t.resolves_check_id),
+  );
   if (tasks.length > 0) {
     return {
       tone: "warning",

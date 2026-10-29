@@ -59,6 +59,22 @@ describe("nextStep", () => {
     expect(nextStep(v)).toMatchObject({ action: "confirm", taskId: "t-a", body: "Confirm space at Park A", title: "One thing left to confirm" });
   });
 
+  it("skips a task whose check is already confirmed and moves on to the next one", () => {
+    const plan = { ...base().plan!, park_id: "park-a", start_time: "2026-07-16T08:00" };
+    const task = (id: string, check: "space_surface.space" | "space_surface.surface") => ({
+      id,
+      description: `Confirm ${check}`,
+      resolves_check_id: check,
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+    });
+    const v = {
+      ...withChecks({ ...base(), plan }, [check("space_surface.space", "pass"), check("space_surface.surface", "unknown")]),
+      organizer_tasks: [task("t-space", "space_surface.space"), task("t-surface", "space_surface.surface")],
+    };
+    expect(nextStep(v)).toMatchObject({ taskId: "t-surface", title: "One thing left to confirm" });
+  });
+
   it("suggests checking the weather again when only conditions are unknown", () => {
     const v = withChecks(base(), [check("heat.max_temperature", "unknown"), check("freshness.conditions", "unknown")]);
     expect(nextStep(v)).toMatchObject({ action: "recheck", title: "Waiting on weather data" });

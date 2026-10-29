@@ -56,7 +56,11 @@ export function BlockersCard({
   /** Optional control under each organizer task, e.g. the Confirm button (YT-11). */
   taskAction?: (task: OrganizerTask) => React.ReactNode;
 }) {
-  const blocking = version.concerns.filter((c) => c.blocking);
+  // A concern is settled once every check it's about passes (e.g. the organizer confirmed the space).
+  const passedNow = new Set(version.checks?.checks?.filter((c) => c.status === "pass").map((c) => c.check_id) ?? []);
+  const settled = (c: (typeof version.concerns)[number]) =>
+    c.related_check_ids.length > 0 && c.related_check_ids.every((id) => passedNow.has(id));
+  const blocking = version.concerns.filter((c) => c.blocking && !settled(c));
   const other = version.concerns.filter((c) => !c.blocking);
   if (blocking.length === 0 && other.length === 0 && version.organizer_tasks.length === 0) return null;
   // Every check passed (D-JT23-1): the agent's concerns are notes to review, not blockers.
@@ -67,10 +71,13 @@ export function BlockersCard({
   const forThisPlan = (t: OrganizerTask) =>
     t.park_id === null ||
     (t.park_id === version.plan?.park_id && (t.start_time === null || t.start_time === version.plan?.start_time));
+  const done = version.organizer_tasks.filter(
+    (t) => t.resolves_check_id !== null && passedNow.has(t.resolves_check_id) && forThisPlan(t),
+  );
   const mustDo = version.organizer_tasks.filter(
     (t) => t.resolves_check_id !== null && blockers.has(t.resolves_check_id) && forThisPlan(t),
   );
-  const goodToKnow = version.organizer_tasks.filter((t) => !mustDo.includes(t));
+  const goodToKnow = version.organizer_tasks.filter((t) => !mustDo.includes(t) && !done.includes(t));
   return (
     <Card
       title={ready ? "Review before approving" : "What's blocking this plan"}
@@ -106,8 +113,9 @@ export function BlockersCard({
         </ul>
       )}
       {[
-        { title: "Must do before approving", tasks: mustDo },
-        { title: "Good to know", tasks: goodToKnow },
+        { title: "Must do before approving", tasks: mustDo, isDone: false },
+        { title: "Good to know", tasks: goodToKnow, isDone: false },
+        { title: "Done", tasks: done, isDone: true },
       ].map(
         (group) =>
           group.tasks.length > 0 && (
@@ -118,8 +126,10 @@ export function BlockersCard({
                   <li
                     key={t.id}
                     id={`task-${t.id}`}
-                    className="clay-sm scroll-mt-24 rounded-disclosure bg-cream px-5 py-3 text-sm text-ink"
+                    className={`scroll-mt-24 rounded-disclosure px-5 py-3 text-sm text-ink ${group.isDone ? "bg-mint/60" : "clay-sm bg-cream"}`}
                   >
+                    {group.isDone && <span aria-hidden="true">✓ </span>}
+                    {group.isDone && <span className="sr-only">Done: </span>}
                     {withParkNames(t.description, snapshot)}
                     {(t.park_id || t.start_time) && (
                       <span className="mt-0.5 block text-xs text-ink-2">
@@ -128,7 +138,7 @@ export function BlockersCard({
                         {t.resolves_check_id && ` · for “${checkName(t.resolves_check_id)}”`}
                       </span>
                     )}
-                    {taskAction?.(t)}
+                    {!group.isDone && taskAction?.(t)}
                   </li>
                 ))}
               </ul>
@@ -239,7 +249,7 @@ export function ChecksList({
                 {checkName(c.check_id)}
                 {!c.critical && <span className="ml-2 text-xs font-normal text-ink-2">(advisory, doesn&apos;t block)</span>}
               </p>
-              <p className="text-ink-2">{c.reason}</p>
+              <p className="text-ink-2">{withParkNames(c.reason, snapshot)}</p>
               {c.evidence_ids.length > 0 && (
                 <p className="mt-0.5">
                   <SourceLinks ids={c.evidence_ids} snapshot={snapshot} />
@@ -267,33 +277,33 @@ export function EvidenceList({ snapshot }: { snapshot: EvidenceSnapshot | null }
   if (!snapshot) return null;
   const items = snapshot.items;
   return (
-    <Card
-      title="Sources"
-      description="Where every fact above comes from: weather forecasts, air-quality readings, park records and your confirmations."
-      actions={snapshot.origin === "fixture" ? <Pill tone="warning">Fixture data</Pill> : <Pill tone="success">Live data</Pill>}
-    >
+    <details id="evidence-items" className="group clay-sm rounded-disclosure bg-cream px-5 py-4 text-sm">
+      <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 rounded-disclosure font-bold text-ink [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="clay-recessed grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ground text-lg leading-none">
+          <span className="group-open:hidden">+</span>
+          <span className="hidden group-open:inline">−</span>
+        </span>
+        <span className="flex-1">
+          Sources ({items.length})
+          <span className="block text-xs font-normal text-ink-2">
+            Where every fact comes from: forecasts, air-quality readings, park records and your confirmations.
+          </span>
+        </span>
+        {snapshot.origin === "fixture" && <Pill tone="warning">Demo data</Pill>}
+      </summary>
       {snapshot.coverage_gaps.length > 0 && (
-        <ul className="clay-sm mb-4 space-y-1 rounded-disclosure bg-butter px-5 py-3 text-sm text-ink">
+        <ul className="clay-sm mt-4 space-y-1 rounded-disclosure bg-butter px-5 py-3 text-ink">
           {snapshot.coverage_gaps.map((g, i) => (
             <li key={i}>⚠ {g}</li>
           ))}
         </ul>
       )}
-      <details id="evidence-items" className="group clay-sm rounded-disclosure bg-ground px-5 py-4">
-        <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 rounded-disclosure text-sm font-bold text-ink [&::-webkit-details-marker]:hidden">
-          <span aria-hidden="true" className="clay-recessed grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cream text-lg leading-none">
-            <span className="group-open:hidden">+</span>
-            <span className="hidden group-open:inline">−</span>
-          </span>
-          Show all {items.length} sources
-        </summary>
-        <ul className="mt-4 space-y-3">
-          {items.map((e) => (
-            <EvidenceRow key={e.id} item={e} />
-          ))}
-        </ul>
-      </details>
-    </Card>
+      <ul className="mt-4 space-y-3">
+        {items.map((e) => (
+          <EvidenceRow key={e.id} item={e} />
+        ))}
+      </ul>
+    </details>
   );
 }
 

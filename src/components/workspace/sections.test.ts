@@ -53,3 +53,46 @@ describe("BlockersCard to-dos", () => {
     expect(html.indexOf("Confirm space at park-b")).toBeGreaterThan(good);
   });
 });
+
+describe("BlockersCard done tasks", () => {
+  it("shows a confirmed task as done, without a Confirm button", () => {
+    const version = {
+      status: "needs_verification",
+      concerns: [],
+      plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
+      checks: { blockers: [], checks: [{ check_id: "space_surface.space", status: "pass" }] },
+      organizer_tasks: [
+        { id: "t1", description: "Confirm space", resolves_check_id: "space_surface.space", park_id: "park-a", start_time: "2026-07-16T08:00" },
+      ],
+    } as unknown as PlanVersion;
+    const html = renderToStaticMarkup(
+      createElement(BlockersCard, { version, snapshot: null, taskAction: () => createElement("button", null, "Confirm") }),
+    );
+    expect(html).toContain(">Done</h3>");
+    expect(html).not.toContain(">Confirm</button>");
+  });
+});
+
+describe("BlockersCard settled concerns", () => {
+  it("hides a blocking concern once its check passes", () => {
+    const version = {
+      status: "needs_verification",
+      plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
+      concerns: [
+        { id: "c1", description: "Space is not confirmed", blocking: true, related_check_ids: ["space_surface.space"] },
+        { id: "c2", description: "No air-quality forecast", blocking: true, related_check_ids: ["air_quality.max_aqi"] },
+      ],
+      checks: {
+        blockers: ["air_quality.max_aqi"],
+        checks: [
+          { check_id: "space_surface.space", status: "pass" },
+          { check_id: "air_quality.max_aqi", status: "unknown" },
+        ],
+      },
+      organizer_tasks: [],
+    } as unknown as PlanVersion;
+    const html = renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
+    expect(html).not.toContain("Space is not confirmed");
+    expect(html).toContain("No air-quality forecast");
+  });
+});
