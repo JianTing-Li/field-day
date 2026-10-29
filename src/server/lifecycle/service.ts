@@ -18,6 +18,7 @@ import { runConflictReview, runWorkflow, type RunOptions } from "@/server/orches
 import { STUB_AGENTS } from "@/server/orchestrator/agents";
 import { checkPlan } from "@/server/rules/check-plan";
 import { POLICY_CONFIG } from "@/server/rules/policy-config";
+import { toLocalDateTime } from "@/server/time";
 import { getStore, type EventStore } from "@/server/store";
 import { applyConfirmations, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
@@ -37,6 +38,46 @@ import { assertCanStart, deriveStatus, transition } from "./transitions";
  */
 
 const now = () => new Date().toISOString();
+
+/**
+ * Upper bounds on what an organizer can send (F-09). The form keeps people well inside them; these
+ * stop a script from storing a 200,000-character title or a 999,999-minute event.
+ */
+export const INPUT_LIMITS = {
+  title: 120,
+  text: 500,
+  list_items: 20,
+  list_item: 200,
+  duration_minutes: 240,
+  group_size: 500,
+} as const;
+
+function tooLong(label: string, value: string | null, max: number = INPUT_LIMITS.text): string[] {
+  return value !== null && value.length > max ? [`${label} is longer than ${max} characters`] : [];
+}
+
+/** Throws invalid_request when a brief is outside the limits, or (when new or changed) in the past. */
+function assertBriefInRange(brief: EventBrief, checkDate: boolean) {
+  const L = INPUT_LIMITS;
+  const problems = [
+    ...tooLong("The name", brief.title, L.title),
+    ...(brief.duration_minutes > L.duration_minutes ? [`the length is over ${L.duration_minutes} minutes`] : []),
+    ...(brief.group_size > L.group_size ? [`the group is over ${L.group_size} people`] : []),
+    ...tooLong("The instructor notes", brief.instructor_limits.notes),
+    ...[brief.allowed_park_ids, brief.equipment_available, brief.exercise_exclusions, brief.priorities].flatMap((list) =>
+      list.length > L.list_items || list.some((x) => x.length > L.list_item)
+        ? [`a list has more than ${L.list_items} items or an item over ${L.list_item} characters`]
+        : [],
+    ),
+  ];
+  if (problems.length > 0) {
+    throw new ServiceError("invalid_request", `The brief is out of range: ${[...new Set(problems)].join("; ")}`);
+  }
+  // New York's today, the same calendar the brief's date is in.
+  if (checkDate && brief.date < toLocalDateTime(new Date()).slice(0, 10)) {
+    throw new ServiceError("invalid_request", "The event date is in the past; pick today or a later date");
+  }
+}
 const newId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 
 function current(event: FieldDayEvent): PlanVersion {
@@ -258,6 +299,7 @@ export async function listEvents(): Promise<ApiResponse<"listEvents">> {
 }
 
 export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiResponse<"createEvent">> {
+  assertBriefInRange(req.brief, true);
   const store = await withStore();
   return { event: await commit(store, newEvent(newId("evt"), req.brief), null) };
 }
@@ -276,6 +318,8 @@ export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): P
   const base = event.updated_at;
   requireCurrent(event, req.based_on_version);
   assertCanStart("update_brief", current(event));
+  // Only a changed date must be today or later, so an older event's other fields can still be edited.
+  assertBriefInRange(req.brief, req.brief.date !== event.brief.date);
   event.brief = req.brief;
   event.confirmations = [];
   pushVersion(event, emptyVersion(event.current_version + 1, event.current_version, "organizer_edit"));
@@ -398,6 +442,8 @@ async function review(
 }
 
 export async function reportChange(id: string, req: ApiRequest<"reportChange">): Promise<ApiResponse<"reportChange">> {
+  const long = tooLong("The description", req.change.description, 1000);
+  if (long.length > 0) throw new ServiceError("invalid_request", long[0]);
   return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
 }
 
@@ -465,6 +511,8 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   requireCurrent(event, req.version);
   const v = current(event);
   assertCanStart("add_confirmation", v);
+  const long = [...tooLong("The statement", req.statement), ...tooLong("The note", req.note)];
+  if (long.length > 0) throw new ServiceError("invalid_request", long.join("; "));
   if (!isConfirmableCheck(req.check_id)) {
     throw new ServiceError(
       "invalid_request",

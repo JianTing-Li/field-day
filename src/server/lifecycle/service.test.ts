@@ -53,6 +53,8 @@ beforeEach(async () => {
   // Fresh store and freshly seeded events for every test.
   hooks.snapshot = hooks.checks = hooks.review = null;
   vi.useRealTimers();
+  // Fixture events are dated mid-2026; pin "today" before them so the past-date rule never trips.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-07-01T12:00:00Z") });
   delete (globalThis as { __fieldDayStore?: unknown }).__fieldDayStore;
   vi.resetModules();
   svc = await import("./service");
@@ -233,6 +235,39 @@ describe("audit fixes (JT-24)", () => {
     hooks.checks = null;
     ({ event } = await svc.generateDraft(e.id, { version: 2 }));
     expect(event.last_gate).toBeNull();
+  });
+
+  it("rejects a past date on a new event, and a changed date in the past on an edit", async () => {
+    await expect(svc.createEvent({ brief: { ...case01.brief, date: "2026-06-30" } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    const e = await readyCase1();
+    await expect(
+      svc.updateBrief(e.id, { brief: { ...e.brief, date: "2026-06-30" }, based_on_version: 2 }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  it("still lets an older event's other fields be edited", async () => {
+    vi.setSystemTime(new Date("2026-11-15T12:00:00Z"));
+    const { event } = await svc.getEvent("evt-case-02"); // dated Jul 16, now in the past
+    const r = await svc.updateBrief(event.id, { brief: { ...event.brief, title: "Renamed" }, based_on_version: 2 });
+    expect(r.event.brief.title).toBe("Renamed");
+  });
+
+  it("rejects briefs and statements outside the input limits", async () => {
+    await expect(svc.createEvent({ brief: { ...case01.brief, title: "x".repeat(121) } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(svc.createEvent({ brief: { ...case01.brief, duration_minutes: 999_999 } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(svc.createEvent({ brief: { ...case01.brief, group_size: 100_000 } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    const { event } = await svc.requestReview("evt-case-02", { version: 2 });
+    await expect(
+      svc.addConfirmation(event.id, { ...parkB, statement: "x".repeat(501), version: 2 }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
   });
 
   it("marks a locked-in plan demo-only while it rests on fixtures or unreviewed limits", async () => {
