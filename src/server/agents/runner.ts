@@ -30,7 +30,11 @@ export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5";
 /** Maximum model turns per single agent execution, including the optional repair turn. */
 export const MAX_TURNS_PER_EXECUTION = 8;
 
-const DEFAULT_MAX_TOKENS = 4096;
+/**
+ * Max output tokens per model request. Logistics and Reviewer answers on conflict cases ran past
+ * 4096 in the first real eval run (JT-23); the run budget still caps total output tokens.
+ */
+export const DEFAULT_MAX_TOKENS = 16_384;
 
 const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   get_park_candidates:
@@ -60,7 +64,7 @@ export interface RunnerOptions {
   client?: AnthropicMessageClient;
   /** Explicit model override. Defaults to process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL. */
   model?: string;
-  /** Max output tokens per request. Defaults to 4096. */
+  /** Max output tokens per request. Defaults to DEFAULT_MAX_TOKENS. */
   maxTokens?: number;
   /** Clock function for elapsed_ms measurement. Defaults to Date.now. */
   now?: () => number;

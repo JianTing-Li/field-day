@@ -91,16 +91,18 @@ export function transition(v: PlanVersion, to: LifecycleStatus, action: Lifecycl
 }
 
 /**
- * Status of a newly created version. Unknown or failed critical checks never give
- * ready_for_approval. An agent's needs_verification is kept even when the checks pass.
+ * Status of a newly created version. The harness decides (D-JT23-1): passing checks give
+ * ready_for_approval whatever the agent's status says; the agent's concerns stay on the version
+ * for the organizer. Unknown or failed critical checks never give ready_for_approval; there the
+ * agent's no_feasible_option is kept.
  */
 export function deriveStatus(
   plan: CandidatePlan | null,
   checks: CheckPlanResult | null,
   agentStatus?: string,
 ): LifecycleStatus {
+  if (plan && checks?.overall === "pass") return "ready_for_approval";
   if (agentStatus === "no_feasible_option") return "no_feasible_option";
   if (!plan) return "draft";
-  if (checks?.overall === "pass" && agentStatus !== "needs_verification") return "ready_for_approval";
   return "needs_verification";
 }

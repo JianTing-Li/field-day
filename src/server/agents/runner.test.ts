@@ -13,6 +13,7 @@ import { createFakeRunner } from "./fake-runner";
 import {
   createRunner,
   DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_MAX_TOKENS,
   MAX_TURNS_PER_EXECUTION,
   runAgent,
 } from "./runner";
@@ -294,6 +295,15 @@ describe("agent runner (JT-01)", () => {
       }
       expect(fake.calls).toHaveLength(2);
       expect(res.usage.model_requests).toBe(2);
+    });
+
+    it("asks for up to DEFAULT_MAX_TOKENS output tokens, enough for long specialist answers", async () => {
+      const fake = createFakeRunner([{ output: case01.planningOutput(1) }]);
+
+      await fake(testPlanningDef, makeInput(), makeDeps());
+
+      expect(DEFAULT_MAX_TOKENS).toBeGreaterThanOrEqual(16_384);
+      expect(fake.calls[0].params.max_tokens).toBe(DEFAULT_MAX_TOKENS);
     });
 
     it("returns invalid_output immediately without a repair attempt when stop_reason is max_tokens", async () => {

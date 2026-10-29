@@ -58,11 +58,17 @@ export function BlockersCard({
   const blocking = version.concerns.filter((c) => c.blocking);
   const other = version.concerns.filter((c) => !c.blocking);
   if (blocking.length === 0 && other.length === 0 && version.organizer_tasks.length === 0) return null;
+  // Every check passed (D-JT23-1): the agent's concerns are notes to review, not blockers.
+  const ready = version.status === "ready_for_approval";
   return (
     <Card
-      title="What's blocking this plan"
-      description="Critical problems must be fixed or confirmed before this version can be approved."
-      className={blocking.length > 0 ? "bg-danger/40" : ""}
+      title={ready ? "Review before approving" : "What's blocking this plan"}
+      description={
+        ready
+          ? "Every check passes, so this version can be approved. The agents raised these points; review them first."
+          : "Critical problems must be fixed or confirmed before this version can be approved."
+      }
+      className={blocking.length > 0 && !ready ? "bg-danger/40" : ""}
     >
       {blocking.length > 0 && (
         <ul className="space-y-2">
@@ -72,7 +78,7 @@ export function BlockersCard({
                 ✕
               </span>
               <span>
-                <span className="sr-only">Blocking: </span>
+                <span className="sr-only">{ready ? "Agent concern: " : "Blocking: "}</span>
                 {c.description}
               </span>
             </li>
