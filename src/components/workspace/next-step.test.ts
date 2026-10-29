@@ -59,6 +59,22 @@ describe("nextStep", () => {
     expect(nextStep(v)).toMatchObject({ action: "confirm", taskId: "t-a", body: "Confirm space at Park A", title: "One thing left to confirm" });
   });
 
+  it("skips a task whose check is already confirmed and moves on to the next one", () => {
+    const plan = { ...base().plan!, park_id: "park-a", start_time: "2026-07-16T08:00" };
+    const task = (id: string, check: "space_surface.space" | "space_surface.surface") => ({
+      id,
+      description: `Confirm ${check}`,
+      resolves_check_id: check,
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+    });
+    const v = {
+      ...withChecks({ ...base(), plan }, [check("space_surface.space", "pass"), check("space_surface.surface", "unknown")]),
+      organizer_tasks: [task("t-space", "space_surface.space"), task("t-surface", "space_surface.surface")],
+    };
+    expect(nextStep(v)).toMatchObject({ taskId: "t-surface", title: "One thing left to confirm" });
+  });
+
   it("suggests checking the weather again when only conditions are unknown", () => {
     const v = withChecks(base(), [check("heat.max_temperature", "unknown"), check("freshness.conditions", "unknown")]);
     expect(nextStep(v)).toMatchObject({ action: "recheck", title: "Waiting on weather data" });
@@ -79,6 +95,35 @@ describe("nextStep", () => {
   it("never offers approve or lock-in while something is unresolved", () => {
     const v = withChecks(base(), [check("space_surface.surface", "unknown")]);
     expect(["approve", "finalize"]).not.toContain(nextStep(v).action);
+  });
+});
+
+describe("failed draft", () => {
+  const run = (status: "failed" | "budget_exhausted", message: string) => ({
+    run_id: "r1",
+    status,
+    revision_count: 0,
+    usage: { agent_executions: 1, model_requests: 0, tool_calls: 0, input_tokens: 0, output_tokens: 0, elapsed_ms: 0 },
+    progress: [{ at: "2026-10-29T19:00:00Z", message }],
+  });
+
+  it("says drafting failed instead of offering Draft a plan forever", () => {
+    const step = nextStep({ ...base(), status: "draft", plan: null }, null, run("failed", "Could not draft a plan: boom"));
+    expect(step).toMatchObject({ title: "Couldn't draft a plan", action: "generate", label: "Try again" });
+  });
+
+  it("explains the demo's practice planner in plain words", () => {
+    const step = nextStep(
+      { ...base(), status: "draft", plan: null },
+      null,
+      run("failed", "Could not draft a plan: No planning fixture for snapshot snap-x"),
+    );
+    expect(step.body).toContain("practice planner only has plans for the sample events");
+    expect(step.body).not.toContain("snap-x");
+  });
+
+  it("ignores an old failure once there is a plan", () => {
+    expect(nextStep({ ...base(), status: "ready_for_approval" }, null, run("failed", "x")).action).toBe("approve");
   });
 });
 

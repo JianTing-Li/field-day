@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LifecycleStatus } from "@/contracts";
-import { STATUS, formatClock, formatEventDate, formatUpdated, startWindowText, versionText } from "./format";
+import { STATUS, daysFrom, formatClock, formatEventDate, formatUpdated, startWindowText, todayInNewYork, versionText } from "./format";
 
 describe("STATUS", () => {
   it("has a label, hint and icon for every lifecycle status", () => {
@@ -61,5 +61,17 @@ describe("formatClock and startWindowText", () => {
   it("says 'starts at' when the window is one time, 'between' otherwise", () => {
     expect(startWindowText("09:00", "09:00")).toBe("starts at 9:00 AM");
     expect(startWindowText("08:00", "10:00")).toBe("starts between 8:00 AM and 10:00 AM");
+  });
+});
+
+describe("todayInNewYork and daysFrom", () => {
+  it("uses New York's date, not UTC's", () => {
+    // 02:00 UTC on Oct 30 is still the evening of Oct 29 in New York.
+    expect(todayInNewYork(new Date("2026-10-30T02:00:00Z"))).toBe("2026-10-29");
+  });
+
+  it("counts whole days, negative for the past", () => {
+    expect(daysFrom("2026-10-29", "2026-11-05")).toBe(7);
+    expect(daysFrom("2026-10-29", "2026-10-28")).toBe(-1);
   });
 });

@@ -30,8 +30,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {fixture && (
           <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
-            <strong className="font-bold">Demo data.</strong> Weather, air quality, parks and confirmations come from
-            recorded fixtures, not live sources. Do not use them to run a real event.
+            <strong className="font-bold">Demo:</strong> weather, air quality and parks are recorded samples, not live
+            data. Don&apos;t use it to run a real event.
             {realAgents && (
               <>
                 {" "}

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Api, type EventSummary } from "@/contracts";
 import { apiGet, type ApiResult } from "./api-client";
 import { describeError } from "./errors";
-import { formatEventDate, formatUpdated, versionText } from "./format";
+import { formatEventDate, formatUpdated } from "./format";
 import { StatusBadge } from "./StatusBadge";
 import { Alert, Button, buttonClass } from "./ui";
 
@@ -46,8 +46,8 @@ export function EventList() {
     return (
       <div className="clay rounded-surface bg-cream p-10 text-center md:rounded-tray">
         <p className="text-xl font-bold text-ink">No events yet</p>
-        <p className="mt-1 text-sm text-ink-2">Start with an event brief: date, time window, parks and workout.</p>
-        <NewEventLink className="mt-5" variant="primary" />
+        <p className="mt-1 text-sm text-ink-2">Plan your first one: it takes about a minute.</p>
+        <NewEventLink className="mt-5" variant="primary" label="Plan a new event" />
       </div>
     );
   }
@@ -56,13 +56,11 @@ export function EventList() {
     <ul className="clay space-y-1 rounded-surface bg-cream p-3 sm:p-5 md:rounded-tray md:p-8">
       <li
         aria-hidden="true"
-        className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_3.5rem_6.5rem] gap-4 px-5 pb-2 text-xs font-bold tracking-wide text-ink-2 uppercase lg:grid"
+        className="hidden grid-cols-[minmax(0,1fr)_9rem_11rem] gap-4 px-5 pb-2 text-xs font-bold tracking-wide text-ink-2 uppercase lg:grid"
       >
         <span>Event</span>
         <span>Date</span>
         <span>Status</span>
-        <span>Version</span>
-        <span>Finalized</span>
       </li>
       {events.map((e) => (
         <EventRow key={e.id} event={e} />
@@ -72,12 +70,11 @@ export function EventList() {
 }
 
 function EventRow({ event: e }: { event: EventSummary }) {
-  const v = versionText(e.current_version, e.finalized_version);
   return (
     <li>
       <Link
         href={`/events/${encodeURIComponent(e.id)}`}
-        className="focus-ring grid gap-x-4 gap-y-2 rounded-disclosure px-5 py-4 transition-colors duration-[var(--dp-motion-interaction)] hover:bg-lavender/50 lg:grid-cols-[minmax(0,1fr)_8.5rem_10rem_3.5rem_6.5rem] lg:items-center"
+        className="focus-ring grid gap-x-4 gap-y-2 rounded-disclosure px-5 py-4 transition-colors duration-[var(--dp-motion-interaction)] hover:bg-lavender/50 lg:grid-cols-[minmax(0,1fr)_9rem_11rem] lg:items-center"
       >
         <span className="min-w-0">
           <span className="block font-bold text-ink lg:line-clamp-2">{e.title}</span>
@@ -87,17 +84,11 @@ function EventRow({ event: e }: { event: EventSummary }) {
           <span className="text-ink-2 lg:hidden">Date: </span>
           {formatEventDate(e.date)}
         </span>
-        <span>
+        <span className="flex flex-wrap items-center gap-2">
           <StatusBadge status={e.status} />
-        </span>
-        <span className="text-sm text-ink-2">
-          <span className="text-ink-2 lg:hidden">Current version: </span>
-          <span className="font-mono">{v.current}</span>
-        </span>
-        {/* On phones, only show this line once something is finalized. */}
-        <span className={`text-sm text-ink-2 ${e.finalized_version === null ? "hidden lg:inline" : ""}`}>
-          <span className="text-ink-2 lg:hidden">Finalized: </span>
-          <span className={e.finalized_version === null ? "text-ink-2" : "font-mono"}>{v.finalized}</span>
+          {e.finalized_version !== null && e.status !== "finalized" && (
+            <span className="text-xs text-ink-2">🔒 An earlier plan is locked in</span>
+          )}
         </span>
       </Link>
     </li>
@@ -122,13 +113,15 @@ function ListSkeleton() {
 export function NewEventLink({
   className = "",
   variant = "surface",
+  label = "New event",
 }: {
   className?: string;
   variant?: "surface" | "primary";
+  label?: string;
 }) {
   return (
     <Link href="/events/new" className={buttonClass(variant, `px-6 py-3 text-base ${className}`)}>
-      <span aria-hidden="true">+</span> New event
+      <span aria-hidden="true">+</span> {label}
     </Link>
   );
 }
