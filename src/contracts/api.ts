@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CheckId, Id, LocalDateTime } from "./common";
 import { EventBrief } from "./brief";
 import { EvidenceSnapshot } from "./evidence";
-import { EventSummary, FieldDayEvent, GateCheck } from "./event";
+import { ChangeKind, EventSummary, FieldDayEvent, GateCheck } from "./event";
 
 /**
  * HTTP API between the UI (Yadan) and the harness (JT). Routes live in src/app/api/.
@@ -32,7 +32,7 @@ const EventResponse = z.object({ event: FieldDayEvent });
 
 /** Organizer's "Something changed" report. */
 export const ChangeReport = z.object({
-  kind: z.enum(["time_unavailable", "park_issue", "workout_issue", "conditions", "other"]),
+  kind: ChangeKind,
   description: z.string().min(1),
 });
 export type ChangeReport = z.infer<typeof ChangeReport>;

@@ -14,8 +14,10 @@ import {
   type RunState,
   type Usage,
 } from "@/contracts";
-import { runConflictReview, runPlanning } from "@/server/orchestrator";
+import { runConflictReview, runWorkflow, type RunOptions } from "@/server/orchestrator";
+import { STUB_AGENTS } from "@/server/orchestrator/agents";
 import { checkPlan } from "@/server/rules/check-plan";
+import { POLICY_CONFIG } from "@/server/rules/policy-config";
 import { getStore, type EventStore } from "@/server/store";
 import { applyConfirmations, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
@@ -106,6 +108,7 @@ function clearApproval(event: FieldDayEvent) {
 /** Adds a new current version. The previous version is frozen from here on. */
 function pushVersion(event: FieldDayEvent, v: PlanVersion) {
   clearApproval(event);
+  event.last_gate = null;
   event.versions.push(v);
   event.current_version = v.version;
 }
@@ -155,30 +158,39 @@ async function commit(store: EventStore, event: FieldDayEvent, base: string | nu
   return event;
 }
 
-/** Runs the Planning Agent and adds its draft as a new version. */
-async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEvent> {
+/**
+ * Runs the whole workflow (D-JT24-4): Planning drafts, the harness checks the draft, and a failed
+ * critical check starts the specialists and the Reviewer in the same run, so a conflict arrives
+ * with its alternatives. The version's checks always come from the harness, never from an agent.
+ */
+async function plan(store: EventStore, event: FieldDayEvent, opts: RunOptions = {}): Promise<FieldDayEvent> {
   const base = current(event);
   const next = event.current_version + 1;
   const snapshot = await snapshotFor(event, next);
   await store.saveSnapshot(snapshot);
-  const result = await runPlanning({
-    event_id: event.id,
-    event_version: next,
-    brief: event.brief,
-    snapshot,
-  });
+  const result = await runWorkflow({ event_id: event.id, event_version: next, brief: event.brief, snapshot }, opts);
   if (!result.ok) {
     event.last_run = run(
-      result.error.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
-      ["Drafting plan", `Could not draft a plan: ${result.error.message}`],
+      result.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
+      ["Drafting plan", `Could not draft a plan: ${result.message}`],
       result.usage,
     );
     return event;
   }
-  const out = result.output;
+  const out = result.planning;
   requireMatchingResult("Planning", out, next, snapshot.id);
-  const layout = planLayout(out.plan, snapshot.workout_templates);
-  const checks = out.rule_checks ? applyConfirmations(out.rule_checks, event.confirmations, layout).checks : null;
+  const checks = harnessChecks(event, out.plan, snapshot, next);
+  const steps = ["Reading park, weather and air-quality evidence", "Drafted plan"];
+  let alternatives: PlanVersion["alternatives"] = null;
+  let revisions = 0;
+  if (result.review?.ok) {
+    requireMatchingResult("Review", result.review.review, next, snapshot.id);
+    alternatives = result.review.review;
+    revisions = result.review.revision_rounds;
+    steps.push("Found a conflict and compared alternatives");
+  } else if (result.review) {
+    steps.push(`Found a conflict, but the alternatives could not be compared: ${result.review.message}`);
+  }
   pushVersion(event, {
     ...emptyVersion(next, base.version, "planning"),
     status: deriveStatus(out.plan, checks, out.status),
@@ -188,12 +200,9 @@ async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEv
     facts: out.facts,
     concerns: out.concerns,
     organizer_tasks: out.organizer_tasks,
+    alternatives,
   });
-  event.last_run = run(
-    "completed",
-    ["Reading park, weather and air-quality evidence", "Drafted plan"],
-    result.usage,
-  );
+  event.last_run = { ...run("completed", steps, result.usage), revision_count: revisions };
   return event;
 }
 
@@ -202,14 +211,15 @@ let seeded: Promise<void> | null = null;
 /**
  * Seeds the demo events (Cases 1, 2 and 3) that are missing, once per server process. With Neon
  * they are seeded once and then persist; if two servers seed at once, the second insert is
- * dropped. A failed seed is retried on the next request.
+ * dropped. A failed seed is retried on the next request. Seeding always uses the fixture-backed
+ * stub agents, so the demo is the same every time and a page view never spends model credits.
  */
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
     for (const [id, scenario] of Object.entries(SCENARIO_EVENTS)) {
       if (await store.getEvent(id)) continue;
       try {
-        await commit(store, await plan(store, newEvent(id, scenario.brief)), null);
+        await commit(store, await plan(store, newEvent(id, scenario.brief), { agents: STUB_AGENTS }), null);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
       }
@@ -346,6 +356,7 @@ async function review(
   version: number,
   description: string,
   action: "report_change" | "request_review",
+  change?: ApiRequest<"reportChange">["change"],
 ) {
   const store = await withStore();
   const event = await load(store, id);
@@ -358,8 +369,12 @@ async function review(
   }
   const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
   if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
-  // A reported change is new information about the plan, so it clears approval.
-  if (action === "report_change") clearApproval(event);
+  // A reported change is new information about the plan, so it clears approval, and it is kept on the
+  // event so the organizer can see what they reported after the review has run.
+  if (action === "report_change" && change) {
+    clearApproval(event);
+    event.change_reports = [...(event.change_reports ?? []), { at: now(), version: v.version, ...change }];
+  }
   const result = await runConflictReview({
     event_id: event.id,
     event_version: v.version,
@@ -383,7 +398,7 @@ async function review(
 }
 
 export async function reportChange(id: string, req: ApiRequest<"reportChange">): Promise<ApiResponse<"reportChange">> {
-  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change");
+  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
 }
 
 export async function requestReview(id: string, req: ApiRequest<"requestReview">): Promise<ApiResponse<"requestReview">> {
@@ -403,26 +418,38 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
   requireMatchingResult("Review", review, v.version, v.evidence_snapshot_id ?? "");
   requireMatchingResult("Option checks", option.checks, v.version, v.evidence_snapshot_id ?? "");
   const next = v.version + 1;
-  const templates = await templatesFor(store, v.evidence_snapshot_id);
-  const { checks } = applyConfirmations(
-    { ...option.checks, event_version: next },
-    event.confirmations,
-    planLayout(option.plan, templates),
-  );
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
+  // The harness checks the chosen plan itself; the option's checks were for display only (D-JT24-3).
+  const checks = harnessChecks(event, option.plan, snapshot, next);
+  const p = option.plan;
+  const optionEvidence = new Set(option.evidence_ids);
+  const reasons = new Set(checks.checks.map((c) => c.reason));
   pushVersion(event, {
     ...emptyVersion(next, v.version, "review"),
-    status: deriveStatus(option.plan, checks),
-    plan: option.plan,
+    status: deriveStatus(p, checks),
+    plan: p,
     evidence_snapshot_id: v.evidence_snapshot_id,
     checks,
-    facts: v.facts,
-    concerns: option.unknowns.map((u, i) => ({
-      id: `unknown-${i + 1}`,
-      description: u,
-      blocking: true,
-      related_check_ids: option.checks.blockers,
-    })),
-    organizer_tasks: review.organizer_tasks,
+    // Only facts the chosen option itself cites; the rest described the old park or time.
+    facts: v.facts.filter((f) => f.evidence_ids.length > 0 && f.evidence_ids.every((id) => optionEvidence.has(id))),
+    concerns: [
+      ...checks.checks
+        .filter((c) => c.critical && c.status !== "pass")
+        .map((c) => ({
+          id: `concern-${c.check_id.replace(/\./g, "-")}`,
+          description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
+          blocking: true,
+          related_check_ids: [c.check_id],
+        })),
+      ...option.unknowns
+        .filter((u) => !reasons.has(u))
+        .map((u, i) => ({ id: `note-${i + 1}`, description: u, blocking: false, related_check_ids: [] })),
+    ],
+    // Only to-dos about the chosen park and time (or about the event as a whole).
+    organizer_tasks: review.organizer_tasks.filter(
+      (t) => t.park_id === null || (t.park_id === p.park_id && (t.start_time === null || t.start_time === p.start_time)),
+    ),
   });
   return { event: await commit(store, event, base) };
 }
@@ -624,15 +651,21 @@ export async function finalize(id: string, req: ApiRequest<"finalize">): Promise
       : fail("required_confirmations", `Not yet confirmed: ${unresolved.map((c) => c.check_id).join(", ")}`),
   );
   if (gate.some((g) => g.status === "fail")) {
-    return snapshot === approvedSnapshot ? { event, gate, finalized: false } : { event: await commit(store, event, base), gate, finalized: false };
+    // Kept on the event so the organizer still sees why after a reload (F-18).
+    event.last_gate = { version: v.version, at: now(), gate };
+    return { event: await commit(store, event, base), gate, finalized: false };
   }
 
+  const template = snapshot.workout_templates.find((t) => t.id === v.plan!.workout_template_id);
   const record: FinalizedRecord = {
     version: v.version,
     evidence_snapshot_id: snapshot.id,
     finalized_at: now(),
     gate,
     idempotency_key: req.idempotency_key,
+    // Saved, but not for real-world use while anything it rests on is unreviewed (D-JT24-2).
+    demo_only:
+      POLICY_CONFIG.review_status === "unreviewed_demo_policy" || template?.review.status !== "reviewed" || snapshot.origin === "fixture",
   };
   const saved = (await store.recordFinalized(event.id, record)) ? record : await store.getFinalized(event.id, v.version);
   applyFinalized(event, saved ?? record);

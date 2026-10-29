@@ -91,6 +91,11 @@ export const FinalizedRecord = z.object({
   gate: z.array(GateCheck),
   /** Key of the finalize request that saved this record; repeats return this record. */
   idempotency_key: z.string().min(1).optional(),
+  /**
+   * True when the record rests on something not reviewed for real use: the demo environmental
+   * policy, a workout template pending instructor review, or fixture data (D-JT24-2).
+   */
+  demo_only: z.boolean().optional(),
 });
 export type FinalizedRecord = z.infer<typeof FinalizedRecord>;
 
@@ -106,6 +111,26 @@ export const RunState = z.object({
 });
 export type RunState = z.infer<typeof RunState>;
 
+/** What the organizer can report as changed ("Report a problem"). */
+export const ChangeKind = z.enum(["time_unavailable", "park_issue", "workout_issue", "conditions", "other"]);
+
+/** An organizer's report, kept on the event so it isn't lost after the review runs. */
+export const ChangeReportRecord = z.object({
+  at: Timestamp,
+  /** The plan version the report was about. */
+  version: z.number().int().positive(),
+  kind: ChangeKind,
+  description: z.string().min(1),
+});
+export type ChangeReportRecord = z.infer<typeof ChangeReportRecord>;
+
+/** The last failed lock-in attempt, so its explanation survives a reload. */
+export const LastGate = z.object({
+  version: z.number().int().positive(),
+  at: Timestamp,
+  gate: z.array(GateCheck),
+});
+
 export const FieldDayEvent = z.object({
   id: Id,
   created_at: Timestamp,
@@ -118,6 +143,10 @@ export const FieldDayEvent = z.object({
   /** The finalized version stays unchanged when later drafts are created. */
   finalized: FinalizedRecord.nullable(),
   last_run: RunState.nullable(),
+  /** Organizer change reports, oldest first. Optional so older stored events still parse. */
+  change_reports: z.array(ChangeReportRecord).optional(),
+  /** The last lock-in attempt that did not pass the save gate; cleared by any later change. */
+  last_gate: LastGate.nullable().optional(),
 });
 export type FieldDayEvent = z.infer<typeof FieldDayEvent>;
 
