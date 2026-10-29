@@ -1,0 +1,26 @@
+name: Reset database
+
+# Empties the hosted Neon database (JT-08, D-JT21-1). Run by hand from the Actions tab; it only
+# runs when RESET is typed in. Needs the DATABASE_URL repository secret.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RESET to delete every event, snapshot and finalized record"
+        required: true
+
+jobs:
+  reset:
+    if: ${{ inputs.confirm == 'RESET' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:reset
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CONFIRM: ${{ inputs.confirm }}

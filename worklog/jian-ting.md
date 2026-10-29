@@ -169,6 +169,22 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
 
+### 2026-10-29 — JT-08: Neon store, duplicate-save protection, reset
+- **Done:** `src/server/store/neon.ts` (Neon Postgres, JSONB rows, compare-and-swap writes, one finalized record per
+  event and version, retries for connection errors), `store/index.ts` (`getStore`: Neon with `DATABASE_URL`, memory
+  otherwise, always memory in tests), the in-memory store with the same compare-and-swap behavior, `npm run db:reset`
+  (`scripts/db-reset.mjs`) and the "Reset database" workflow. Tests in `store/store.test.ts`;
+  `store/neon.integration.test.ts` runs against the real database with `RUN_DB=1` and passed on 2026-10-29
+  (compare-and-swap, duplicate inserts, two finalized-record inserts at once → one saved).
+- **Decisions:** D-JT08-1 (store design), D-JT08-2 (reset).
+- **Interfaces others depend on:** `EventStore.saveEvent(event, expectedUpdatedAt)` now returns whether it saved;
+  new `recordFinalized`, `getFinalized`, `reset`. `getStore` moved to `@/server/store`.
+- **Unfinished / next:** add the `DATABASE_URL` repository secret before using the reset workflow.
+- **Gotchas:** a retried write whose first attempt did reach the database comes back as `stale_version`; reloading
+  shows the saved state. The integration test writes to whatever `DATABASE_URL` points at (the deployed database) and
+  deletes its own rows.
+- **Requests:** none
+
 ## JT-09 — Final save gate (all 5 checks) (#11)
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)

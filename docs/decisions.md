@@ -264,6 +264,30 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
 
+### D-JT08-1 — Neon store design
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3c "Draft persistence and duplicate-save protection"; D-JT21-1
+- **Decision:** Three tables, each row one JSONB document validated against the contracts on read: `events`
+  (id, updated_at, data), `snapshots` (id, data) and `finalized_events` (event_id, version, idempotency_key, data)
+  with primary key (event_id, version). The store creates them on first use. Every event write is a compare-and-swap
+  on `updated_at` (`UPDATE … WHERE updated_at = <loaded>`; a new event is `INSERT … ON CONFLICT DO NOTHING`), so a
+  stale or concurrent write is rejected as `stale_version` and never overwrites newer state. Finalize first inserts
+  the finalized record (at most one per event and version, enforced by the database), then saves the event; if only
+  the record was saved (an uncertain outcome), the next finalize request reconciles from it. Connection errors
+  (including Neon waking up) are retried 3 times (250, 750, 2000 ms); Postgres errors are never retried. The store
+  is Neon when `DATABASE_URL` is set and in memory otherwise; tests always use memory.
+- **Value:** `@neondatabase/serverless` 1.0.2 (HTTP queries); `src/server/store/neon.ts`
+- **Status:** in use
+
+### D-JT08-2 — Database reset
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3c; D-JT21-1
+- **Decision:** `npm run db:reset` empties the three tables after you type `RESET` (or with `CONFIRM=RESET`). The
+  "Reset database" GitHub Action runs the same script by hand from the Actions tab, only when `RESET` is typed in,
+  with the `DATABASE_URL` repository secret. The app has no reset path. The demo events are seeded again on the next
+  request.
+- **Status:** in use
+
 ## JT-09 — Final save gate (all 5 checks) (#11)
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
