@@ -55,7 +55,8 @@ export function ConfirmPanel({
       </p>
       <ul className="mt-5 space-y-3">
         {items.map((item) => (
-          <ConfirmRow key={item.check_id} item={item} busy={busy} onConfirm={onConfirm} />
+          // Keyed by the sentence too: a new plan (other park or time) starts the row fresh.
+          <ConfirmRow key={`${item.check_id}:${item.statement}`} item={item} busy={busy} onConfirm={onConfirm} />
         ))}
       </ul>
     </section>

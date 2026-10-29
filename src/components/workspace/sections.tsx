@@ -201,7 +201,7 @@ export function PlanCard({ version, snapshot }: { version: PlanVersion; snapshot
                 <Pill tone={f.status === "verified" ? "success" : f.status === "missing" ? "danger" : "warning"}>
                   {f.status === "verified" ? "✓ Verified" : f.status === "missing" ? "✕ Missing" : "? Unverified"}
                 </Pill>
-                {f.claim}
+                {plainText(f.claim, snapshot)}
                 <SourceLinks ids={f.evidence_ids} snapshot={snapshot} />
                 {f.missing_reason && <span className="text-xs text-ink-2">({f.missing_reason})</span>}
               </li>

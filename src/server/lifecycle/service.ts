@@ -509,7 +509,6 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
   const checks = harnessChecks(event, option.plan, snapshot, next);
   const p = option.plan;
   const optionEvidence = new Set(option.evidence_ids);
-  const reasons = new Set(checks.checks.map((c) => c.reason));
   pushVersion(event, {
     ...emptyVersion(next, v.version, "review"),
     status: deriveStatus(p, checks),
@@ -518,19 +517,16 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
     checks,
     // Only facts the chosen option itself cites; the rest described the old park or time.
     facts: v.facts.filter((f) => f.evidence_ids.length > 0 && f.evidence_ids.every((id) => optionEvidence.has(id))),
-    concerns: [
-      ...checks.checks
-        .filter((c) => c.critical && c.status !== "pass")
-        .map((c) => ({
-          id: `concern-${c.check_id.replace(/\./g, "-")}`,
-          description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
-          blocking: true,
-          related_check_ids: [c.check_id],
-        })),
-      ...option.unknowns
-        .filter((u) => !reasons.has(u))
-        .map((u, i) => ({ id: `note-${i + 1}`, description: u, blocking: false, related_check_ids: [] })),
-    ],
+    // Concerns come from the harness's own result, so they clear when the check passes. The option's
+    // unknowns restate the same checks in the agent's words and would linger after a confirmation.
+    concerns: checks.checks
+      .filter((c) => c.critical && c.status !== "pass")
+      .map((c) => ({
+        id: `concern-${c.check_id.replace(/\./g, "-")}`,
+        description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
+        blocking: true,
+        related_check_ids: [c.check_id],
+      })),
     // Only to-dos about the chosen park and time (or about the event as a whole).
     organizer_tasks: review.organizer_tasks.filter(
       (t) => t.park_id === null || (t.park_id === p.park_id && (t.start_time === null || t.start_time === p.start_time)),
