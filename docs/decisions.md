@@ -373,13 +373,17 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 - **Date / owner:** 2026-10-29 · JT
 - **PRD section:** §3 "Execution budgets"; open decision "Persistence, deployment, and user-access approach"
 - **Decision:** The deployed app has no sign-in and runs real agents on shared credits, so the three routes that run
-  agents (generate, changes, review) are rate limited when `FIELDDAY_AGENTS=real`: 10 runs per visitor (IP address)
-  per rolling hour and 100 runs per UTC day in total. Over the limit the API returns 429 `rate_limited` (an additive
+  agents (generate, changes, review) are rate limited when `FIELDDAY_AGENTS=real`: 18 runs per visitor (IP address)
+  per rolling hour and 180 runs per UTC day in total. Over the limit the API returns 429 `rate_limited` (an additive
   `ApiError` code) with `Retry-After`, and nothing runs. Recheck is not limited: it runs check_plan, not agents.
   Counts are in memory per server instance, so PR 6 does not depend on the database; a second instance starts at
   zero. The Anthropic workspace spend limit is the backstop. Seeding the demo events on a server's first request runs
   Planning and is not counted.
-- **Value:** 10 per visitor per hour; 100 per day; `src/app/api/_lib/rate-limit.ts`
+- **Why these numbers:** one demo rehearsal is about 4 or 5 agent runs, and a room on shared Wi-Fi shares one IP
+  address, so 18 per hour leaves room for several rehearsals or a few people trying the demo at once. A Generate uses
+  about 30k tokens and a conflict review about 80k (first real eval run), so one looping visitor is capped at about
+  1.4M tokens an hour and the whole demo at about 14M a day.
+- **Value:** 18 per visitor per hour; 180 per day; `src/app/api/_lib/rate-limit.ts`
 - **Status:** in use
 
 ### D-JT19-2 — What "demo mode" means

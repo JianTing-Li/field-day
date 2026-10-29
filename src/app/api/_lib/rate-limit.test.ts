@@ -7,9 +7,9 @@ const HOUR = 3_600_000;
 const req = (ip?: string) => new Request("http://localhost/api", { headers: ip ? { "x-forwarded-for": ip } : {} });
 
 describe("createRateLimiter (D-JT19-1)", () => {
-  it("allows 10 runs per visitor per rolling hour, then says when to retry", () => {
+  it("allows 18 runs per visitor per rolling hour, then says when to retry", () => {
     const l = createRateLimiter();
-    for (let i = 0; i < 10; i++) expect(l.take("a", T0 + i * 1000).ok).toBe(true);
+    for (let i = 0; i < 18; i++) expect(l.take("a", T0 + i * 1000).ok).toBe(true);
     const r = l.take("a", T0 + 20_000);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.retry_after_s).toBe(HOUR / 1000 - 20);
@@ -18,7 +18,7 @@ describe("createRateLimiter (D-JT19-1)", () => {
 
   it("counts each visitor separately", () => {
     const l = createRateLimiter();
-    for (let i = 0; i < 10; i++) l.take("a", T0);
+    for (let i = 0; i < 18; i++) l.take("a", T0);
     expect(l.take("a", T0).ok).toBe(false);
     expect(l.take("b", T0).ok).toBe(true);
   });

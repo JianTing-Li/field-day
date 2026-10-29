@@ -317,8 +317,8 @@ the file. Entries above the task sections are earlier history.
 ## JT-19 — Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21)
 
 ### 2026-10-29 — JT-19: Rate limit, demo labeling, time limit
-- **Done:** `src/app/api/_lib/rate-limit.ts` limits agent runs (generate, changes, review) to 10 per visitor per hour
-  and 100 per day when agents are real; over the limit the route answers 429 `rate_limited` with `Retry-After`.
+- **Done:** `src/app/api/_lib/rate-limit.ts` limits agent runs (generate, changes, review) to 18 per visitor per hour
+  and 180 per day when agents are real (chosen with JT to leave room for shared Wi-Fi at the demo); over the limit the route answers 429 `rate_limited` with `Retry-After`.
   Every event route sets `maxDuration = 300`. README "Deployed demo" covers the limit, the Anthropic spend limit,
   labeling and the time limit. Tests in `rate-limit.test.ts`.
 - **Decisions:** D-JT19-1 (rate limit), D-JT19-2 (demo mode is labeling), D-JT19-3 (time limit).

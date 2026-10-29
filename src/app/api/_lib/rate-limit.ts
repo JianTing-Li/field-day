@@ -16,9 +16,9 @@ export interface RateLimits {
 
 export const AGENT_RUN_LIMITS: RateLimits = {
   /** Agent runs per visitor (IP address) in any rolling hour. */
-  per_visitor_per_hour: 10,
+  per_visitor_per_hour: 18,
   /** Agent runs for everyone together since the start of the current UTC day. */
-  global_per_day: 100,
+  global_per_day: 180,
 };
 
 const HOUR_MS = 3_600_000;
