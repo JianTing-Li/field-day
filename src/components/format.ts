@@ -85,3 +85,16 @@ export function startWindowText(earliest: string, latest: string): string {
     ? `starts at ${formatClock(earliest)}`
     : `starts between ${formatClock(earliest)} and ${formatClock(latest)}`;
 }
+
+/** Today's date in New York (where every FieldDay event is), as "YYYY-MM-DD". */
+export function todayInNewYork(now: Date = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+
+/** Whole days from `today` to `date` (both "YYYY-MM-DD"); negative for past dates. */
+export function daysFrom(today: string, date: string): number {
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+}
+
+/** Weather and air-quality forecasts only reach about a week ahead. */
+export const FORECAST_DAYS = 7;

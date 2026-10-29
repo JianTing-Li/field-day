@@ -127,3 +127,14 @@ export function formatLocal(dt: string | null): string {
 export function finalizeKey(eventId: string, version: number): string {
   return `finalize-${eventId}-v${version}`;
 }
+
+/**
+ * Swaps park IDs in agent-written text for park names: "McCarren Park (park-b058)" -> "McCarren Park",
+ * "park-b058" -> "McCarren Park". Unknown IDs are left as they are.
+ */
+export function withParkNames(text: string, snapshot: EvidenceSnapshot | null): string {
+  const name = (id: string) => snapshot?.park_candidates.find((p) => p.id === id)?.name;
+  return text
+    .replace(/\s*\((park-[a-z0-9-]+)\)/g, (m, id: string) => (name(id) ? "" : m))
+    .replace(/\bpark-[a-z0-9-]+\b/g, (id) => name(id) ?? id);
+}

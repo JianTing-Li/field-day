@@ -82,6 +82,35 @@ describe("nextStep", () => {
   });
 });
 
+describe("failed draft", () => {
+  const run = (status: "failed" | "budget_exhausted", message: string) => ({
+    run_id: "r1",
+    status,
+    revision_count: 0,
+    usage: { agent_executions: 1, model_requests: 0, tool_calls: 0, input_tokens: 0, output_tokens: 0, elapsed_ms: 0 },
+    progress: [{ at: "2026-10-29T19:00:00Z", message }],
+  });
+
+  it("says drafting failed instead of offering Draft a plan forever", () => {
+    const step = nextStep({ ...base(), status: "draft", plan: null }, null, run("failed", "Could not draft a plan: boom"));
+    expect(step).toMatchObject({ title: "Couldn't draft a plan", action: "generate", label: "Try again" });
+  });
+
+  it("explains the demo's practice planner in plain words", () => {
+    const step = nextStep(
+      { ...base(), status: "draft", plan: null },
+      null,
+      run("failed", "Could not draft a plan: No planning fixture for snapshot snap-x"),
+    );
+    expect(step.body).toContain("practice planner only has plans for the sample events");
+    expect(step.body).not.toContain("snap-x");
+  });
+
+  it("ignores an old failure once there is a plan", () => {
+    expect(nextStep({ ...base(), status: "ready_for_approval" }, null, run("failed", "x")).action).toBe("approve");
+  });
+});
+
 describe("problemSentence", () => {
   it("joins one, two or many problems naturally", () => {
     expect(problemSentence(["heat.max_temperature"])).toBe("it's too hot");

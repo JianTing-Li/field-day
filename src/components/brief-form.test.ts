@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { case02 } from "@fixtures/scenarios";
-import { EMPTY_FORM, equipmentId, equipmentLabel, fromBrief, toBrief, type BriefFormValues } from "./brief-form";
+import { EMPTY_FORM, dateHint, equipmentId, equipmentLabel, fromBrief, toBrief, type BriefFormValues } from "./brief-form";
 
 const filled: BriefFormValues = {
   ...EMPTY_FORM,
@@ -98,5 +98,23 @@ describe("equipment names", () => {
     expect(equipmentId(" Resistance band ")).toBe("resistance_band");
     expect(equipmentId("exercise-mat")).toBe("exercise_mat");
     expect(equipmentLabel("resistance_band")).toBe("Resistance band");
+  });
+});
+
+describe("dates", () => {
+  it("rejects a past date when today is known", () => {
+    const r = toBrief({ ...filled, date: "2025-01-04" }, "2026-10-29");
+    expect(!r.ok && r.errors.date).toBe("Pick today or a later date");
+  });
+
+  it("accepts today and later dates, and skips the rule without a today", () => {
+    expect(toBrief({ ...filled, date: "2026-10-29" }, "2026-10-29").ok).toBe(true);
+    expect(toBrief({ ...filled, date: "2025-01-04" }).ok).toBe(true);
+  });
+
+  it("notes when a date is beyond the forecast range", () => {
+    expect(dateHint("2026-11-02", "2026-10-29")).toBeNull();
+    expect(dateHint("2026-11-20", "2026-10-29")).toContain("Forecasts only reach about 7 days ahead");
+    expect(dateHint("", "2026-10-29")).toBeNull();
   });
 });

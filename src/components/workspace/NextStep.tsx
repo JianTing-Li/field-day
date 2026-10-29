@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
@@ -59,10 +60,15 @@ export function PlanSummary({
           <p className="text-xs font-bold tracking-wide text-ink uppercase">Next step</p>
           <p className="mt-1 text-lg leading-snug font-bold text-ink">{step.title}</p>
           <p className="mt-1 text-sm text-ink">{step.body}</p>
-          {step.action && step.label && (
-            <Button variant="surface" className="mt-4 px-6 py-3 text-base" disabled={!!busy} onClick={onAction}>
-              {busy ? `${busy}…` : step.label}
-            </Button>
+          {busy ? (
+            <Working label={busy} />
+          ) : (
+            step.action &&
+            step.label && (
+              <Button variant="surface" className="mt-4 px-6 py-3 text-base" onClick={onAction}>
+                {step.label}
+              </Button>
+            )
           )}
         </div>
       </section>
@@ -78,5 +84,39 @@ export function PlanSummary({
         </div>
       )}
     </>
+  );
+}
+
+/** What each slow action is doing and how long it usually takes. */
+const WORK: Record<string, string> = {
+  "Drafting a plan":
+    "Reading the weather and air quality, picking a park, time and workout, and running the safety checks. Usually 20 to 90 seconds.",
+  "Finding alternatives":
+    "Looking for other times, parks and workouts, then comparing them. Usually 1 to 4 minutes.",
+  "Reporting a problem":
+    "Looking for other times, parks and workouts that fix it, then comparing them. Usually 1 to 4 minutes.",
+  "Checking the latest weather": "Fetching the latest forecast and air quality and checking the plan again.",
+  "Locking it in": "Running the final safety checks and saving your plan.",
+};
+
+/** Shows that FieldDay is working, for how long, and what it's doing, so nobody clicks twice. */
+function Working({ label }: { label: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const id = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [label]);
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return (
+    <div role="status" aria-live="polite" className="clay-recessed mt-4 rounded-disclosure bg-cream px-4 py-3 text-sm text-ink">
+      <p className="font-bold">
+        <span aria-hidden="true" className="mr-2 inline-block animate-spin motion-reduce:animate-none">
+          ◐
+        </span>
+        {label}… <span className="font-mono font-normal text-ink-2">{clock}</span>
+      </p>
+      {WORK[label] && <p className="mt-1 text-ink-2">{WORK[label]} You can keep this page open.</p>}
+    </div>
   );
 }

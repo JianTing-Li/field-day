@@ -108,7 +108,7 @@ export function Workspace({ eventId }: { eventId: string }) {
   const v = currentVersion(event);
   const actions = availableActions(v);
   const version = { version: v.version };
-  const step = nextStep(v, gate);
+  const step = nextStep(v, gate, event.last_run);
 
   const draftPlan = () => act("Drafting a plan", "generate", version, Api.generateDraft.response);
   const recheck = () => act("Checking the latest weather", "recheck", version, Api.recheck.response);
@@ -184,7 +184,7 @@ export function Workspace({ eventId }: { eventId: string }) {
         </Alert>
       )}
 
-      {event.last_run && (event.last_run.status === "failed" || event.last_run.status === "budget_exhausted") && (
+      {v.plan && event.last_run && (event.last_run.status === "failed" || event.last_run.status === "budget_exhausted") && (
         <Alert tone="warning" role="status" title="The last run didn't finish">
           {event.last_run.status === "budget_exhausted"
             ? "The agents hit their time or call limit, so nothing from that run was saved."

@@ -11,6 +11,7 @@ import {
   parkName,
   sortChecks,
   templateName,
+  withParkNames,
 } from "./logic";
 
 const snapshot = case02.snapshot("evt", 1);
@@ -114,5 +115,18 @@ describe("applyOption", () => {
     expect(availableActions(at("needs_verification")).applyOption).toBe(false);
     const review = case02.reviewerOutput(1);
     expect(availableActions({ ...at("needs_verification"), alternatives: review }).applyOption).toBe(true);
+  });
+});
+
+describe("withParkNames", () => {
+  const snap = { park_candidates: [{ id: "park-b058", name: "McCarren Park" }] } as unknown as Parameters<typeof withParkNames>[1];
+
+  it("replaces park IDs with names and drops a repeated ID in brackets", () => {
+    expect(withParkNames("Space at McCarren Park (park-b058) is unconfirmed", snap)).toBe("Space at McCarren Park is unconfirmed");
+    expect(withParkNames("Confirm park-b058 at 8 a.m.", snap)).toBe("Confirm McCarren Park at 8 a.m.");
+  });
+
+  it("leaves unknown IDs alone", () => {
+    expect(withParkNames("Ask park-zzz (park-zzz)", snap)).toBe("Ask park-zzz (park-zzz)");
   });
 });

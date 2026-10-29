@@ -9,6 +9,7 @@ import {
   parkName,
   sortChecks,
   templateName,
+  withParkNames,
 } from "./logic";
 
 /** Read-only sections of the event workspace (YT-09). */
@@ -60,6 +61,16 @@ export function BlockersCard({
   if (blocking.length === 0 && other.length === 0 && version.organizer_tasks.length === 0) return null;
   // Every check passed (D-JT23-1): the agent's concerns are notes to review, not blockers.
   const ready = version.status === "ready_for_approval";
+  // Tasks that clear a current blocker come first; the rest are helpful but don't block approval.
+  const blockers = new Set<string>(version.checks?.blockers ?? []);
+  // A task only blocks this plan if it's about this plan's park (and time, when it names one).
+  const forThisPlan = (t: OrganizerTask) =>
+    t.park_id === null ||
+    (t.park_id === version.plan?.park_id && (t.start_time === null || t.start_time === version.plan?.start_time));
+  const mustDo = version.organizer_tasks.filter(
+    (t) => t.resolves_check_id !== null && blockers.has(t.resolves_check_id) && forThisPlan(t),
+  );
+  const goodToKnow = version.organizer_tasks.filter((t) => !mustDo.includes(t));
   return (
     <Card
       title={ready ? "Review before approving" : "What's blocking this plan"}
@@ -79,7 +90,7 @@ export function BlockersCard({
               </span>
               <span>
                 <span className="sr-only">{ready ? "Agent concern: " : "Blocking: "}</span>
-                {c.description}
+                {withParkNames(c.description, snapshot)}
               </span>
             </li>
           ))}
@@ -89,30 +100,40 @@ export function BlockersCard({
         <ul className="mt-4 space-y-1.5">
           {other.map((c) => (
             <li key={c.id} className="text-sm text-ink-2">
-              <span className="sr-only">Note: </span>• {c.description}
+              <span className="sr-only">Note: </span>• {withParkNames(c.description, snapshot)}
             </li>
           ))}
         </ul>
       )}
-      {version.organizer_tasks.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-sm font-bold text-ink">Your to-do</h3>
-          <ul className="mt-2 space-y-2">
-            {version.organizer_tasks.map((t) => (
-              <li key={t.id} id={`task-${t.id}`} className="clay-sm scroll-mt-24 rounded-disclosure bg-cream px-5 py-3 text-sm text-ink">
-                {t.description}
-                {(t.park_id || t.start_time) && (
-                  <span className="mt-0.5 block text-xs text-ink-2">
-                    {t.park_id && parkName(snapshot, t.park_id)}
-                    {t.start_time && ` · ${formatLocal(t.start_time)}`}
-                    {t.resolves_check_id && ` · for “${checkName(t.resolves_check_id)}”`}
-                  </span>
-                )}
-                {taskAction?.(t)}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {[
+        { title: "Must do before approving", tasks: mustDo },
+        { title: "Good to know", tasks: goodToKnow },
+      ].map(
+        (group) =>
+          group.tasks.length > 0 && (
+            <div key={group.title} className="mt-4">
+              <h3 className="text-sm font-bold text-ink">{group.title}</h3>
+              <ul className="mt-2 space-y-2">
+                {group.tasks.map((t) => (
+                  <li
+                    key={t.id}
+                    id={`task-${t.id}`}
+                    className="clay-sm scroll-mt-24 rounded-disclosure bg-cream px-5 py-3 text-sm text-ink"
+                  >
+                    {withParkNames(t.description, snapshot)}
+                    {(t.park_id || t.start_time) && (
+                      <span className="mt-0.5 block text-xs text-ink-2">
+                        {t.park_id && parkName(snapshot, t.park_id)}
+                        {t.start_time && ` · ${formatLocal(t.start_time)}`}
+                        {t.resolves_check_id && ` · for “${checkName(t.resolves_check_id)}”`}
+                      </span>
+                    )}
+                    {taskAction?.(t)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
       )}
     </Card>
   );

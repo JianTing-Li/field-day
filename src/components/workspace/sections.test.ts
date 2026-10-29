@@ -26,3 +26,30 @@ describe("BlockersCard (D-JT23-1)", () => {
     expect(html).toContain("Blocking: ");
   });
 });
+
+describe("BlockersCard to-dos", () => {
+  const task = (id: string, park_id: string) => ({
+    id,
+    description: `Confirm space at ${park_id}`,
+    resolves_check_id: "space_surface.space" as const,
+    park_id,
+    start_time: "2026-07-16T08:00",
+  });
+  const version = {
+    status: "needs_verification",
+    concerns: [],
+    plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
+    checks: { blockers: ["space_surface.space"] },
+    organizer_tasks: [task("t-a", "park-a"), task("t-b", "park-b")],
+  } as unknown as PlanVersion;
+
+  it("puts tasks that unblock this plan first, and other parks' tasks under Good to know", () => {
+    const html = renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
+    const must = html.indexOf("Must do before approving");
+    const good = html.indexOf("Good to know");
+    expect(must).toBeGreaterThan(-1);
+    expect(good).toBeGreaterThan(must);
+    expect(html.indexOf("Confirm space at park-a")).toBeLessThan(good);
+    expect(html.indexOf("Confirm space at park-b")).toBeGreaterThan(good);
+  });
+});

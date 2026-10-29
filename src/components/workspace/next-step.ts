@@ -1,4 +1,4 @@
-import type { CheckId, GateCheck, PlanVersion } from "@/contracts";
+import type { CheckId, FieldDayEvent, GateCheck, PlanVersion } from "@/contracts";
 import { aboutCurrentPlan, confirmable } from "./ApprovalFlow";
 import { checkName } from "./logic";
 
@@ -58,13 +58,39 @@ export function plainIds(text: string): string {
   });
 }
 
+/** Why drafting failed, in the organizer's words. */
+export function draftFailure(run: NonNullable<FieldDayEvent["last_run"]>): string {
+  if (run.status === "budget_exhausted") {
+    return "FieldDay ran out of time before it finished. Nothing was saved. Try again in a moment.";
+  }
+  const last = run.progress[run.progress.length - 1]?.message ?? "";
+  if (/fixture/i.test(last)) {
+    return "This demo's practice planner only has plans for the sample events, so it can't plan a new one. Try a sample event, or ask your admin to turn on the real planner.";
+  }
+  return "Something went wrong while drafting, and nothing was saved. Try again; if it keeps happening, edit the brief or contact support.";
+}
+
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * `gate` is the result of the last lock-in attempt in this session, if any. When it failed, the
  * next step says so instead of offering the same button again.
  */
-export function nextStep(v: PlanVersion, gate: GateCheck[] | null = null): NextStep {
+export function nextStep(
+  v: PlanVersion,
+  gate: GateCheck[] | null = null,
+  lastRun: FieldDayEvent["last_run"] = null,
+): NextStep {
+  // Drafting failed and left no plan: say so, instead of offering the same "Draft a plan" forever.
+  if (!v.plan && lastRun && (lastRun.status === "failed" || lastRun.status === "budget_exhausted")) {
+    return {
+      tone: "danger",
+      title: "Couldn't draft a plan",
+      body: draftFailure(lastRun),
+      action: "generate",
+      label: "Try again",
+    };
+  }
   const failedGate = gate?.filter((g) => g.status === "fail") ?? [];
   if (v.status === "approved" && failedGate.length > 0) {
     return {
