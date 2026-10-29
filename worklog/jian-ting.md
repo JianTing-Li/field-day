@@ -319,3 +319,15 @@ the file. Entries above the task sections are earlier history.
 ## JT-20 — Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40)
 
 ## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)
+
+### 2026-10-28 — JT-21: Hosted database decision
+- **Done:** chose Neon Postgres through the Vercel Marketplace and recorded it as D-JT21-1: why Postgres, what was
+  rejected, which store runs where, free-plan sleep and retries, data lifetime and reset, and the open-access demo
+  risk. Added the open-access risk to README "Limitations". No code changes.
+- **Decisions:** D-JT21-1.
+- **Interfaces others depend on:** none yet. JT-08 adds the `DATABASE_URL` switch, the Neon store and the reset script.
+- **Unfinished / next:** JT-20 creates the Vercel project and adds Neon; JT-08 builds the store on it. The
+  "Persistence" line under "Open decisions" in `docs/decisions.md` can go in the next sync PR.
+- **Gotchas:** the first request after 5 idle minutes is slower while Neon wakes up.
+- **Requests:** Yadan: the first load after Neon has been idle can be slow. Check that YT-12's loading state covers
+  a slow `GET /api/events`, rather than showing an empty list.

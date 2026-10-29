@@ -373,6 +373,28 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-21 — Decide the hosted database and record it in docs/decisions.md (#41)
 
+### D-JT21-1 — Hosted database: Neon Postgres through Vercel
+- **Date / owner:** 2026-10-28 · JT
+- **PRD section:** §3c "Draft persistence and duplicate-save protection"
+- **Decision:** The hosted app stores events and evidence snapshots in Neon Postgres, added to the Vercel project
+  from the Vercel Marketplace (free plan). Postgres makes "one finalized record per approved version" a unique
+  constraint instead of application code, and gives JT-08 an atomic stale-write check (compare-and-swap on
+  `updated_at`, from JT-07). Rejected: a key-value store (Upstash Redis), which has no unique constraints, so
+  duplicate-save protection would rest on our own code; a separate Supabase account, which is more than the demo needs;
+  files or SQLite on Vercel, whose filesystem does not persist between requests.
+  - **Which store runs:** the Neon store when `DATABASE_URL` is set (the Marketplace integration sets it in Vercel).
+    Tests and local `npm run dev` keep the in-memory store; tests never connect to Neon.
+  - **Free-plan sleep:** Neon suspends after 5 idle minutes, and the first request after that waits for it to wake.
+    The store retries connection errors a few times. A finalize that fails first looks for an already saved record
+    before saving again (D-017), so a retry never saves twice.
+  - **Lifetime and reset:** data survives page refreshes and redeploys. A reset deletes all events and snapshots. Only
+    JT runs it, with `npm run db:reset` locally or a manual GitHub Actions workflow that needs `RESET` typed in; the
+    app has no reset path.
+  - **Access:** the app has no sign-in (the PRD has no accounts), so anyone with the link can create, approve and
+    finalize events. This is a known demo risk, listed under README "Limitations".
+- **Value:** Neon Postgres (free plan) via the Vercel Marketplace; `DATABASE_URL`; in-memory store when it is unset
+- **Status:** proposed (JT-08 builds it)
+
 ## YT-04 — Workout rules (JT waits on this) (#29)
 
 ### D-023 — Workout rules: what counts as a space or surface confirmation
