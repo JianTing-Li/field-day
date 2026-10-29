@@ -290,6 +290,23 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-09 — Final save gate (all 5 checks) (#11)
 
+### D-JT09-1 — The five save-gate checks
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3 "Final save gate — approval is required, but not sufficient"; §3c; Case 3
+- **Decision:** Finalize runs five checks on the approved version and saves only when all pass:
+  - **complete_inputs:** the brief is valid against `EventBrief`, there is a plan, and it starts on the brief's date.
+  - **correct_version:** approval names this exact version and evidence snapshot. If this fails, nothing else runs
+    and nothing is saved or refreshed.
+  - **current_evidence:** evidence is gathered again. Unchanged evidence must still pass `freshness.conditions`.
+    Changed evidence is revalidated with check_plan: if the plan still passes, it is saved with the new snapshot
+    (approval stands, as the PRD allows when there is no new blocker); if not, a recheck version replaces the approved
+    one, approval is cleared, and the save is blocked with the new blockers.
+  - **hard_constraints:** check_plan runs again on the snapshot used, with confirmations applied; every critical
+    check must pass. The stored checks are not trusted.
+  - **required_confirmations:** every critical space, surface or permission check passes and is backed by recorded
+    evidence or a matching organizer confirmation (JT-22 layout matching, D-JT22-1).
+- **Status:** in use
+
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
 ### D-JT10-1 — Choosing stub or real agents

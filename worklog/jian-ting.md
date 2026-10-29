@@ -187,6 +187,22 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-09 — Final save gate (all 5 checks) (#11)
 
+### 2026-10-29 — JT-09: Final save gate
+- **Done:** `finalize` in `src/server/lifecycle/service.ts` runs the five checks (D-JT09-1), with readable reasons for
+  each failure. It refreshes and revalidates evidence (Case 3 at finalize), reruns check_plan, checks confirmations,
+  then saves through the store's one-record-per-version guarantee and reconciles an uncertain earlier save (JT-08).
+  The service's commit is now the store's compare-and-swap. Tests: all five checks, unapproved attempts, Case 3 at
+  finalize and at Recheck, refreshed evidence that still passes, stale data, missing confirmations, a plan off the
+  event date, two finalize requests at once, and reconciling a record saved without its event.
+- **Decisions:** D-JT09-1. Confirmations stay the JT-22 lifecycle matching, not evidence (decided with JT on
+  2026-10-29: smaller change before the deadline, no change to Yadan's workout rules or confirm UI).
+- **Interfaces others depend on:** finalize's response shape is unchanged; a blocked finalize may now return an event
+  with a new current version and no approval.
+- **Unfinished / next:** none.
+- **Gotchas:** the Case 2 fixture review's option checks are more optimistic than check_plan: after applying combo-1,
+  the gate also needs the surface at Park A confirmed. With real agents, option checks come from check_plan already.
+- **Requests:** none
+
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
 ### 2026-10-28 — JT-10: Orchestrator
