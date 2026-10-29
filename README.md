@@ -51,16 +51,22 @@ npm run dev                  # http://localhost:3000
 | `npm run db:reset` | Empty the hosted database after typing `RESET` (also a manual "Reset database" GitHub Action) |
 
 ### Deployed demo
-https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with fixture data
-and real agents on shared demo credits.
+https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with real agents
+on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live weather and air quality (live since
+2026-10-29); the seeded demo events always use their recorded scenarios.
 
-- **Rate limit (D-JT19-1):** with `FIELDDAY_AGENTS=real`, Generate, Something changed and Request review allow 18 agent
-  runs per visitor per hour and 180 per day in total. Over the limit, the API answers 429 `rate_limited` and nothing
-  runs. Counts are kept in memory per server instance.
+- **Rate limit (D-JT19-1, D-JT24-10):** with `FIELDDAY_AGENTS=real`, Draft a plan, Report a problem and Find
+  alternatives allow 18 agent runs per visitor per hour and 180 per day in total. A malformed request is refused before
+  it counts. Creating events has its own limit in every mode: 20 per visitor per hour, 300 a day. Over a limit, the
+  API answers 429 `rate_limited` and nothing runs. Counts are kept in memory per server instance.
 - **Spend limit:** set a monthly spend limit on the Anthropic workspace that owns the deployed key. It is the backstop
   for anything the in-memory rate limit misses.
-- **Demo labeling (D-JT19-2):** the "Demo data" banner says the data is recorded and, with real agents, that plans are
-  drafted by Claude on shared demo credits.
+- **Demo labeling (D-JT19-2, D-JT24-2):** the "Demo" banner shows in every mode: recorded data, or live data with
+  safety limits and workouts not yet reviewed, and (with real agents) that Claude drafts plans on shared demo credits.
+  A locked-in plan says it's for the demo only while anything it rests on is unreviewed.
+- **Reset:** GitHub → Actions → "Reset database" → Run workflow → type `RESET`. It needs the `DATABASE_URL`
+  repository secret (Settings → Secrets and variables → Actions). The next page view seeds the demo events again with
+  the stub agents, so it costs no credits.
 - **Time limit (D-JT19-3):** every event route sets `maxDuration = 300`; the run budget stops agents at 240 s.
 
 ## Architecture
@@ -71,7 +77,11 @@ and real agents on shared demo credits.
 - **Agents** (`src/server/agents/`): Planning, Event Logistics, Workout Adaptation, Independent Reviewer.
   They read evidence through read-only tools and return validated JSON.
 - **Workflow:** initial plan → conflict check → Logistics + Workout Adaptation in parallel → combination
-  checks → independent review → at most 1 revision → organizer approval → final save gate → save.
+  checks → independent review → at most 1 revision → organizer approval → final save gate → save. Draft a plan runs
+  all of it in one request when the draft fails a critical check (D-JT24-4); Report a problem and Find alternatives
+  run the review on the current plan.
+- **Checks:** every version's checks come from the harness's `check_plan`, never from an agent (D-JT24-3). An
+  organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1).
 - **API** (`src/app/api/`): the UI talks to the harness only through the endpoints in `src/contracts/api.ts`.
 
 ## Features and status
@@ -116,7 +126,9 @@ First real run: 2026-10-28, all four agents real, `claude-haiku-5-5`, fixture in
 real-world results). Full report: [`evals/results/2026-10-28T22-38-08-324Z-real.md`](evals/results/2026-10-28T22-38-08-324Z-real.md).
 Targets are in the PRD §2c. The 12 cases' expected outcomes (`expected` in each `fixtures/scenarios/` file) were
 written before any agent run and were not changed after it; cases 4–8 are the 5 known-feasible conflicts.
-How to run it: [`evals/README.md`](evals/README.md).
+How to run it: [`evals/README.md`](evals/README.md). The evals grade the full workflow (`runWorkflow`), which the app
+now runs on Draft a plan too (D-JT24-4). This run predates JT-24's shorter specialist and Reviewer answers
+(D-JT24-3); rerun before quoting latency or tokens.
 
 | Metric (PRD §2c) | Target | Rules only | Planning alone | 4 agents |
 |---|---|---|---|---|
@@ -152,7 +164,11 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
 
 ## Limitations and open decisions
 <!-- Both: add as you go -->
-- All conditions data is fixture-backed until integrations pass their feasibility checks.
+- Conditions data is recorded (fixture mode, covering Oct 27–Nov 2, 2026 for weather and Oct 27–28 for air quality) or
+  live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 7 days ahead for weather and 1–2 days for air quality,
+  so an event further out stays "waiting on weather data" until then (D-JT24-8).
+- Sessions run 30, 35 or 45 minutes and use one of 3 workouts, all pending instructor review; other activities need a
+  reviewed workout first (D-JT24-7).
 - Environmental thresholds are unreviewed demo values and cannot support real-world finalization.
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.

@@ -99,7 +99,7 @@ export const DEFAULT_LIMITS = { max_temperature_f: 90, max_aqi: 100 } as const;
 /**
  * `today` ("YYYY-MM-DD", New York) turns on the "no past dates" rule; leave it out to skip it
  * (e.g. when re-reading a saved brief). `lengths` are the session lengths the workouts support;
- * any other length can never pass the workout-length check (D-JT24-4).
+ * any other length can never pass the workout-length check (D-JT24-7).
  */
 export function toBrief(
   v: BriefFormValues,

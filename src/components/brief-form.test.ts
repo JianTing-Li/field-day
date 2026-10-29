@@ -130,7 +130,7 @@ describe("dates", () => {
 });
 
 describe("lengths, limits and activities (JT-24)", () => {
-  it("only accepts a length the workouts can run (D-JT24-4)", () => {
+  it("only accepts a length the workouts can run (D-JT24-7)", () => {
     const r = toBrief({ ...filled, duration_minutes: "90" }, undefined, [30, 35, 45]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.duration_minutes).toContain("30, 35 or 45");

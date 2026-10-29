@@ -34,7 +34,7 @@ export interface TemplateOption {
   id: string;
   name: string;
   duration_minutes: number;
-  /** Every length this workout can run (D-JT24-4). */
+  /** Every length this workout can run (D-JT24-7). */
   lengths: number[];
   equipment: string[];
   reviewed: boolean;

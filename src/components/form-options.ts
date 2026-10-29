@@ -13,7 +13,7 @@ export function briefFormOptions(): { parks: ParkOption[]; templates: TemplateOp
       id: t.id,
       name: t.name,
       duration_minutes: t.duration_minutes,
-      // Every length this workout can run: as written, or with one permitted adaptation (D-JT24-4).
+      // Every length this workout can run: as written, or with one permitted adaptation (D-JT24-7).
       lengths: [...new Set([t.duration_minutes, ...t.permitted_adaptations.map((a) => t.duration_minutes + a.duration_delta_minutes)])].sort(
         (x, y) => x - y,
       ),
