@@ -23,3 +23,11 @@
 - **Unfinished / next:** none
 - **Gotchas:** none
 - **Requests:** none
+
+### 2026-10-29 — UX: next step, plan first, plain words
+- **Done:** (1) New top card on the event page (`workspace/NextStep.tsx`): status, the plan in one line (park · day · time · workout · people) and a **Next step** with one primary action, decided by `nextStep()` in `workspace/next-step.ts` (draft a plan / find alternatives / see alternatives / confirm the first task for the current plan / check the latest weather / approve / lock it in / edit the brief). On phones the same action sits in a bar fixed to the bottom. If a lock-in attempt fails, the next step says "Can't lock it in yet" and why, instead of offering the same button again. The old Actions card is now "More actions". (2) The plan summary leads the page. (3) Plain words: version/snapshot/run details moved into a collapsed "Technical details"; evidence IDs replaced by source names ("NWS forecast", "Your confirmation"); buttons renamed (Draft a plan, Check the latest weather, Report a problem, Find alternatives, Approve plan, Lock it in); "Evidence" is now "Sources", "Checks" is "Safety checks", "Plan" is "Plan details". Walked Case 2 end to end by following only the next-step button in headless Playwright, and checked 390px. 9 new tests.
+- **Decisions:** none
+- **Interfaces others depend on:** `nextStep(version, gate)`, `PlanSummary`, `TechnicalDetails`, `sourceNames`.
+- **Unfinished / next:** progress steps while agents run, yes/no confirmations (UX review items 4 and 5).
+- **Gotchas:** none
+- **Requests:** JT: Case 2 can't be locked in after applying option 1: the gate needs the Park A ground surface confirmed, but the version has no organizer task for it (only "space" at Park A, and space + surface at Park B), so the organizer has no way to confirm it.

@@ -85,15 +85,15 @@ export function approveBlockedReason(v: PlanVersion): string | null {
     case "ready_for_approval":
       return null;
     case "draft":
-      return v.plan ? "Generate the plan before approving." : "Generate a plan first.";
+      return "Draft a plan first.";
     case "needs_verification":
       return "Some critical checks failed or are not confirmed. Resolve what's blocking this plan, listed above, first.";
     case "no_feasible_option":
-      return "No workable option was found. Edit the brief or request a review.";
+      return "No safe option was found. Edit the brief or find alternatives.";
     case "approved":
-      return `v${v.version} is already approved.`;
+      return "This plan is already approved.";
     case "finalized":
-      return `v${v.version} is finalized.`;
+      return "This plan is locked in.";
   }
 }
 
