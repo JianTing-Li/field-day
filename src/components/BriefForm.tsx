@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Api, type FieldDayEvent } from "@/contracts";
 import { apiGet, apiSend } from "./api-client";
 import { todayInNewYork } from "./format";
 import {
+  DEFAULT_LIMITS,
   EMPTY_FORM,
+  activityHint,
   dateHint,
+  lengthList,
   equipmentLabel,
   fromBrief,
   toBrief,
@@ -31,9 +34,14 @@ export interface TemplateOption {
   id: string;
   name: string;
   duration_minutes: number;
+  /** Every length this workout can run (D-JT24-4). */
+  lengths: number[];
   equipment: string[];
   reviewed: boolean;
 }
+
+/** Set by the form after a save; the workspace drafts a plan for that event as soon as it opens. */
+export const AUTODRAFT_KEY = "fieldday:autodraft";
 
 type Props = { parks: ParkOption[]; templates: TemplateOption[] } & (
   | { mode: "create" }
@@ -64,7 +72,7 @@ const LABELS: Partial<Record<BriefField, string>> = {
   latest: "Latest start",
   allowed_park_ids: "Allowed parks",
   preferred_park_id: "Favorite park",
-  workout_template_id: "Workout",
+  workout_template_id: "Type of session",
   other_equipment: "Other equipment",
   max_temperature_f: "Max temperature",
   max_aqi: "Max air quality (AQI)",
@@ -85,6 +93,9 @@ export function BriefForm(props: Props) {
 
   const knownEquipment = [...new Set(props.templates.flatMap((t) => t.equipment))].sort();
   const editId = props.mode === "edit" ? props.eventId : null;
+  // Next keeps a page you leave mounted but hidden, so IDs are unique per page, not just per form.
+  const idPrefix = editId ? `edit-${editId}` : "new";
+  const fid = (f: BriefField) => `${idPrefix}-field-${f}`;
 
   useEffect(() => {
     if (editId === null) return;
@@ -131,7 +142,7 @@ export function BriefForm(props: Props) {
     setServerError(null);
     // A saved past date can stay when editing; a new or changed date must be today or later.
     const checkDate = props.mode === "create" || values.date !== event?.brief.date;
-    const r = toBrief(values, checkDate ? todayInNewYork() : undefined);
+    const r = toBrief(values, checkDate ? todayInNewYork() : undefined, lengthsFor(values.workout_template_id));
     if (!r.ok) {
       setErrors(r.errors);
       if (MORE_FIELDS.some((f) => r.errors[f])) setMoreOpen(true);
@@ -151,7 +162,22 @@ export function BriefForm(props: Props) {
           );
     setSaving(false);
     if (res.ok) {
-      router.push(`/events/${encodeURIComponent(res.data.event.id)}`);
+      const saved = res.data.event;
+      // A new event, or an edit that cleared the plan, gets drafted as soon as its page opens.
+      if (!saved.versions.find((v) => v.version === saved.current_version)?.plan) {
+        try {
+          sessionStorage.setItem(AUTODRAFT_KEY, saved.id);
+        } catch {
+          // Storage can be blocked; the page then shows "Draft a plan" instead.
+        }
+      }
+      // This page stays mounted after we leave it; start the next new event from a blank form.
+      if (props.mode === "create") {
+        setValues(EMPTY_FORM);
+        setErrors({});
+        setMoreOpen(false);
+      }
+      router.push(`/events/${encodeURIComponent(saved.id)}`);
       return;
     }
     setServerError(
@@ -178,16 +204,23 @@ export function BriefForm(props: Props) {
 
   const errorList = FIELD_ORDER.filter((f) => errors[f]);
   const template = props.templates.find((t) => t.id === values.workout_template_id);
+  const lengths = lengthsFor(values.workout_template_id);
+  const activity = activityHint(values.title, props.templates.map((t) => t.name));
+
+  function lengthsFor(templateId: string): number[] {
+    const pool = props.templates.filter((t) => !templateId || t.id === templateId);
+    return [...new Set(pool.flatMap((t) => t.lengths))].sort((a, b) => a - b);
+  }
 
   return (
+    <IdPrefix.Provider value={idPrefix}>
     <form onSubmit={submit} noValidate className="space-y-6">
       {event && (
         <div className="clay flex flex-wrap items-center gap-3 rounded-surface bg-cool px-6 py-5 text-sm text-ink">
           <StatusBadge status={event.versions.find((v) => v.version === event.current_version)?.status ?? "draft"} />
           <span>
-            Editing the brief of <strong>v{event.current_version}</strong>. Saving creates{" "}
-            <strong>v{event.current_version + 1}</strong> as a new draft: any approval and organizer confirmations are
-            cleared, and you draft a new plan from the updated brief.
+            Changing only the name, the instructor notes or the priorities keeps your plan and confirmations; you just
+            approve it again. Any other change starts a fresh plan, which FieldDay drafts as soon as you save.
           </span>
         </div>
       )}
@@ -202,7 +235,7 @@ export function BriefForm(props: Props) {
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
                 {errorList.map((f) => (
                   <li key={f}>
-                    <a href={`#field-${f}`} className="underline">
+                    <a href={`#${fid(f)}`} className="underline">
                       {LABELS[f]}
                     </a>
                     : {errors[f]}
@@ -221,32 +254,33 @@ export function BriefForm(props: Props) {
       >
         <Field id="title" label="Event name" error={errors.title} className="sm:col-span-2">
           <input
-            id="field-title"
+            id={fid("title")}
             value={values.title}
             onChange={(e) => set("title", e.target.value)}
             placeholder="e.g. Saturday bootcamp"
+            maxLength={120}
             className={input(errors.title)}
-            {...describedBy("title", errors.title)}
+            {...describedBy(fid, "title", errors.title)}
           />
+          {activity && <p className="mt-2 text-xs text-ink-2">ℹ {activity}</p>}
         </Field>
         <Field id="date" label="Date" error={errors.date}>
           <input
-            id="field-date"
+            id={fid("date")}
             type="date"
             min={props.mode === "create" && today ? today : undefined}
             value={values.date}
             onChange={(e) => set("date", e.target.value)}
             className={input(errors.date)}
-            {...describedBy("date", errors.date)}
+            {...describedBy(fid, "date", errors.date)}
           />
           {!errors.date && today && dateHint(values.date, today) && (
             <p className="mt-2 text-xs text-ink-2">ℹ {dateHint(values.date, today)}</p>
           )}
         </Field>
-        <div className="grid grid-cols-2 gap-4">
           <Field id="group_size" label="Group size" error={errors.group_size}>
             <input
-              id="field-group_size"
+              id={fid("group_size")}
               type="number"
               inputMode="numeric"
               min={1}
@@ -254,23 +288,50 @@ export function BriefForm(props: Props) {
               onChange={(e) => set("group_size", e.target.value)}
               placeholder="e.g. 15"
               className={input(errors.group_size)}
-              {...describedBy("group_size", errors.group_size)}
+              {...describedBy(fid, "group_size", errors.group_size)}
             />
           </Field>
-          <Field id="duration_minutes" label="Length (min)" error={errors.duration_minutes}>
-            <input
-              id="field-duration_minutes"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              step={5}
-              value={values.duration_minutes}
-              onChange={(e) => set("duration_minutes", e.target.value)}
-              className={input(errors.duration_minutes)}
-              {...describedBy("duration_minutes", errors.duration_minutes)}
-            />
-          </Field>
-        </div>
+        <Field id="workout_template_id" label="Type of session" error={errors.workout_template_id}>
+          <select
+            id={fid("workout_template_id")}
+            value={values.workout_template_id}
+            onChange={(e) => set("workout_template_id", e.target.value)}
+            className={input(errors.workout_template_id)}
+          >
+            <option value="">Any of FieldDay&apos;s workouts</option>
+            {props.templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} · {lengthList(t.lengths)} min
+                {t.equipment.length ? ` · needs ${t.equipment.map(equipmentLabel).join(", ").toLowerCase()}` : ""}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-ink-2">
+            {template && !template.reviewed
+              ? "⚠ This workout hasn't been reviewed by an instructor yet."
+              : "More kinds of session, like yoga, need an instructor-reviewed workout first."}
+          </p>
+        </Field>
+          <fieldset id={fid("duration_minutes")} {...describedBy(fid, "duration_minutes", errors.duration_minutes)}>
+            <legend className="mb-2 block text-sm font-bold text-ink">Length</legend>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Session length">
+              {lengths.map((m) => {
+                const active = values.duration_minutes === String(m);
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => set("duration_minutes", String(m))}
+                    className={`focus-ring rounded-control px-3.5 py-2 text-sm font-bold text-ink ${active ? "clay-recessed bg-mint" : "clay-sm bg-cream"}`}
+                  >
+                    {m} min
+                  </button>
+                );
+              })}
+            </div>
+            <FieldError id="duration_minutes" error={errors.duration_minutes} />
+          </fieldset>
       </Section>
 
       <Section title="When can it start?" tag="Required" hint="FieldDay picks the best start time inside this window. New York time.">
@@ -295,28 +356,28 @@ export function BriefForm(props: Props) {
         </div>
         <Field id="earliest" label="Earliest start" error={errors.earliest}>
           <input
-            id="field-earliest"
+            id={fid("earliest")}
             type="time"
             value={values.earliest}
             onChange={(e) => set("earliest", e.target.value)}
             className={input(errors.earliest)}
-            {...describedBy("earliest", errors.earliest)}
+            {...describedBy(fid, "earliest", errors.earliest)}
           />
         </Field>
         <Field id="latest" label="Latest start" error={errors.latest}>
           <input
-            id="field-latest"
+            id={fid("latest")}
             type="time"
             value={values.latest}
             onChange={(e) => set("latest", e.target.value)}
             className={input(errors.latest)}
-            {...describedBy("latest", errors.latest)}
+            {...describedBy(fid, "latest", errors.latest)}
           />
         </Field>
       </Section>
 
       <Section title="Where?" tag="Required" hint="Pick every park you'd be happy with. FieldDay only considers these.">
-        <fieldset id="field-allowed_park_ids" className="sm:col-span-2" {...describedBy("allowed_park_ids", errors.allowed_park_ids)}>
+        <fieldset id={fid("allowed_park_ids")} className="sm:col-span-2" {...describedBy(fid, "allowed_park_ids", errors.allowed_park_ids)}>
           <legend className="text-sm font-bold text-ink">
             Parks{" "}
             <span className="font-normal text-ink-2">
@@ -347,11 +408,11 @@ export function BriefForm(props: Props) {
         {values.allowed_park_ids.length > 1 && (
           <Field id="preferred_park_id" label="Favorite park (optional)" error={errors.preferred_park_id}>
             <select
-              id="field-preferred_park_id"
+              id={fid("preferred_park_id")}
               value={values.preferred_park_id}
               onChange={(e) => set("preferred_park_id", e.target.value)}
               className={input(errors.preferred_park_id)}
-              {...describedBy("preferred_park_id", errors.preferred_park_id)}
+              {...describedBy(fid, "preferred_park_id", errors.preferred_park_id)}
             >
               <option value="">No favorite</option>
               {values.allowed_park_ids.map((id) => (
@@ -379,31 +440,12 @@ export function BriefForm(props: Props) {
               More options <Tag>Optional</Tag>
             </span>
             <span className="mt-1 block text-sm text-ink-2">
-              Workout, equipment, safety limits and priorities. FieldDay uses sensible defaults if you skip these.
+              Equipment, safety limits and priorities. FieldDay uses sensible defaults if you skip these.
             </span>
           </span>
         </summary>
         <div className="space-y-6 px-4 pb-6 sm:px-6 sm:pb-8">
-          <Section title="Workout">
-            <Field id="workout_template_id" label="Workout" error={errors.workout_template_id} className="sm:col-span-2">
-              <select
-                id="field-workout_template_id"
-                value={values.workout_template_id}
-                onChange={(e) => set("workout_template_id", e.target.value)}
-                className={input(errors.workout_template_id)}
-              >
-                <option value="">Let FieldDay choose</option>
-                {props.templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} · {t.duration_minutes} min
-                    {t.equipment.length ? ` · needs ${t.equipment.map(equipmentLabel).join(", ").toLowerCase()}` : ""}
-                  </option>
-                ))}
-              </select>
-              {template && !template.reviewed && (
-                <p className="mt-2 text-xs font-bold text-ink">⚠ This workout hasn&apos;t been reviewed by an instructor yet.</p>
-              )}
-            </Field>
+          <Section title="Equipment">
             <fieldset className="sm:col-span-2">
               <legend className="text-sm font-bold text-ink">Equipment you have</legend>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -425,7 +467,7 @@ export function BriefForm(props: Props) {
             </fieldset>
             <Field id="other_equipment" label="Other equipment (comma-separated)" error={errors.other_equipment} className="sm:col-span-2">
               <input
-                id="field-other_equipment"
+                id={fid("other_equipment")}
                 value={values.other_equipment}
                 onChange={(e) => set("other_equipment", e.target.value)}
                 placeholder="e.g. cones, jump ropes"
@@ -434,7 +476,7 @@ export function BriefForm(props: Props) {
             </Field>
             <Field id="exercise_exclusions" label="Exercises to avoid (one per line)" className="sm:col-span-2">
               <textarea
-                id="field-exercise_exclusions"
+                id={fid("exercise_exclusions")}
                 rows={2}
                 value={values.exercise_exclusions}
                 onChange={(e) => set("exercise_exclusions", e.target.value)}
@@ -450,33 +492,35 @@ export function BriefForm(props: Props) {
           >
             <Field id="max_temperature_f" label="Max temperature (°F)" error={errors.max_temperature_f}>
               <input
-                id="field-max_temperature_f"
+                id={fid("max_temperature_f")}
                 type="number"
                 inputMode="decimal"
+                max={DEFAULT_LIMITS.max_temperature_f}
                 value={values.max_temperature_f}
                 onChange={(e) => set("max_temperature_f", e.target.value)}
                 placeholder="Default 90"
                 className={input(errors.max_temperature_f)}
-                {...describedBy("max_temperature_f", errors.max_temperature_f)}
+                {...describedBy(fid, "max_temperature_f", errors.max_temperature_f)}
               />
             </Field>
             <Field id="max_aqi" label="Max air quality (AQI)" error={errors.max_aqi}>
               <input
-                id="field-max_aqi"
+                id={fid("max_aqi")}
                 type="number"
                 inputMode="numeric"
                 min={0}
+                max={DEFAULT_LIMITS.max_aqi}
                 value={values.max_aqi}
                 onChange={(e) => set("max_aqi", e.target.value)}
                 placeholder="Default 100"
                 className={input(errors.max_aqi)}
-                {...describedBy("max_aqi", errors.max_aqi)}
+                {...describedBy(fid, "max_aqi", errors.max_aqi)}
               />
               <p className="mt-2 text-xs text-ink-2">Above 100, the air starts to be unhealthy for sensitive people.</p>
             </Field>
             <Field id="limit_notes" label="Notes for the instructor" className="sm:col-span-2">
               <textarea
-                id="field-limit_notes"
+                id={fid("limit_notes")}
                 rows={2}
                 value={values.limit_notes}
                 onChange={(e) => set("limit_notes", e.target.value)}
@@ -488,7 +532,7 @@ export function BriefForm(props: Props) {
           <Section title="Priorities" hint="If two options are equally safe, FieldDay picks the one that fits these best.">
             <Field id="priorities" label="One per line, most important first" className="sm:col-span-2">
               <textarea
-                id="field-priorities"
+                id={fid("priorities")}
                 rows={2}
                 value={values.priorities}
                 onChange={(e) => set("priorities", e.target.value)}
@@ -503,7 +547,7 @@ export function BriefForm(props: Props) {
       <div className="sticky bottom-3 z-10">
         <div className="clay flex flex-wrap items-center gap-4 rounded-control bg-cream px-4 py-3">
           <button type="submit" disabled={saving} className={buttonClass("primary", "px-7 py-3 text-base disabled:cursor-wait")}>
-            {saving ? "Saving…" : props.mode === "create" ? "Create event" : `Save as v${(event?.current_version ?? 0) + 1}`}
+            {saving ? "Saving…" : props.mode === "create" ? "Create and plan" : "Save changes"}
           </button>
           <Link
             href={props.mode === "edit" ? `/events/${encodeURIComponent(props.eventId)}` : "/"}
@@ -514,18 +558,21 @@ export function BriefForm(props: Props) {
         </div>
       </div>
     </form>
+    </IdPrefix.Provider>
   );
 }
 
 const input = fieldClass;
 
-function describedBy(field: BriefField, error?: string) {
-  return error ? { "aria-invalid": true, "aria-describedby": `error-${field}` } : {};
+function describedBy(fid: (f: BriefField) => string, field: BriefField, error?: string) {
+  return error ? { "aria-invalid": true, "aria-describedby": `${fid(field)}-error` } : {};
 }
+
+/** The page's field-ID prefix, so Field and FieldError match the inputs' IDs. */
+const IdPrefix = createContext("new");
 
 /** Fields inside "More options"; an error in one of them opens it. */
 const MORE_FIELDS: BriefField[] = [
-  "workout_template_id",
   "other_equipment",
   "exercise_exclusions",
   "max_temperature_f",
@@ -581,7 +628,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label htmlFor={`field-${id}`} className="mb-2 block text-sm font-bold text-ink">
+      <label htmlFor={`${useContext(IdPrefix)}-field-${id}`} className="mb-2 block text-sm font-bold text-ink">
         {label}
       </label>
       {children}
@@ -591,9 +638,10 @@ function Field({
 }
 
 function FieldError({ id, error }: { id: BriefField; error?: string }) {
+  const prefix = useContext(IdPrefix);
   if (!error) return null;
   return (
-    <p id={`error-${id}`} className="mt-1.5 text-sm font-bold text-danger-ink">
+    <p id={`${prefix}-field-${id}-error`} className="mt-1.5 text-sm font-bold text-danger-ink">
       {error}
     </p>
   );

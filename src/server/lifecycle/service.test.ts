@@ -254,6 +254,23 @@ describe("audit fixes (JT-24)", () => {
     expect(r.event.brief.title).toBe("Renamed");
   });
 
+  it("an edit to the name, notes or priorities keeps the plan and confirmations (D-JT24-5)", async () => {
+    const e = await readyCase2(); // v3, two confirmations
+    const { event } = await svc.updateBrief(e.id, {
+      brief: { ...e.brief, title: "Renamed run club", priorities: ["Keep Park A"] },
+      based_on_version: 3,
+    });
+    expect(cur(event)).toMatchObject({ version: 4, status: "ready_for_approval", source: "organizer_edit" });
+    expect(cur(event).plan).toEqual(ver(event, 3).plan);
+    expect(event.confirmations).toHaveLength(2);
+  });
+
+  it("a material edit still clears the plan", async () => {
+    const e = await readyCase2();
+    const { event } = await svc.updateBrief(e.id, { brief: { ...e.brief, group_size: 12 }, based_on_version: 3 });
+    expect(cur(event).plan).toBeNull();
+  });
+
   it("rejects briefs and statements outside the input limits", async () => {
     await expect(svc.createEvent({ brief: { ...case01.brief, title: "x".repeat(121) } })).rejects.toMatchObject({
       code: "invalid_request",

@@ -28,19 +28,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${instrument.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        {fixture && (
-          <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
-            <strong className="font-bold">Demo:</strong> weather, air quality and parks are recorded samples, not live
-            data. Don&apos;t use it to run a real event.
-            {realAgents && (
-              <>
-                {" "}
-                Plans are drafted by Claude on shared demo credits, limited to {AGENT_RUN_LIMITS.per_visitor_per_hour} agent
-                runs per visitor per hour.
-              </>
-            )}
-          </div>
-        )}
+        {/* Shown in every mode (D-JT24-2): the limits and workouts are unreviewed even with live data. */}
+        <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
+          <strong className="font-bold">Demo:</strong>{" "}
+          {fixture
+            ? "weather, air quality and parks are recorded samples, not live data."
+            : "live weather and air quality, but the safety limits and workouts aren't reviewed by an instructor yet."}{" "}
+          Don&apos;t use it to run a real event.
+          {realAgents && (
+            <>
+              {" "}
+              Plans are drafted by Claude on shared demo credits, limited to {AGENT_RUN_LIMITS.per_visitor_per_hour} agent
+              runs per visitor per hour.
+            </>
+          )}
+        </div>
         <header className="px-4 pt-4 sm:px-6">
           <div className="clay mx-auto flex w-full max-w-5xl items-center justify-between gap-4 rounded-control bg-cream px-4 py-2.5 sm:px-6">
             <Link href="/" className="focus-ring flex items-center gap-2.5 rounded-control font-bold tracking-tight text-ink">

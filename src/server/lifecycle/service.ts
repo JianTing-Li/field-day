@@ -311,7 +311,24 @@ export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
 
-/** A brief edit starts a new draft version and retires confirmations made under the old brief. */
+/**
+ * Whether an edit changes anything the checks or the plan depend on. The name, the instructor's
+ * free-text notes and the ranking priorities don't (D-JT24-5); everything else does.
+ */
+export function isMaterialEdit(before: EventBrief, after: EventBrief): boolean {
+  const strip = (b: EventBrief) => ({
+    ...b,
+    title: "",
+    priorities: [],
+    instructor_limits: { ...b.instructor_limits, notes: null },
+  });
+  return JSON.stringify(strip(before)) !== JSON.stringify(strip(after));
+}
+
+/**
+ * A material brief edit starts a new draft version with no plan and retires confirmations made
+ * under the old brief. A non-material edit keeps the plan in the new version.
+ */
 export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): Promise<ApiResponse<"updateBrief">> {
   const store = await withStore();
   const event = await load(store, id);
@@ -320,9 +337,31 @@ export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): P
   assertCanStart("update_brief", current(event));
   // Only a changed date must be today or later, so an older event's other fields can still be edited.
   assertBriefInRange(req.brief, req.brief.date !== event.brief.date);
+  const v = current(event);
+  const next = event.current_version + 1;
+  const material = isMaterialEdit(event.brief, req.brief);
   event.brief = req.brief;
-  event.confirmations = [];
-  pushVersion(event, emptyVersion(event.current_version + 1, event.current_version, "organizer_edit"));
+  if (material || !v.plan || !v.evidence_snapshot_id || v.status === "no_feasible_option") {
+    event.confirmations = [];
+    pushVersion(event, emptyVersion(next, event.current_version, "organizer_edit"));
+    return { event: await commit(store, event, base) };
+  }
+  // Only the name, instructor notes or priorities changed (D-JT24-5): the plan, its checks and the
+  // confirmations still hold. It is still a new version, so approval has to be given again.
+  const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
+  if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
+  const checks = harnessChecks(event, v.plan, snapshot, next);
+  pushVersion(event, {
+    ...v,
+    version: next,
+    based_on_version: v.version,
+    created_at: now(),
+    source: "organizer_edit",
+    status: deriveStatus(v.plan, checks),
+    checks,
+    // The review answered for the old version; applying one of its options would be rejected as stale.
+    alternatives: null,
+  });
   return { event: await commit(store, event, base) };
 }
 
