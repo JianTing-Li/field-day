@@ -1,0 +1,175 @@
+[
+  {
+    "id": "park-m047",
+    "name": "Thomas Jefferson Park",
+    "borough": "Manhattan",
+    "acreage": 15.524,
+    "location": {
+      "lat": 40.7932,
+      "lon": -73.9356
+    },
+    "evidence_id": "ev-park-m047-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m088",
+    "name": "Tompkins Square Park",
+    "borough": "Manhattan",
+    "acreage": 10.502,
+    "location": {
+      "lat": 40.7265,
+      "lon": -73.9817
+    },
+    "evidence_id": "ev-park-m088-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b058",
+    "name": "McCarren Park",
+    "borough": "Brooklyn",
+    "acreage": 36.493,
+    "location": {
+      "lat": 40.7207,
+      "lon": -73.9518
+    },
+    "evidence_id": "ev-park-b058-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b032",
+    "name": "Fort Greene Park",
+    "borough": "Brooklyn",
+    "acreage": 30.168,
+    "location": {
+      "lat": 40.6915,
+      "lon": -73.9755
+    },
+    "evidence_id": "ev-park-b032-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q004",
+    "name": "Astoria Park",
+    "borough": "Queens",
+    "acreage": 59.956,
+    "location": {
+      "lat": 40.7785,
+      "lon": -73.9233
+    },
+    "evidence_id": "ev-park-q004-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q102",
+    "name": "Juniper Valley Park",
+    "borough": "Queens",
+    "acreage": 55.639,
+    "location": {
+      "lat": 40.7202,
+      "lon": -73.8804
+    },
+    "evidence_id": "ev-park-q102-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-x010",
+    "name": "Crotona Park",
+    "borough": "Bronx",
+    "acreage": 127.5,
+    "location": {
+      "lat": 40.8386,
+      "lon": -73.8949
+    },
+    "evidence_id": "ev-park-x010-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed",
+      "Large park: the coordinate is the property center for weather/AQI lookups, not a meeting point"
+    ]
+  },
+  {
+    "id": "park-x104",
+    "name": "Williamsbridge Oval",
+    "borough": "Bronx",
+    "acreage": 19.749,
+    "location": {
+      "lat": 40.8776,
+      "lon": -73.8774
+    },
+    "evidence_id": "ev-park-x104-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-r005",
+    "name": "Clove Lakes Park",
+    "borough": "Staten Island",
+    "acreage": 193.423,
+    "location": {
+      "lat": 40.6195,
+      "lon": -74.1137
+    },
+    "evidence_id": "ev-park-r005-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed",
+      "Large park: the coordinate is the property center for weather/AQI lookups, not a meeting point"
+    ]
+  },
+  {
+    "id": "park-r031",
+    "name": "Wolfe's Pond Park",
+    "borough": "Staten Island",
+    "acreage": 302.693,
+    "location": {
+      "lat": 40.5203,
+      "lon": -74.191
+    },
+    "evidence_id": "ev-park-r031-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed",
+      "Large park: the coordinate is the property center for weather/AQI lookups, not a meeting point"
+    ]
+  }
+]

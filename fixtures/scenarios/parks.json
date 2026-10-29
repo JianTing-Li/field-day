@@ -1,0 +1,28 @@
+[
+  {
+    "id": "park-a",
+    "name": "Park A (placeholder)",
+    "borough": "Placeholder",
+    "acreage": null,
+    "location": null,
+    "evidence_id": "ev-park-a-record",
+    "unknowns": [
+      "Fixture park for the eval scenarios; not a real NYC Parks property",
+      "Usable workout space not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b",
+    "name": "Park B (placeholder)",
+    "borough": "Placeholder",
+    "acreage": null,
+    "location": null,
+    "evidence_id": "ev-park-b-record",
+    "unknowns": [
+      "Fixture park for the eval scenarios; not a real NYC Parks property",
+      "Usable workout space not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  }
+]

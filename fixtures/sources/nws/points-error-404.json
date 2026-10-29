@@ -1,0 +1,13 @@
+{
+  "url": "https://api.weather.gov/points/51.5074,-0.1278",
+  "status": 404,
+  "retrieved_at": "2026-10-27T18:30:24Z",
+  "body": {
+    "correlationId": "1da97601",
+    "title": "Data Unavailable For Requested Point",
+    "type": "https://api.weather.gov/problems/InvalidPoint",
+    "status": 404,
+    "detail": "Unable to provide data for requested point 51.5074,-0.1278",
+    "instance": "https://api.weather.gov/requests/1da97601"
+  }
+}
