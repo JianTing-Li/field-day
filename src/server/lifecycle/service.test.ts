@@ -15,12 +15,14 @@ const hooks = vi.hoisted(() => ({
 
 vi.mock("./snapshots", async (orig) => {
   const m = await orig<typeof import("./snapshots")>();
-  return {
-    snapshotFor: async (...args: Parameters<typeof m.snapshotFor>) => {
-      const s = await m.snapshotFor(...args);
-      return hooks.snapshot ? hooks.snapshot(s) : s;
-    },
+  // Events these tests create are planned on the Case 1 fixture, so the fixture-backed stub agents
+  // can answer; the seeded demo events keep their own scenarios.
+  const pick = (real: typeof m.snapshotFor) => async (...args: Parameters<typeof m.snapshotFor>) => {
+    const [event, version] = args;
+    const s = event.id in m.SCENARIO_EVENTS ? await real(...args) : case01.snapshot(event.id, version);
+    return hooks.snapshot ? hooks.snapshot(s) : s;
   };
+  return { ...m, snapshotFor: pick(m.snapshotFor), refreshedSnapshot: pick(m.refreshedSnapshot) };
 });
 
 vi.mock("@/server/rules/check-plan", async (orig) => {
@@ -87,6 +89,14 @@ async function readyCase2() {
   return event;
 }
 
+const surfaceParkA = {
+  check_id: "space_surface.surface" as const,
+  park_id: "park-a",
+  start_time: "2026-07-16T08:00",
+  statement: "Lawn surface is dry, level grass",
+  note: null,
+};
+
 const parkB = {
   check_id: "space_surface.space" as const,
   park_id: "park-b",
@@ -148,8 +158,12 @@ describe("allowed transitions", () => {
 
   it("walks Case 2 from conflict review to a single finalized event", async () => {
     let event = await readyCase2();
+    // The save gate reruns check_plan, which also needs the surface confirmed at Park A (the fixture
+    // review's option checks are more optimistic than check_plan).
+    ({ event } = await svc.addConfirmation(event.id, { ...surfaceParkA, version: 3 }));
     ({ event } = await svc.approve(event.id, { version: 3, evidence_snapshot_id: snap(event) }));
     const first = await svc.finalize(event.id, { version: 3, idempotency_key: "k1" });
+    expect(first.gate.every((g) => g.status === "pass")).toBe(true);
     expect(first.finalized).toBe(true);
     expect(first.event.finalized?.version).toBe(3);
   });
@@ -446,6 +460,130 @@ describe("confirmations", () => {
     expect(event.confirmations).toHaveLength(1);
     const edited = await svc.updateBrief(event.id, { brief: { ...event.brief, group_size: 30 }, based_on_version: 3 });
     expect(edited.event.confirmations).toEqual([]);
+  });
+});
+
+describe("final save gate (JT-09)", () => {
+  const gateOf = (r: { gate: { id: string; status: string; reason: string }[] }, id: string) => r.gate.find((g) => g.id === id)!;
+
+  it("passes all five checks for an approved Case 1 plan and saves one finalized record", async () => {
+    const e = await approvedCase1();
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(true);
+    expect(r.gate.map((g) => [g.id, g.status])).toEqual([
+      ["complete_inputs", "pass"],
+      ["correct_version", "pass"],
+      ["current_evidence", "pass"],
+      ["hard_constraints", "pass"],
+      ["required_confirmations", "pass"],
+    ]);
+    const { getStore } = await import("@/server/store");
+    expect(await getStore().getFinalized(e.id, 2)).toEqual(r.event.finalized);
+  });
+
+  it("does not refresh evidence or save anything for an unapproved version", async () => {
+    const e = await readyCase1();
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(gateOf(r, "correct_version").status).toBe("fail");
+    expect(gateOf(r, "current_evidence").reason).toContain("Not checked");
+    expect((await svc.getEvent(e.id)).event.updated_at).toBe(e.updated_at);
+  });
+
+  it("Case 3 demo: evidence refreshed at finalize blocks the approved plan, clears approval and adds a recheck version", async () => {
+    let { event } = await svc.getEvent("evt-case-03");
+    const v = event.current_version;
+    expect(snap(event)).toBe("snap-case-03a");
+    // Case 3's plan on snapshot A passes; approve it as the organizer would.
+    ({ event } = await svc.approve(event.id, { version: v, evidence_snapshot_id: "snap-case-03a" }));
+    const r = await svc.finalize(event.id, { version: v, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(gateOf(r, "current_evidence")).toMatchObject({ status: "fail" });
+    expect(gateOf(r, "current_evidence").reason).toContain("snap-case-03b");
+    expect(r.event.approval).toBeNull();
+    expect(r.event.finalized).toBeNull();
+    expect(cur(r.event)).toMatchObject({ version: v + 1, source: "recheck", evidence_snapshot_id: "snap-case-03b" });
+    expect(cur(r.event).status).not.toBe("ready_for_approval");
+    await expect(svc.finalize(event.id, { version: v, idempotency_key: "k2" })).rejects.toMatchObject({ code: "stale_version" });
+  });
+
+  it("Case 3 demo: Recheck finds the refreshed evidence once, then reports it unchanged", async () => {
+    let { event } = await svc.getEvent("evt-case-03");
+    const v = event.current_version;
+    ({ event } = await svc.recheck(event.id, { version: v }));
+    expect(cur(event)).toMatchObject({ version: v + 1, evidence_snapshot_id: "snap-case-03b" });
+    ({ event } = await svc.recheck(event.id, { version: v + 1 }));
+    expect(event.current_version).toBe(v + 1);
+    expect(event.last_run?.progress[0].message).toContain("Evidence unchanged");
+  });
+
+  it("finalizes on refreshed evidence that still passes, recording the new snapshot", async () => {
+    const e = await approvedCase1();
+    hooks.snapshot = (s) => ({ ...s, id: "snap-refreshed" });
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(true);
+    expect(gateOf(r, "current_evidence").reason).toContain("revalidated");
+    expect(r.event.finalized?.evidence_snapshot_id).toBe("snap-refreshed");
+  });
+
+  it("blocks when the weather and air data are no longer current", async () => {
+    const e = await approvedCase1();
+    hooks.checks = (r) => ({
+      ...r,
+      overall: "unknown",
+      blockers: ["freshness.conditions"],
+      checks: r.checks.map((c) => (c.check_id === "freshness.conditions" ? { ...c, status: "unknown", reason: "Forecast is stale" } : c)),
+    });
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(gateOf(r, "current_evidence").reason).toContain("Forecast is stale");
+    expect(gateOf(r, "hard_constraints").status).toBe("fail");
+  });
+
+  it("blocks a critical space check that passes without evidence or a confirmation", async () => {
+    const e = await approvedCase1();
+    hooks.checks = (r) => ({
+      ...r,
+      checks: r.checks.map((c) => (c.check_id === "space_surface.space" ? { ...c, evidence_ids: [] } : c)),
+    });
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(gateOf(r, "required_confirmations")).toMatchObject({ status: "fail" });
+    expect(gateOf(r, "required_confirmations").reason).toContain("space_surface.space");
+  });
+
+  it("blocks a plan that is not on the event date", async () => {
+    const e = await approvedCase1();
+    const { getStore } = await import("@/server/store");
+    const stored = (await getStore().getEvent(e.id))!;
+    stored.brief = { ...stored.brief, date: "2026-12-01" };
+    await getStore().saveEvent(stored, stored.updated_at);
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(gateOf(r, "complete_inputs").reason).toContain("2026-12-01");
+  });
+});
+
+describe("duplicate-save protection (JT-08)", () => {
+  it("two finalize requests at once save one record and both report it", async () => {
+    const e = await approvedCase1();
+    const [a, b] = await Promise.all([
+      svc.finalize(e.id, { version: 2, idempotency_key: "k1" }),
+      svc.finalize(e.id, { version: 2, idempotency_key: "k2" }),
+    ]);
+    expect(a.finalized && b.finalized).toBe(true);
+    expect(a.event.finalized).toEqual(b.event.finalized);
+  });
+
+  it("reconciles a save whose outcome was uncertain: the record exists but the event was not updated", async () => {
+    const e = await approvedCase1();
+    const { getStore } = await import("@/server/store");
+    const record = { version: 2, evidence_snapshot_id: snap(e), finalized_at: "2026-10-29T08:00:00.000Z", gate: [], idempotency_key: "k1" };
+    expect(await getStore().recordFinalized(e.id, record)).toBe(true);
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(true);
+    expect(r.event.finalized).toEqual(record);
+    expect(cur(r.event).status).toBe("finalized");
   });
 });
 

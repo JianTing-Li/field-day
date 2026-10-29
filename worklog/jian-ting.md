@@ -169,7 +169,39 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
 
+### 2026-10-29 — JT-08: Neon store, duplicate-save protection, reset
+- **Done:** `src/server/store/neon.ts` (Neon Postgres, JSONB rows, compare-and-swap writes, one finalized record per
+  event and version, retries for connection errors), `store/index.ts` (`getStore`: Neon with `DATABASE_URL`, memory
+  otherwise, always memory in tests), the in-memory store with the same compare-and-swap behavior, `npm run db:reset`
+  (`scripts/db-reset.mjs`) and the "Reset database" workflow. Tests in `store/store.test.ts`;
+  `store/neon.integration.test.ts` runs against the real database with `RUN_DB=1` and passed on 2026-10-29
+  (compare-and-swap, duplicate inserts, two finalized-record inserts at once → one saved).
+- **Decisions:** D-JT08-1 (store design), D-JT08-2 (reset).
+- **Interfaces others depend on:** `EventStore.saveEvent(event, expectedUpdatedAt)` now returns whether it saved;
+  new `recordFinalized`, `getFinalized`, `reset`. `getStore` moved to `@/server/store`.
+- **Unfinished / next:** add the `DATABASE_URL` repository secret before using the reset workflow.
+- **Gotchas:** a retried write whose first attempt did reach the database comes back as `stale_version`; reloading
+  shows the saved state. The integration test writes to whatever `DATABASE_URL` points at (the deployed database) and
+  deletes its own rows.
+- **Requests:** none
+
 ## JT-09 — Final save gate (all 5 checks) (#11)
+
+### 2026-10-29 — JT-09: Final save gate
+- **Done:** `finalize` in `src/server/lifecycle/service.ts` runs the five checks (D-JT09-1), with readable reasons for
+  each failure. It refreshes and revalidates evidence (Case 3 at finalize), reruns check_plan, checks confirmations,
+  then saves through the store's one-record-per-version guarantee and reconciles an uncertain earlier save (JT-08).
+  The service's commit is now the store's compare-and-swap. Tests: all five checks, unapproved attempts, Case 3 at
+  finalize and at Recheck, refreshed evidence that still passes, stale data, missing confirmations, a plan off the
+  event date, two finalize requests at once, and reconciling a record saved without its event.
+- **Decisions:** D-JT09-1. Confirmations stay the JT-22 lifecycle matching, not evidence (decided with JT on
+  2026-10-29: smaller change before the deadline, no change to Yadan's workout rules or confirm UI).
+- **Interfaces others depend on:** finalize's response shape is unchanged; a blocked finalize may now return an event
+  with a new current version and no approval.
+- **Unfinished / next:** none.
+- **Gotchas:** the Case 2 fixture review's option checks are more optimistic than check_plan: after applying combo-1,
+  the gate also needs the surface at Park A confirmed. With real agents, option checks come from check_plan already.
+- **Requests:** none
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
@@ -253,7 +285,39 @@ the file. Entries above the task sections are earlier history.
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
 
+### 2026-10-29 — JT-14: Routes on the real snapshot builder and save gate
+- **Done:** the routes already ran Planning and the conflict review through the orchestrator; the last stubs behind
+  them are gone. `src/server/lifecycle/snapshots.ts` routes the seeded events to their scenarios and everything else
+  to the JT-03 builder, adds `refreshedSnapshot` (Case 3 refreshes to snapshot B), and Recheck uses it. Finalize runs
+  the full save gate (JT-09) and the Neon store (JT-08). Seeding now adds Case 3. Tests in `snapshots.test.ts`.
+- **Decisions:** D-JT14-1.
+- **Interfaces others depend on:** API shapes unchanged. New seeded event `evt-case-03` ("Morning bodyweight class
+  (Case 3 fixture)"). A finalize that finds changed evidence can now add a version and clear approval.
+- **Unfinished / next:** none.
+- **Gotchas:** with stub agents, a new event's plan fails with "No planning fixture" (stubs only know the scenario
+  snapshots); real agents plan it. A live Recheck always adds a version, because live evidence is always new.
+- **Requests:** none. The workspace reloads the event after every action, so after a blocked finalize it shows the
+  recheck version the gate added (Case 3) together with the gate's explanation.
+
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
+
+### 2026-10-29 — JT-15: End-to-end run on Neon and the UI
+- **Done:** ran the app locally (`next dev`) with this branch:
+  - **On Neon** (`DATABASE_URL` from `.env.local`, real agents): the three demo events were seeded once by real
+    Planning runs; after a server restart they loaded from Neon unchanged in 49 ms, with no re-seeding.
+  - **In memory with stub agents** (no credits): Case 1 approved, then two finalize requests at once → both
+    `finalized`, one identical record, all five gate checks pass. Case 3 approved on snapshot A → finalize refreshed
+    to snapshot B, failed heat (92°F) and AQI, cleared approval, added v3 and saved nothing; the workspace shows v3
+    "drafted by a recheck" with the failing checks. A new event at a curated park got a JT-03 builder snapshot.
+  - **Store on the real database:** `RUN_DB=1` integration test passed (JT-08).
+- **Decisions:** none.
+- **Interfaces others depend on:** none new.
+- **Unfinished / next:** the full approve-and-finalize path with real agents needs JT-23 (#77): without it, Planning's
+  `needs_verification` keeps all-pass plans from approval, so the seeded demo events on Neon are stuck at "Needs
+  checking". After #77 and this PR merge, run `npm run db:reset` once so the demo events are seeded again.
+- **Gotchas:** running the app locally with `DATABASE_URL` in `.env.local` uses the deployed database. Seeding with
+  real agents costs three Planning runs, once per empty database.
+- **Requests:** none
 
 ## JT-16 — Fixtures for cases 3–12 with expected outputs (written before first run) (#18)
 

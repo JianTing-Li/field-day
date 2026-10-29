@@ -39,6 +39,7 @@ npm run dev                  # http://localhost:3000
 | `NWS_USER_AGENT` | Live weather | NWS requires an identifying User-Agent |
 | `FIELDDAY_DATA_MODE` | All | `fixture` (default) or `live` |
 | `FIELDDAY_AGENTS` | Running real agents | `stub` (default: fixture outputs, no API calls) or `real`; an agent with no real version yet stays a stub, and each run reports which ran |
+| `DATABASE_URL` | Saving to the hosted database | Neon Postgres (D-JT21-1); set by Vercel's Neon integration. Without it the app uses an in-memory store that empties on restart |
 
 | Script | What it does |
 |---|---|
@@ -47,6 +48,7 @@ npm run dev                  # http://localhost:3000
 | `npm run typecheck` | Generate route types, then type check |
 | `npm run lint` | Lint |
 | `npm run build` | Production build |
+| `npm run db:reset` | Empty the hosted database after typing `RESET` (also a manual "Reset database" GitHub Action) |
 
 ### Deployed demo
 https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with fixture data

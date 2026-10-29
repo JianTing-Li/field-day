@@ -264,7 +264,48 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 
 ## JT-08 — Store: hosted DB, drafts + finalized events, duplicate-save protection (#10)
 
+### D-JT08-1 — Neon store design
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3c "Draft persistence and duplicate-save protection"; D-JT21-1
+- **Decision:** Three tables, each row one JSONB document validated against the contracts on read: `events`
+  (id, updated_at, data), `snapshots` (id, data) and `finalized_events` (event_id, version, idempotency_key, data)
+  with primary key (event_id, version). The store creates them on first use. Every event write is a compare-and-swap
+  on `updated_at` (`UPDATE … WHERE updated_at = <loaded>`; a new event is `INSERT … ON CONFLICT DO NOTHING`), so a
+  stale or concurrent write is rejected as `stale_version` and never overwrites newer state. Finalize first inserts
+  the finalized record (at most one per event and version, enforced by the database), then saves the event; if only
+  the record was saved (an uncertain outcome), the next finalize request reconciles from it. Connection errors
+  (including Neon waking up) are retried 3 times (250, 750, 2000 ms); Postgres errors are never retried. The store
+  is Neon when `DATABASE_URL` is set and in memory otherwise; tests always use memory.
+- **Value:** `@neondatabase/serverless` 1.0.2 (HTTP queries); `src/server/store/neon.ts`
+- **Status:** in use
+
+### D-JT08-2 — Database reset
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3c; D-JT21-1
+- **Decision:** `npm run db:reset` empties the three tables after you type `RESET` (or with `CONFIRM=RESET`). The
+  "Reset database" GitHub Action runs the same script by hand from the Actions tab, only when `RESET` is typed in,
+  with the `DATABASE_URL` repository secret. The app has no reset path. The demo events are seeded again on the next
+  request.
+- **Status:** in use
+
 ## JT-09 — Final save gate (all 5 checks) (#11)
+
+### D-JT09-1 — The five save-gate checks
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3 "Final save gate — approval is required, but not sufficient"; §3c; Case 3
+- **Decision:** Finalize runs five checks on the approved version and saves only when all pass:
+  - **complete_inputs:** the brief is valid against `EventBrief`, there is a plan, and it starts on the brief's date.
+  - **correct_version:** approval names this exact version and evidence snapshot. If this fails, nothing else runs
+    and nothing is saved or refreshed.
+  - **current_evidence:** evidence is gathered again. Unchanged evidence must still pass `freshness.conditions`.
+    Changed evidence is revalidated with check_plan: if the plan still passes, it is saved with the new snapshot
+    (approval stands, as the PRD allows when there is no new blocker); if not, a recheck version replaces the approved
+    one, approval is cleared, and the save is blocked with the new blockers.
+  - **hard_constraints:** check_plan runs again on the snapshot used, with confirmations applied; every critical
+    check must pass. The stored checks are not trusted.
+  - **required_confirmations:** every critical space, surface or permission check passes and is backed by recorded
+    evidence or a matching organizer confirmation (JT-22 layout matching, D-JT22-1).
+- **Status:** in use
 
 ## JT-10 — Orchestrator: conflict trigger, parallel specialists, combination checks, reviewer, 1 revision round, budgets (#12)
 
@@ -325,6 +366,18 @@ Status: **proposed** (not yet in code) · **in use** · **reviewed** (checked by
 ## JT-13 — Independent Reviewer agent (#15)
 
 ## JT-14 — API routes on the real harness (snapshot builder, orchestrator, save gate) (#16)
+
+### D-JT14-1 — Where each event's evidence comes from
+- **Date / owner:** 2026-10-29 · JT
+- **PRD section:** §3a evidence snapshots; §4 "Live integrations and fixtures are clearly identified"
+- **Decision:** The seeded demo events keep their scenario fixtures (Case 1 normal, Case 2 conflict, Case 3
+  disruption), so the demo is the same every time. Every other event gets its snapshot from the JT-03 builder:
+  recorded provider data in fixture mode, live NWS, AirNow and NYC Parks data in live mode, so
+  `FIELDDAY_DATA_MODE=live` now takes effect. Case 3 is the disruption demo: it is planned on snapshot A and any
+  refresh (Recheck, or the save gate) returns snapshot B, whose forecast fails heat and has no AQI. Evidence counts as
+  unchanged when a refresh built for the same version has the same snapshot ID (built IDs are a hash of the
+  evidence); a live refresh always counts as changed, because retrieval times change.
+- **Status:** in use
 
 ## JT-15 — End-to-end integration with Yadan's agents, adapters and UI (#17)
 
