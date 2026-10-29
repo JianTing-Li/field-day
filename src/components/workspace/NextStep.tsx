@@ -1,0 +1,82 @@
+import type { EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
+import { StatusBadge } from "../StatusBadge";
+import { formatUpdated } from "../format";
+import { Button, TONE_BG } from "../ui";
+import { formatLocal, parkName, templateName } from "./logic";
+import type { NextStep } from "./next-step";
+
+/**
+ * The top of the event page (owner: Yadan): what the plan is, where it stands, and the one thing to
+ * do next. On phones the same action also sits in a bar fixed to the bottom of the screen.
+ */
+export function PlanSummary({
+  event,
+  version: v,
+  snapshot,
+  step,
+  busy,
+  onAction,
+}: {
+  event: FieldDayEvent;
+  version: PlanVersion;
+  snapshot: EvidenceSnapshot | null;
+  step: NextStep;
+  busy: string | null;
+  onAction: () => void;
+}) {
+  const p = v.plan;
+  const lockedOlder = event.finalized && event.finalized.version !== v.version;
+  return (
+    <>
+      <section aria-labelledby="plan-summary" className="clay rounded-surface bg-cream p-6 sm:p-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusBadge status={v.status} />
+          <span className="text-xs text-ink-2">Updated {formatUpdated(event.updated_at)}</span>
+        </div>
+        <h2 id="plan-summary" className="mt-4 text-2xl leading-tight font-bold tracking-tight text-ink sm:text-3xl">
+          {p ? (
+            <>
+              {parkName(snapshot, p.park_id)} · {formatLocal(p.start_time)}
+            </>
+          ) : (
+            "No plan yet"
+          )}
+        </h2>
+        {p && (
+          <p className="mt-1 text-base text-ink-2">
+            {templateName(snapshot, p.workout_template_id)}
+            {p.adaptation_ids.length > 0 && " (adapted)"} · {event.brief.group_size} people
+            {p.duration_minutes && ` · ${p.duration_minutes} min`}
+          </p>
+        )}
+        {lockedOlder && (
+          <p className="mt-2 text-sm font-bold text-ink">
+            🔒 An earlier version (v{event.finalized!.version}) is locked in. This newer version isn&apos;t yet.
+          </p>
+        )}
+
+        <div className={`clay-sm mt-6 rounded-disclosure p-5 ${TONE_BG[step.tone === "danger" ? "danger" : step.tone]}`}>
+          <p className="text-xs font-bold tracking-wide text-ink uppercase">Next step</p>
+          <p className="mt-1 text-lg leading-snug font-bold text-ink">{step.title}</p>
+          <p className="mt-1 text-sm text-ink">{step.body}</p>
+          {step.action && step.label && (
+            <Button variant="surface" className="mt-4 px-6 py-3 text-base" disabled={!!busy} onClick={onAction}>
+              {busy ? `${busy}…` : step.label}
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {step.action && step.label && (
+        <div className="fixed inset-x-0 bottom-0 z-20 px-3 pb-3 md:hidden">
+          <div className="clay flex items-center gap-3 rounded-surface bg-cream px-4 py-3">
+            <p className="min-w-0 flex-1 text-sm leading-snug font-bold text-ink">{step.title}</p>
+            <Button variant="primary" className="shrink-0" disabled={!!busy} onClick={onAction}>
+              {busy ? "Working…" : step.label}
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

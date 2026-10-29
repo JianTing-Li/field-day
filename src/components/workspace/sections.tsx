@@ -1,5 +1,4 @@
 import type { CheckPlanResult, EvidenceItem, EvidenceSnapshot, FieldDayEvent, OrganizerTask, PlanVersion } from "@/contracts";
-import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Card, Pill } from "../ui";
 import {
@@ -14,34 +13,35 @@ import {
 
 /** Read-only sections of the event workspace (YT-09). */
 
-export function StatusBar({ event, version }: { event: FieldDayEvent; version: PlanVersion }) {
+/** Version, evidence snapshot and run details: useful for support and demos, not for everyday decisions. */
+export function TechnicalDetails({ event, version }: { event: FieldDayEvent; version: PlanVersion }) {
   const run = event.last_run;
   return (
-    <div className="clay flex flex-wrap items-center gap-x-5 gap-y-2 rounded-surface bg-cream px-6 py-4 text-sm md:rounded-control">
-      <StatusBadge status={version.status} />
-      <span>
-        Version <strong className="font-mono">v{version.version}</strong>
-        {event.versions.length > 1 && <span className="text-ink-2"> of {event.versions.length}</span>}
-      </span>
-      {version.evidence_snapshot_id && (
-        <span className="text-ink-2">
-          Evidence <span className="font-mono text-xs">{version.evidence_snapshot_id}</span>
+    <details className="group clay-sm rounded-disclosure bg-cream px-5 py-4 text-sm">
+      <summary className="focus-ring flex cursor-pointer list-none items-center gap-3 rounded-disclosure font-bold text-ink [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="clay-recessed grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ground text-lg leading-none">
+          <span className="group-open:hidden">+</span>
+          <span className="hidden group-open:inline">−</span>
         </span>
-      )}
-      {event.finalized && (
-        <span className="text-ink">
-          🔒 Finalized <strong className="font-mono">v{event.finalized.version}</strong>
-          {event.finalized.version !== version.version && " (an older version)"}
-        </span>
-      )}
-      {run && (
-        <span className="text-ink-2 sm:ml-auto">
-          Last run: {run.status === "completed" ? "completed" : run.status.replace("_", " ")}
-          {run.progress.length > 0 && ` · ${run.progress[run.progress.length - 1].message}`}
-        </span>
-      )}
-      <span className="text-ink-2">Updated {formatUpdated(event.updated_at)}</span>
-    </div>
+        Technical details
+      </summary>
+      <dl className="mt-4 grid gap-x-6 gap-y-2 text-ink-2 sm:grid-cols-2">
+        <Item label="Plan version">
+          v{version.version} of {event.versions.length}
+          {event.finalized && ` · v${event.finalized.version} is locked in`}
+        </Item>
+        <Item label="Evidence snapshot">
+          <span className="font-mono text-xs">{version.evidence_snapshot_id ?? "none yet"}</span>
+        </Item>
+        {run && (
+          <Item label="Last run">
+            {run.status.replace("_", " ")}
+            {run.progress.length > 0 && ` · ${run.progress[run.progress.length - 1].message}`}
+          </Item>
+        )}
+        <Item label="Updated">{formatUpdated(event.updated_at)}</Item>
+      </dl>
+    </details>
   );
 }
 
@@ -99,13 +99,13 @@ export function BlockersCard({
           <h3 className="text-sm font-bold text-ink">Your to-do</h3>
           <ul className="mt-2 space-y-2">
             {version.organizer_tasks.map((t) => (
-              <li key={t.id} className="clay-sm rounded-disclosure bg-cream px-5 py-3 text-sm text-ink">
+              <li key={t.id} id={`task-${t.id}`} className="clay-sm scroll-mt-24 rounded-disclosure bg-cream px-5 py-3 text-sm text-ink">
                 {t.description}
                 {(t.park_id || t.start_time) && (
                   <span className="mt-0.5 block text-xs text-ink-2">
                     {t.park_id && parkName(snapshot, t.park_id)}
                     {t.start_time && ` · ${formatLocal(t.start_time)}`}
-                    {t.resolves_check_id && ` · resolves “${checkName(t.resolves_check_id)}”`}
+                    {t.resolves_check_id && ` · for “${checkName(t.resolves_check_id)}”`}
                   </span>
                 )}
                 {taskAction?.(t)}
@@ -122,13 +122,13 @@ export function PlanCard({ version, snapshot }: { version: PlanVersion; snapshot
   const p = version.plan;
   if (!p) {
     return (
-      <Card title="Plan">
-        <p className="text-sm text-ink-2">No plan yet. Generate one to see a park, time and workout.</p>
+      <Card title="Plan details">
+        <p className="text-sm text-ink-2">No plan yet. Draft one to see a park, time and workout.</p>
       </Card>
     );
   }
   return (
-    <Card title="Plan" description={`v${version.version} · drafted by ${sourceLabel(version.source)}`}>
+    <Card title="Plan details" description={`Drafted by ${sourceLabel(version.source)}`}>
       <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
         <Item label="Park">{parkName(snapshot, p.park_id)}</Item>
         <Item label="Start">{formatLocal(p.start_time)} (New York)</Item>
@@ -154,7 +154,7 @@ export function PlanCard({ version, snapshot }: { version: PlanVersion; snapshot
       )}
       {version.facts.length > 0 && (
         <div className="mt-4">
-          <h3 className="text-sm font-bold text-ink">Facts used</h3>
+          <h3 className="text-sm font-bold text-ink">What this plan is based on</h3>
           <ul className="mt-1.5 space-y-1.5">
             {version.facts.map((f, i) => (
               <li key={i} className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
@@ -162,11 +162,7 @@ export function PlanCard({ version, snapshot }: { version: PlanVersion; snapshot
                   {f.status === "verified" ? "✓ Verified" : f.status === "missing" ? "✕ Missing" : "? Unverified"}
                 </Pill>
                 {f.claim}
-                {f.evidence_ids.map((id) => (
-                  <a key={id} href={`#ev-${id}`} onClick={openEvidence} className="focus-ring rounded-control font-mono text-xs text-ink underline decoration-ink-2 underline-offset-2">
-                    {id}
-                  </a>
-                ))}
+                <SourceLinks ids={f.evidence_ids} snapshot={snapshot} />
                 {f.missing_reason && <span className="text-xs text-ink-2">({f.missing_reason})</span>}
               </li>
             ))}
@@ -178,7 +174,13 @@ export function PlanCard({ version, snapshot }: { version: PlanVersion; snapshot
 }
 
 function sourceLabel(s: PlanVersion["source"]) {
-  return { brief: "the brief", planning: "the Planning agent", review: "conflict review", organizer_edit: "an organizer edit", recheck: "a recheck" }[s];
+  return {
+    brief: "your brief",
+    planning: "FieldDay's planner",
+    review: "the alternatives you picked",
+    organizer_edit: "your edit",
+    recheck: "a weather recheck",
+  }[s];
 }
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
@@ -190,13 +192,21 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-export function ChecksList({ checks, title = "Checks" }: { checks: CheckPlanResult | null; title?: string }) {
+export function ChecksList({
+  checks,
+  snapshot,
+  title = "Safety checks",
+}: {
+  checks: CheckPlanResult | null;
+  snapshot: EvidenceSnapshot | null;
+  title?: string;
+}) {
   if (!checks) return null;
   const overall = CHECK_STATUS[checks.overall];
   return (
     <Card
       title={title}
-      description="Checked by FieldDay's rules, not by the AI. Unknown never counts as pass."
+      description="FieldDay's rules check every plan, not the AI. Anything unconfirmed never counts as safe."
       actions={<CheckStatusPill status={checks.overall} label={`Overall: ${overall.label}`} />}
     >
       <ul className="divide-y divide-ink/10">
@@ -210,12 +220,8 @@ export function ChecksList({ checks, title = "Checks" }: { checks: CheckPlanResu
               </p>
               <p className="text-ink-2">{c.reason}</p>
               {c.evidence_ids.length > 0 && (
-                <p className="mt-0.5 flex flex-wrap gap-2">
-                  {c.evidence_ids.map((id) => (
-                    <a key={id} href={`#ev-${id}`} onClick={openEvidence} className="focus-ring rounded-control font-mono text-xs text-ink underline decoration-ink-2 underline-offset-2">
-                      {id}
-                    </a>
-                  ))}
+                <p className="mt-0.5">
+                  <SourceLinks ids={c.evidence_ids} snapshot={snapshot} />
                 </p>
               )}
             </div>
@@ -241,8 +247,8 @@ export function EvidenceList({ snapshot }: { snapshot: EvidenceSnapshot | null }
   const items = snapshot.items;
   return (
     <Card
-      title="Evidence"
-      description={`Snapshot ${snapshot.id} · ${items.length} items. Every fact above links here.`}
+      title="Sources"
+      description="Where every fact above comes from: weather forecasts, air-quality readings, park records and your confirmations."
       actions={snapshot.origin === "fixture" ? <Pill tone="warning">Fixture data</Pill> : <Pill tone="success">Live data</Pill>}
     >
       {snapshot.coverage_gaps.length > 0 && (
@@ -258,7 +264,7 @@ export function EvidenceList({ snapshot }: { snapshot: EvidenceSnapshot | null }
             <span className="group-open:hidden">+</span>
             <span className="hidden group-open:inline">−</span>
           </span>
-          Show all {items.length} evidence items
+          Show all {items.length} sources
         </summary>
         <ul className="mt-4 space-y-3">
           {items.map((e) => (
@@ -305,4 +311,48 @@ function EvidenceRow({ item: e }: { item: EvidenceItem }) {
 function openEvidence() {
   const list = document.getElementById("evidence-items");
   if (list instanceof HTMLDetailsElement) list.open = true;
+}
+
+const SOURCE_KIND: Record<EvidenceItem["evidence_type"], string> = {
+  forecast: "forecast",
+  observation: "reading",
+  organizer_confirmation: "your confirmation",
+  reference: "record",
+};
+
+/** "Source: NWS forecast · Organizer report", one link per distinct source, instead of raw evidence IDs. */
+export function sourceNames(ids: string[], snapshot: EvidenceSnapshot | null): { id: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const id of ids) {
+    const item = snapshot?.items.find((i) => i.id === id);
+    const label = !item
+      ? "Source"
+      : item.evidence_type === "organizer_confirmation"
+        ? "Your confirmation"
+        : `${item.source.name.replace(/\s*\(fixture\)/i, "")} ${SOURCE_KIND[item.evidence_type]}`;
+    if (!seen.has(label)) seen.set(label, id);
+  }
+  return [...seen].map(([label, id]) => ({ id, label }));
+}
+
+function SourceLinks({ ids, snapshot }: { ids: string[]; snapshot: EvidenceSnapshot | null }) {
+  const sources = sourceNames(ids, snapshot);
+  if (sources.length === 0) return null;
+  return (
+    <span className="text-xs text-ink-2">
+      Source:{" "}
+      {sources.map((s, i) => (
+        <span key={s.id}>
+          {i > 0 && " · "}
+          <a
+            href={`#ev-${s.id}`}
+            onClick={openEvidence}
+            className="focus-ring rounded-control text-ink underline decoration-ink-2 underline-offset-2"
+          >
+            {s.label}
+          </a>
+        </span>
+      ))}
+    </span>
+  );
 }

@@ -32,7 +32,7 @@ export function Alternatives({
   const recommended = review.recommendation?.combined_option_id ?? null;
 
   return (
-    <section className="clay rounded-surface bg-lavender p-6 sm:p-8 md:rounded-tray md:p-10">
+    <section id="alternatives" className="clay scroll-mt-24 rounded-surface bg-lavender p-6 sm:p-8 md:rounded-tray md:p-10">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-ink">Alternatives</h2>
@@ -72,7 +72,6 @@ export function Alternatives({
               key={o.combined_option_id}
               rank={i + 1}
               option={o}
-              original={version}
               snapshot={snapshot}
               recommended={o.combined_option_id === recommended}
               busy={busy}
@@ -90,7 +89,6 @@ export function Alternatives({
 function OptionShelf({
   rank,
   option: o,
-  original,
   snapshot,
   recommended,
   busy,
@@ -99,7 +97,6 @@ function OptionShelf({
 }: {
   rank: number;
   option: CombinedOption;
-  original: PlanVersion;
   snapshot: EvidenceSnapshot | null;
   recommended: boolean;
   busy: boolean;
@@ -137,7 +134,7 @@ function OptionShelf({
       <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         {o.changes_from_original.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">Changes from v{original.version}</h4>
+            <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">What changes</h4>
             <ul className="mt-1.5 space-y-1 text-sm">
               {o.changes_from_original.map((c, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-1.5">

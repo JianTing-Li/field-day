@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
 import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
@@ -11,7 +12,9 @@ import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
 import { Alternatives } from "./Alternatives";
 import { aboutCurrentPlan, ApprovalPanel, ConfirmationsList, ConfirmTaskForm, confirmable } from "./ApprovalFlow";
 import { availableActions, currentVersion, finalizeKey } from "./logic";
-import { BlockersCard, ChecksList, EvidenceList, PlanCard, StatusBar } from "./sections";
+import { PlanSummary } from "./NextStep";
+import { nextStep, type NextStep } from "./next-step";
+import { BlockersCard, ChecksList, EvidenceList, PlanCard, TechnicalDetails } from "./sections";
 
 /** Event workspace (GET /api/events/:id). Owner: Yadan, tasks YT-09 to YT-12. */
 
@@ -30,6 +33,7 @@ export function Workspace({ eventId }: { eventId: string }) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [gate, setGate] = useState<GateCheck[] | null>(null);
   const [blockedDetails, setBlockedDetails] = useState<CheckId[]>([]);
+  const router = useRouter();
   const base = `/api/events/${encodeURIComponent(eventId)}`;
 
   const load = useCallback(async () => {
@@ -104,9 +108,51 @@ export function Workspace({ eventId }: { eventId: string }) {
   const v = currentVersion(event);
   const actions = availableActions(v);
   const version = { version: v.version };
+  const step = nextStep(v, gate);
+
+  const draftPlan = () => act("Drafting a plan", "generate", version, Api.generateDraft.response);
+  const recheck = () => act("Checking the latest weather", "recheck", version, Api.recheck.response);
+  const findAlternatives = () => act("Finding alternatives", "review", version, Api.requestReview.response);
+  const approve = () =>
+    act("Approving", "approve", { ...version, evidence_snapshot_id: v.evidence_snapshot_id }, Api.approve.response);
+  const lockIn = async () => {
+    const r = await act(
+      "Locking it in",
+      "finalize",
+      { ...version, idempotency_key: finalizeKey(event.id, v.version) },
+      Api.finalize.response,
+    );
+    if (r.ok && !r.data.finalized) setGate(r.data.gate);
+  };
+
+  /** Runs the next step's action, or takes the organizer to the part of the page that needs them. */
+  const runStep = (s: NextStep) => {
+    switch (s.action) {
+      case "generate":
+        return draftPlan();
+      case "recheck":
+        return recheck();
+      case "review":
+        return findAlternatives();
+      case "approve":
+        return approve();
+      case "finalize":
+        return lockIn();
+      case "edit":
+        return router.push(`/events/${encodeURIComponent(event.id)}/brief`);
+      case "alternatives":
+        return scrollTo("alternatives");
+      case "confirm":
+        if (s.taskId) {
+          setConfirming(s.taskId);
+          requestAnimationFrame(() => scrollTo(`task-${s.taskId}`));
+        }
+        return;
+    }
+  };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-28 md:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
@@ -120,7 +166,7 @@ export function Workspace({ eventId }: { eventId: string }) {
         </Link>
       </div>
 
-      <StatusBar event={event} version={v} />
+      <PlanSummary event={event} version={v} snapshot={snapshot} step={step} busy={busy} onAction={() => runStep(step)} />
 
       {actionError && (
         <ActionErrorBanner
@@ -143,14 +189,14 @@ export function Workspace({ eventId }: { eventId: string }) {
           {event.last_run.status === "budget_exhausted"
             ? "The agents hit their time or call limit, so nothing from that run was saved."
             : "Something went wrong during the run, so nothing from it was saved."}{" "}
-          What you see below is v{v.version}, unchanged.
+          Your plan below is unchanged.
         </Alert>
       )}
 
       {v.evidence_snapshot_id && !snapshot && (
-        <Alert tone="warning" role="status" title="Evidence for this version is unavailable">
-          The checks below were made with evidence snapshot {v.evidence_snapshot_id}, which couldn&apos;t be loaded. Run
-          Recheck to fetch fresh data before approving.
+        <Alert tone="warning" role="status" title="The sources for this plan couldn't be loaded">
+          The checks below may be out of date. Use &ldquo;Check the latest weather&rdquo; to fetch fresh data before
+          approving.
         </Alert>
       )}
 
@@ -172,7 +218,7 @@ export function Workspace({ eventId }: { eventId: string }) {
                 onCancel={() => setConfirming(null)}
                 onSubmit={async (c) => {
                   const r = await act(
-                    "Record confirmation",
+                    "Saving your confirmation",
                     "confirmations",
                     { ...version, ...c },
                     Api.addConfirmation.response,
@@ -189,10 +235,10 @@ export function Workspace({ eventId }: { eventId: string }) {
         }
       />
       <Card
-        title="Actions"
+        title="More actions"
         description={
           <span aria-live="polite">
-            {busy ? `${busy}… this can take a little while.` : "Each action works on the current version."}
+            {busy ? `${busy}… this can take a minute.` : "Change the plan or check it again."}
           </span>
         }
       >
@@ -200,26 +246,26 @@ export function Workspace({ eventId }: { eventId: string }) {
           <Button
             variant={v.plan ? "secondary" : "primary"}
             disabled={!!busy}
-            onClick={() => act("Generate plan", "generate", version, Api.generateDraft.response)}
+            onClick={draftPlan}
           >
-            {v.plan ? "Generate a new plan" : "Generate plan"}
+            {v.plan ? "Draft a new plan" : "Draft a plan"}
           </Button>
           {actions.recheck && (
-            <Button disabled={!!busy} onClick={() => act("Recheck", "recheck", version, Api.recheck.response)}>
-              Recheck conditions
+            <Button disabled={!!busy} onClick={recheck}>
+              Check the latest weather
             </Button>
           )}
           {actions.reportChange && (
             <Button disabled={!!busy} onClick={() => setShowChange((s) => !s)} aria-expanded={showChange}>
-              Something changed
+              Report a problem
             </Button>
           )}
           {actions.requestReview && (
             <Button
               disabled={!!busy}
-              onClick={() => act("Request review", "review", version, Api.requestReview.response)}
+              onClick={findAlternatives}
             >
-              Request review
+              Find alternatives
             </Button>
           )}
         </div>
@@ -228,7 +274,7 @@ export function Workspace({ eventId }: { eventId: string }) {
             disabled={!!busy}
             onCancel={() => setShowChange(false)}
             onSubmit={async (change) => {
-              const r = await act("Report a change", "changes", { ...version, change }, Api.reportChange.response);
+              const r = await act("Reporting a problem", "changes", { ...version, change }, Api.reportChange.response);
               if (r.ok) setShowChange(false);
             }}
           />
@@ -243,7 +289,7 @@ export function Workspace({ eventId }: { eventId: string }) {
         canApply={actions.applyOption}
         onApply={(o) =>
           act(
-            "Use this option",
+            "Switching to this option",
             "apply-option",
             { ...version, combined_option_id: o.combined_option_id },
             Api.applyOption.response,
@@ -252,7 +298,7 @@ export function Workspace({ eventId }: { eventId: string }) {
       />
       <div className="grid gap-5 lg:grid-cols-2">
         <PlanCard version={v} snapshot={snapshot} />
-        <ChecksList checks={v.checks} />
+        <ChecksList checks={v.checks} snapshot={snapshot} />
       </div>
       <ApprovalPanel
         event={event}
@@ -260,22 +306,19 @@ export function Workspace({ eventId }: { eventId: string }) {
         busy={!!busy}
         gate={gate}
         blockedDetails={blockedDetails}
-        onApprove={() =>
-          act("Approve", "approve", { ...version, evidence_snapshot_id: v.evidence_snapshot_id }, Api.approve.response)
-        }
-        onFinalize={async () => {
-          const r = await act(
-            "Finalize",
-            "finalize",
-            { ...version, idempotency_key: finalizeKey(event.id, v.version) },
-            Api.finalize.response,
-          );
-          if (r.ok && !r.data.finalized) setGate(r.data.gate);
-        }}
+        onApprove={approve}
+        onFinalize={lockIn}
       />
       <EvidenceList snapshot={snapshot} />
+      <TechnicalDetails event={event} version={v} />
     </div>
   );
+}
+
+/** Scrolls to a section, without animation for people who prefer reduced motion. */
+function scrollTo(id: string) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById(id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
 
 function ActionErrorBanner({
