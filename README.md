@@ -81,7 +81,9 @@ on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live we
   all of it in one request when the draft fails a critical check (D-JT24-4); Report a problem and Find alternatives
   run the review on the current plan.
 - **Checks:** every version's checks come from the harness's `check_plan`, never from an agent (D-JT24-3). An
-  organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1).
+  organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1). A reported change
+  (space, ground, rain, start time) fails that check at that park or time until a newer confirmation clears it
+  (D-JT24-12).
 - **API** (`src/app/api/`): the UI talks to the harness only through the endpoints in `src/contracts/api.ts`.
 
 ## Features and status
@@ -169,7 +171,8 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
   so an event further out stays "waiting on weather data" until then (D-JT24-8).
 - Sessions run 30, 35 or 45 minutes and use one of 3 workouts, all pending instructor review; other activities need a
   reviewed workout first (D-JT24-7).
-- Environmental thresholds are unreviewed demo values and cannot support real-world finalization.
+- Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support
+  real-world finalization. The rain rule is not in the PRD yet (D-JT24-11).
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
 - Approval does not establish venue permission, usable space, or guaranteed conditions.
