@@ -1,6 +1,7 @@
 import {
   isConfirmableCheck,
   type CandidatePlan,
+  type ChangeReportRecord,
   type CheckPlanResult,
   type CheckResult,
   type OrganizerConfirmation,
@@ -79,4 +80,39 @@ export function applyConfirmations(
   });
   if (!changed) return { checks: result, changed };
   return { checks: summarizeChecks(result.event_version, result.evidence_snapshot_id, checks), changed };
+}
+
+type Report = Pick<ChangeReportRecord, "at" | "check_id" | "park_id" | "start_time" | "layout" | "description">;
+
+/** Whether an organizer report covers this check: same check, its park (or every park), its time (or any time). */
+function reportMatches(r: Report, check: CheckResult, layout: Layout | null): boolean {
+  if (!r.check_id || r.check_id !== check.check_id) return false;
+  if (r.park_id && r.park_id !== check.assessed.park_id) return false;
+  if (r.start_time && r.start_time !== check.assessed.start_time) return false;
+  // A closed running lane says nothing about a stationary circuit at the same park (D-JT22-1).
+  if (check.area === "space_surface" && r.layout && r.layout !== layout) return false;
+  return true;
+}
+
+/**
+ * Organizer reports (D-JT24-12) turn the check they name into a fail: a closed lawn, an unsafe surface,
+ * rain the organizer knows about, a time that no longer works. A confirmation made after the report,
+ * for the same check and park, supersedes it ("the lawn is open again").
+ */
+export function applyReports(
+  result: CheckPlanResult,
+  reports: Report[],
+  confirmations: OrganizerConfirmation[],
+  layout: Layout | null,
+): CheckPlanResult {
+  let changed = false;
+  const checks = result.checks.map((c) => {
+    const report = [...reports].reverse().find((r) => reportMatches(r, c, layout));
+    if (!report) return c;
+    const cleared = confirmations.some((conf) => conf.confirmed_at > report.at && confirmationMatches(conf, c, layout));
+    if (cleared) return c;
+    changed = true;
+    return { ...c, status: "fail" as const, reason: `You reported: ${report.description}`, evidence_ids: [] };
+  });
+  return changed ? summarizeChecks(result.event_version, result.evidence_snapshot_id, checks) : result;
 }

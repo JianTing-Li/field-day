@@ -1,6 +1,7 @@
 import {
   EventBrief,
   isConfirmableCheck,
+  REPORTABLE_CHECK_IDS,
   ZERO_USAGE,
   type ApiRequest,
   type ApiResponse,
@@ -20,7 +21,7 @@ import { checkPlan } from "@/server/rules/check-plan";
 import { POLICY_CONFIG } from "@/server/rules/policy-config";
 import { toLocalDateTime } from "@/server/time";
 import { getStore, type EventStore } from "@/server/store";
-import { applyConfirmations, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
+import { applyConfirmations, applyReports, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
 import { refreshedSnapshot, SCENARIO_EVENTS, snapshotFor } from "./snapshots";
 import { assertCanStart, deriveStatus, transition } from "./transitions";
@@ -168,12 +169,6 @@ function requireMatchingResult(
         `does not match version ${version} / snapshot ${snapshotId}`,
     );
   }
-}
-
-/** Workout templates in a snapshot; empty if there is none, so no layout can be worked out. */
-async function templatesFor(store: EventStore, snapshotId: string | null) {
-  const snapshot = snapshotId ? await store.getSnapshot(snapshotId) : null;
-  return snapshot?.workout_templates ?? [];
 }
 
 async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
@@ -376,8 +371,23 @@ export async function generateDraft(id: string, req: ApiRequest<"generateDraft">
 
 /** check_plan for a plan on a snapshot, with the event's organizer confirmations applied. */
 function harnessChecks(event: FieldDayEvent, plan: NonNullable<PlanVersion["plan"]>, snapshot: EvidenceSnapshot, version: number) {
+  const layout = planLayout(plan, snapshot.workout_templates);
   const raw = checkPlan({ plan, brief: event.brief, snapshot, event_version: version });
-  return applyConfirmations(raw, event.confirmations, planLayout(plan, snapshot.workout_templates)).checks;
+  // Reports first (they fail a check), then confirmations (they only settle what is still unknown).
+  const reported = applyReports(raw, event.change_reports ?? [], event.confirmations, layout);
+  return applyConfirmations(reported, event.confirmations, layout).checks;
+}
+
+/** One blocking concern per critical check that isn't a pass, so concerns clear when the check passes. */
+function concernsFrom(checks: CheckPlanResult): PlanVersion["concerns"] {
+  return checks.checks
+    .filter((c) => c.critical && c.status !== "pass")
+    .map((c) => ({
+      id: `concern-${c.check_id.replace(/\./g, "-")}`,
+      description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
+      blocking: true,
+      related_check_ids: [c.check_id],
+    }));
 }
 
 /**
@@ -452,24 +462,54 @@ async function review(
   }
   const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
   if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
-  // A reported change is new information about the plan, so it clears approval, and it is kept on the
-  // event so the organizer can see what they reported after the review has run.
+  let target = v;
   if (action === "report_change" && change) {
-    clearApproval(event);
-    event.change_reports = [...(event.change_reports ?? []), { at: now(), version: v.version, ...change }];
+    // A report is new information (D-JT24-12): it's kept on the event, the check it names fails at
+    // that park and time from now on, and the plan is re-checked as a new version, so a locked-in
+    // or approved version is never changed in place.
+    const layout = ["space_surface.space", "space_surface.surface"].includes(change.check_id ?? "")
+      ? planLayout(v.plan, snapshot.workout_templates)
+      : null;
+    event.change_reports = [
+      ...(event.change_reports ?? []),
+      {
+        at: now(),
+        version: v.version,
+        kind: change.kind,
+        description: change.description,
+        check_id: change.check_id ?? null,
+        park_id: change.park_id ?? null,
+        start_time: change.start_time ?? null,
+        layout,
+      },
+    ];
+    const next = v.version + 1;
+    const checks = harnessChecks(event, v.plan, snapshot, next);
+    pushVersion(event, {
+      ...emptyVersion(next, v.version, "organizer_edit"),
+      status: deriveStatus(v.plan, checks),
+      plan: v.plan,
+      evidence_snapshot_id: v.evidence_snapshot_id,
+      checks,
+      facts: v.facts,
+      concerns: concernsFrom(checks),
+      organizer_tasks: v.organizer_tasks,
+    });
+    target = current(event);
   }
+  const plan = target.plan!;
   const result = await runConflictReview({
     event_id: event.id,
-    event_version: v.version,
+    event_version: target.version,
     brief: event.brief,
     snapshot,
-    current_plan: v.plan,
-    conflict: { source: "organizer", description, check_ids: v.checks?.blockers ?? [] },
+    current_plan: plan,
+    conflict: { source: "organizer", description, check_ids: target.checks?.blockers ?? [] },
   });
   const steps = ["Checking alternative parks and times", "Checking workout adaptations"];
   if (result.ok) {
-    requireMatchingResult("Review", result.review, v.version, v.evidence_snapshot_id);
-    v.alternatives = result.review;
+    requireMatchingResult("Review", result.review, target.version, v.evidence_snapshot_id);
+    target.alternatives = result.review;
     if (result.revision_rounds > 0) steps.push("Specialists revised their options");
     steps.push("Independent review complete");
   } else {
@@ -483,6 +523,10 @@ async function review(
 export async function reportChange(id: string, req: ApiRequest<"reportChange">): Promise<ApiResponse<"reportChange">> {
   const long = tooLong("The description", req.change.description, 1000);
   if (long.length > 0) throw new ServiceError("invalid_request", long[0]);
+  const check = req.change.check_id;
+  if (check && !(REPORTABLE_CHECK_IDS as readonly string[]).includes(check)) {
+    throw new ServiceError("invalid_request", `${check} can't be reported; only space, surface, rain and start time can (D-JT24-12)`);
+  }
   return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
 }
 
@@ -519,14 +563,7 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
     facts: v.facts.filter((f) => f.evidence_ids.length > 0 && f.evidence_ids.every((id) => optionEvidence.has(id))),
     // Concerns come from the harness's own result, so they clear when the check passes. The option's
     // unknowns restate the same checks in the agent's words and would linger after a confirmation.
-    concerns: checks.checks
-      .filter((c) => c.critical && c.status !== "pass")
-      .map((c) => ({
-        id: `concern-${c.check_id.replace(/\./g, "-")}`,
-        description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
-        blocking: true,
-        related_check_ids: [c.check_id],
-      })),
+    concerns: concernsFrom(checks),
     // Only to-dos about the chosen park and time (or about the event as a whole).
     organizer_tasks: review.organizer_tasks.filter(
       (t) => t.park_id === null || (t.park_id === p.park_id && (t.start_time === null || t.start_time === p.start_time)),
@@ -554,14 +591,20 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
       `${req.check_id} can't be confirmed by the organizer; only space, surface and permit checks can (D-JT24-1)`,
     );
   }
-  const templates = await templatesFor(store, v.evidence_snapshot_id);
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  const templates = snapshot?.workout_templates ?? [];
   const layout = confirmationLayout(req, v.plan, templates);
+  // A newer report about this check and park ("the lawn is closed") makes a fresh confirmation count again.
+  const lastReport = (event.change_reports ?? [])
+    .filter((r) => r.check_id === req.check_id && (r.park_id === null || r.park_id === undefined || r.park_id === req.park_id))
+    .at(-1)?.at;
   const repeat = event.confirmations.some(
     (c) =>
       c.check_id === req.check_id &&
       c.park_id === req.park_id &&
       c.start_time === req.start_time &&
-      (c.layout ?? null) === layout,
+      (c.layout ?? null) === layout &&
+      (lastReport === undefined || c.confirmed_at > lastReport),
   );
   if (repeat) return { event };
   const conf = {
@@ -578,10 +621,11 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   };
   event.confirmations.push(conf);
   clearApproval(event);
-  if (v.checks) {
-    const { checks, changed } = applyConfirmations(v.checks, [conf], planLayout(v.plan, templates));
-    v.checks = checks;
-    if (changed && v.status === "needs_verification" && checks.overall === "pass") {
+  if (v.plan && snapshot) {
+    // Re-check from scratch, so a confirmation that supersedes a report takes effect too.
+    v.checks = harnessChecks(event, v.plan, snapshot, v.version);
+    v.concerns = concernsFrom(v.checks);
+    if (v.status === "needs_verification" && v.checks.overall === "pass") {
       transition(v, "ready_for_approval", "add_confirmation");
     }
   }

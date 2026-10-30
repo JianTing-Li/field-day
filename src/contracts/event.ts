@@ -121,7 +121,21 @@ export const ChangeReportRecord = z.object({
   version: z.number().int().positive(),
   kind: ChangeKind,
   description: z.string().min(1),
+  /** The check this report fails, at `park_id` (null = every park) and `start_time` (null = any time). */
+  check_id: CheckId.nullable().optional(),
+  park_id: Id.nullable().optional(),
+  start_time: LocalDateTime.nullable().optional(),
+  /** For space and surface: the workout layout the report was about, like confirmations (D-JT22-1). */
+  layout: WorkoutTemplate.shape.space.shape.layout.nullable().optional(),
 });
+
+/** The checks an organizer report can fail (D-JT24-12): things a person can see or know first. */
+export const REPORTABLE_CHECK_IDS = [
+  "space_surface.space",
+  "space_surface.surface",
+  "weather.rain",
+  "event_constraints.start_window",
+] as const satisfies readonly CheckId[];
 export type ChangeReportRecord = z.infer<typeof ChangeReportRecord>;
 
 /** The last failed lock-in attempt, so its explanation survives a reload. */

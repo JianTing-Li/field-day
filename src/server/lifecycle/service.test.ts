@@ -210,6 +210,58 @@ describe("audit fixes (JT-24)", () => {
     }
   });
 
+  it("a report on a locked-in plan adds a new version and leaves the locked-in one as it was (D-JT24-12)", async () => {
+    const e = await approvedCase1();
+    const { event: done } = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    const plan = cur(done).plan!;
+    const { event } = await svc.reportChange(done.id, {
+      version: 2,
+      change: { kind: "park_issue", description: "The lawn is fenced off", check_id: "space_surface.space", park_id: plan.park_id, start_time: null },
+    });
+    expect(event.current_version).toBe(3);
+    expect(ver(event, 2).status).toBe("finalized");
+    expect(event.finalized?.version).toBe(2);
+    const space = cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
+    expect(space).toMatchObject({ status: "fail", reason: "You reported: The lawn is fenced off" });
+    expect(cur(event).status).toBe("needs_verification");
+  });
+
+  it("a report keeps failing that check at that park, and a later confirmation clears it", async () => {
+    let event = await readyCase2(); // v3 at Park A 8 a.m., space and surface confirmed
+    ({ event } = await svc.reportChange(event.id, {
+      version: 3,
+      change: { kind: "park_issue", description: "Lawn closed for reseeding", check_id: "space_surface.space", park_id: "park-a", start_time: null },
+    }));
+    const space = () => cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
+    expect(space().status).toBe("fail");
+    // Newer than the report, so it supersedes it.
+    vi.setSystemTime(new Date("2026-07-01T13:00:00Z"));
+    ({ event } = await svc.addConfirmation(event.id, {
+      version: 4,
+      check_id: "space_surface.space",
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+      statement: "The fence is gone, the lawn is open",
+      note: null,
+    }));
+    expect(space().status).toBe("pass");
+    expect(cur(event).status).toBe("ready_for_approval");
+  });
+
+  it("a rain report fails rain at that time at every park, and only checks people can report are accepted", async () => {
+    const { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "conditions", description: "Storms expected all morning", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T10:00" },
+    });
+    expect(cur(event).checks!.checks.find((c) => c.check_id === "weather.rain")!.status).toBe("fail");
+    await expect(
+      svc.reportChange(event.id, {
+        version: event.current_version,
+        change: { kind: "other", description: "x", check_id: "duration.fits", park_id: null, start_time: null },
+      }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
   it("keeps the organizer's reported change on the event", async () => {
     const { event } = await svc.reportChange("evt-case-02", {
       version: 2,
@@ -328,9 +380,6 @@ describe("invalid transitions", () => {
     const v = { version: 2 };
     await expect(svc.addConfirmation(event.id, { ...parkB, ...v })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(svc.requestReview(event.id, v)).rejects.toMatchObject({ code: "invalid_request" });
-    await expect(
-      svc.reportChange(event.id, { ...v, change: { kind: "other", description: "x" } }),
-    ).rejects.toMatchObject({ code: "invalid_request" });
     await expect(svc.approve(event.id, { ...v, evidence_snapshot_id: snap(event) })).rejects.toMatchObject({
       code: "invalid_request",
     });

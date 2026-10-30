@@ -30,10 +30,17 @@ export type ApiError = z.infer<typeof ApiError>;
 
 const EventResponse = z.object({ event: FieldDayEvent });
 
-/** Organizer's "Something changed" report. */
+/**
+ * Organizer's "Something changed" report. With `check_id` it is a fact the checks use (D-JT24-12):
+ * that check fails at `park_id` (null = every park) and `start_time` (null = any time). Without it,
+ * it is context for the agents only.
+ */
 export const ChangeReport = z.object({
   kind: ChangeKind,
   description: z.string().min(1),
+  check_id: CheckId.nullable().optional(),
+  park_id: Id.nullable().optional(),
+  start_time: LocalDateTime.nullable().optional(),
 });
 export type ChangeReport = z.infer<typeof ChangeReport>;
 
