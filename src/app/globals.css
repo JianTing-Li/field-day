@@ -134,6 +134,26 @@
 @utility animate-enter {
   animation: fd-enter var(--dp-motion-enter) ease-out both;
 }
+/*
+ * Page changes (the <ViewTransition> in layout.tsx) are a quick crossfade: short enough not to slow
+ * anyone down, and clicks pass through to the new page while it runs.
+ */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 160ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
 /* Folded sections slide open the same way. */
 details[open] > :not(summary) {
   animation: fd-enter var(--dp-motion-enter) ease-out both;

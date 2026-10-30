@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Instrument_Sans } from "next/font/google";
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { dataMode } from "@/server/data/mode";
 import { agentMode } from "@/server/orchestrator/agents";
 import { AGENT_RUN_LIMITS } from "./api/_lib/rate-limit";
@@ -54,7 +55,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span className="hidden text-xs text-ink-2 sm:inline">Outdoor workout planning · New York City</span>
           </div>
         </header>
-        {children}
+        {/* Page changes crossfade instead of swapping in one frame; the banner and header stay put. */}
+        <ViewTransition>{children}</ViewTransition>
       </body>
     </html>
   );

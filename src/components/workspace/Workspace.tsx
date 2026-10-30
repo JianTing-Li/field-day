@@ -20,10 +20,30 @@ import { HowWeChecked, SessionOutline } from "./sections";
 
 /** Event workspace (GET /api/events/:id). Owner: Yadan, tasks YT-09 to YT-12. */
 
-type Loaded = { event: FieldDayEvent; snapshot: EvidenceSnapshot | null };
+export type Loaded = { event: FieldDayEvent; snapshot: EvidenceSnapshot | null };
 
-export function Workspace({ eventId }: { eventId: string }) {
-  const [data, setData] = useState<Loaded | null>(null);
+/**
+ * `initial` is the event as the server rendered it, so the page opens with content instead of a
+ * skeleton. The page still refreshes it on mount, and again each time Next shows the page after
+ * keeping it hidden.
+ */
+export function Workspace({
+  eventId,
+  initial = null,
+  serverToday = null,
+}: {
+  eventId: string;
+  initial?: Loaded | null;
+  /** New York's date when the server rendered the page, so the first paint matches the browser's. */
+  serverToday?: string | null;
+}) {
+  const [data, setData] = useState<Loaded | null>(initial);
+  const [served, setServed] = useState(initial);
+  if (initial !== served) {
+    // A new server render (e.g. back from editing the brief) replaces what this page showed.
+    setServed(initial);
+    if (initial) setData(initial);
+  }
   const [loadError, setLoadError] = useState<ApiFailure | null>(null);
   const [reloading, setReloading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -34,7 +54,7 @@ export function Workspace({ eventId }: { eventId: string }) {
   const [gate, setGate] = useState<GateCheck[] | null>(null);
   // Next keeps pages you left mounted but hidden; scroll targets are looked up inside this page only.
   const rootRef = useRef<HTMLDivElement>(null);
-  const today = useSyncExternalStore(noSubscribe, todayInNewYork, () => null);
+  const today = useSyncExternalStore(noSubscribe, todayInNewYork, () => serverToday);
   const router = useRouter();
   const base = `/api/events/${encodeURIComponent(eventId)}`;
 
@@ -58,6 +78,7 @@ export function Workspace({ eventId }: { eventId: string }) {
       if (r.ok) setData(r.data);
       else setLoadError(r);
     });
+    // Refreshes quietly: whatever is on screen stays until the newer copy arrives.
     return () => {
       live = false;
     };
@@ -212,7 +233,7 @@ export function Workspace({ eventId }: { eventId: string }) {
   });
 
   return (
-    <div ref={rootRef} data-workspace className="animate-enter space-y-5 pb-28 md:pb-0">
+    <div ref={rootRef} data-workspace className="space-y-5 pb-28 md:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-ink-2">
@@ -344,7 +365,7 @@ function ActionErrorBanner({
   );
 }
 
-function WorkspaceSkeleton() {
+export function WorkspaceSkeleton() {
   return (
     <div role="status" aria-label="Loading the event" className="animate-pulse space-y-5">
       <div className="h-12 w-2/3 rounded-control bg-lavender" />

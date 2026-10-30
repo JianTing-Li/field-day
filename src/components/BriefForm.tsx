@@ -48,7 +48,8 @@ export const AUTODRAFT_KEY = "fieldday:autodraft";
 
 type Props = { parks: ParkOption[]; templates: TemplateOption[] } & (
   | { mode: "create" }
-  | { mode: "edit"; eventId: string }
+  /** `initialEvent` is the event as the server rendered it, so the form opens filled in. */
+  | { mode: "edit"; eventId: string; initialEvent?: FieldDayEvent | null }
 );
 
 const FIELD_ORDER: BriefField[] = [
@@ -83,25 +84,27 @@ const LABELS: Partial<Record<BriefField, string>> = {
 
 export function BriefForm(props: Props) {
   const router = useRouter();
-  const [values, setValues] = useState<BriefFormValues>(EMPTY_FORM);
+  const knownEquipment = [...new Set(props.templates.flatMap((t) => t.equipment))].sort();
+  const served = props.mode === "edit" ? (props.initialEvent ?? null) : null;
+  const [values, setValues] = useState<BriefFormValues>(() => (served ? fromBrief(served.brief, knownEquipment) : EMPTY_FORM));
   const [errors, setErrors] = useState<BriefErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [event, setEvent] = useState<FieldDayEvent | null>(null);
+  const [event, setEvent] = useState<FieldDayEvent | null>(served);
   const [loadError, setLoadError] = useState<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(() => (served ? MORE_FIELDS.some((f) => hasValue(fromBrief(served.brief, knownEquipment)[f])) : false));
   // Read in the browser only, so a pre-rendered page never carries a stale "today".
   const today = useSyncExternalStore(noSubscribe, todayInNewYork, () => null);
 
-  const knownEquipment = [...new Set(props.templates.flatMap((t) => t.equipment))].sort();
   const editId = props.mode === "edit" ? props.eventId : null;
   // Next keeps a page you leave mounted but hidden, so IDs are unique per page, not just per form.
   const idPrefix = editId ? `edit-${editId}` : "new";
   const fid = (f: BriefField) => `${idPrefix}-field-${f}`;
 
   useEffect(() => {
-    if (editId === null) return;
+    // Already filled in from the server render; fetching again would overwrite what's being typed.
+    if (editId === null || served) return;
     let live = true;
     apiGet(`/api/events/${encodeURIComponent(editId)}`, Api.getEvent.response).then((r) => {
       if (!live) return;
@@ -116,7 +119,7 @@ export function BriefForm(props: Props) {
     };
     // knownEquipment comes from props that don't change after the page loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId]);
+  }, [editId, served]);
 
   // Parks in an existing brief that aren't in the curated list (e.g. fixture parks) stay selectable.
   const parks: ParkOption[] = [
