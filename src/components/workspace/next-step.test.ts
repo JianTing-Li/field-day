@@ -52,6 +52,17 @@ describe("nextStep", () => {
     expect(nextStep(v)).toMatchObject({ action: "alternatives", label: "See alternatives" });
   });
 
+  it("sends the organizer to the brief when the review found nothing that works", () => {
+    const none = { ...case02.reviewerOutput(1), status: "no_feasible_option" as const, ranked_options: [] };
+    const v = { ...withChecks(base(), [check("heat.max_temperature", "fail")]), alternatives: none };
+    expect(nextStep(v)).toMatchObject({
+      tone: "danger",
+      title: "It's too hot, and nothing in your brief fixes it",
+      action: "edit",
+      label: "Edit the brief",
+    });
+  });
+
   it("asks to confirm the first task about the current plan, never one for another park", () => {
     const plan = { ...base().plan!, park_id: "park-a", start_time: "2026-07-16T08:00" };
     const tasks = [

@@ -200,6 +200,10 @@ describe("audit fixes (JT-24)", () => {
     const case2 = (await svc.getEvent("evt-case-02")).event;
     expect(cur(case2).plan!.start_time).toBe("2026-11-02T10:00");
     expect(cur(case2).alternatives!.ranked_options[0].plan.start_time!.startsWith("2026-11-02")).toBe(true);
+    // In November weather (D-JT24-16): 10 a.m. fails on rain, not a 93°F heat wave.
+    const status = (id: string) => cur(case2).checks!.checks.find((c) => c.check_id === id)?.status;
+    expect(status("weather.rain")).toBe("fail");
+    expect(status("heat.max_temperature")).toBe("pass");
     // Case 1 still locks in end to end on its new date.
     const v = cur((await svc.getEvent("evt-case-01")).event);
     const { event } = await svc.approve("evt-case-01", { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id! });
@@ -295,14 +299,15 @@ describe("audit fixes (JT-24)", () => {
   it("withdrawing a report checks the plan again without it, and keeps a locked-in plan as it was", async () => {
     let { event } = await svc.reportChange("evt-case-02", {
       version: 2,
-      change: { kind: "conditions", description: "Storms at 10", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T10:00" },
+      change: { kind: "park_issue", description: "The field is flooded", check_id: "space_surface.surface", park_id: "park-a", start_time: null },
     });
-    const rain = () => cur(event).checks!.checks.find((c) => c.check_id === "weather.rain")!.status;
-    expect(rain()).toBe("fail");
+    // The demo's 10 a.m. is already rainy (D-JT24-16), so this uses the ground, which only the report fails.
+    const ground = () => cur(event).checks!.checks.find((c) => c.check_id === "space_surface.surface")!.status;
+    expect(ground()).toBe("fail");
     const id = event.change_reports![0].id!;
     ({ event } = await svc.removeReport(event.id, { version: event.current_version, report_id: id }));
     expect(event.change_reports).toEqual([]);
-    expect(rain()).toBe("pass");
+    expect(ground()).not.toBe("fail");
     await expect(svc.removeReport(event.id, { version: event.current_version, report_id: id })).rejects.toMatchObject({
       code: "not_found",
     });
@@ -417,7 +422,7 @@ describe("invalid transitions", () => {
     const { event } = await svc.getEvent("evt-case-02");
     await expect(svc.approve(event.id, { version: 2, evidence_snapshot_id: snap(event) })).rejects.toMatchObject({
       code: "blocked",
-      details: expect.arrayContaining(["heat.max_temperature", "space_surface.space"]),
+      details: expect.arrayContaining(["weather.rain", "space_surface.space"]),
     });
   });
 

@@ -164,6 +164,16 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
   const failed = checks.filter((c) => c.critical && c.status === "fail").map((c) => c.check_id);
   if (failed.length > 0) {
     const problems = capitalize(problemSentence(failed));
+    // The review ran and nothing in the brief fixes it: say how to widen the brief, not "see alternatives".
+    if (v.alternatives && v.alternatives.ranked_options.length === 0) {
+      return {
+        tone: "danger",
+        title: `${problems}, and nothing in your brief fixes it`,
+        body: "FieldDay tried the other times, parks and workouts your brief allows, and none of them work. Allow another start time or park, or pick a different date.",
+        action: "edit",
+        label: "Edit the brief",
+      };
+    }
     return v.alternatives
       ? {
           tone: "warning",
