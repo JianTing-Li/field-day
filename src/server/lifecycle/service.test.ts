@@ -336,6 +336,13 @@ describe("audit fixes (JT-24)", () => {
     expect(cur(event).plan).toBeNull();
   });
 
+  it("caps a new event at 5 parks (D-JT24-13)", async () => {
+    const six = ["park-a", "park-b", "park-c", "park-d", "park-e", "park-f"];
+    await expect(
+      svc.createEvent({ brief: { ...case01.brief, allowed_park_ids: six, preferred_park_id: null } }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
   it("rejects briefs and statements outside the input limits", async () => {
     await expect(svc.createEvent({ brief: { ...case01.brief, title: "x".repeat(121) } })).rejects.toMatchObject({
       code: "invalid_request",

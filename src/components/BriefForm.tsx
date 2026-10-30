@@ -19,6 +19,8 @@ import {
   type BriefField,
   type BriefFormValues,
 } from "./brief-form";
+import { MAX_PARKS } from "./park-picker";
+import { ParkPicker } from "./ParkPicker";
 import { StatusBadge } from "./StatusBadge";
 import { Alert, buttonClass, fieldClass } from "./ui";
 
@@ -28,6 +30,7 @@ export interface ParkOption {
   id: string;
   name: string;
   borough: string;
+  location: { lat: number; lon: number } | null;
 }
 
 export interface TemplateOption {
@@ -120,7 +123,7 @@ export function BriefForm(props: Props) {
     ...props.parks,
     ...values.allowed_park_ids
       .filter((id) => !props.parks.some((p) => p.id === id))
-      .map((id) => ({ id, name: `${id} (not in the park list)`, borough: "Other" })),
+      .map((id) => ({ id, name: `${id} (not in the park list)`, borough: "Other", location: null })),
   ];
   const parkName = (id: string) => parks.find((p) => p.id === id)?.name ?? id;
 
@@ -376,35 +379,19 @@ export function BriefForm(props: Props) {
         </Field>
       </Section>
 
-      <Section title="Where?" tag="Required" hint="Pick every park you'd be happy with. FieldDay only considers these.">
-        <fieldset id={fid("allowed_park_ids")} className="sm:col-span-2" {...describedBy(fid, "allowed_park_ids", errors.allowed_park_ids)}>
-          <legend className="text-sm font-bold text-ink">
-            Parks{" "}
-            <span className="font-normal text-ink-2">
-              ({values.allowed_park_ids.length === 0 ? "none chosen yet" : `${values.allowed_park_ids.length} chosen`})
-            </span>
-          </legend>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {parks.map((p) => (
-              <label
-                key={p.id}
-                className={`clay-sm flex cursor-pointer items-center gap-3 rounded-disclosure bg-cream px-4 py-2.5 text-sm has-[:checked]:clay-recessed has-[:checked]:bg-mint has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ink ${errors.allowed_park_ids ? "ring-2 ring-danger-ink" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={values.allowed_park_ids.includes(p.id)}
-                  onChange={() => toggle("allowed_park_ids", p.id)}
-                  className="h-4 w-4 accent-ink"
-                />
-                <span>
-                  <span className="block font-bold text-ink">{p.name}</span>
-                  <span className="block text-xs text-ink-2">{p.borough}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-          <FieldError id="allowed_park_ids" error={errors.allowed_park_ids} />
-        </fieldset>
+      <Section title="Where?" tag="Required" hint={`Pick up to ${MAX_PARKS} parks you'd be happy with. FieldDay only considers these.`}>
+        <ParkPicker
+          parks={parks}
+          selected={values.allowed_park_ids}
+          onChange={(ids) => {
+            set("allowed_park_ids", ids);
+            // Removing the favorite park clears the preference instead of leaving an invalid choice.
+            if (!ids.includes(values.preferred_park_id)) set("preferred_park_id", "");
+          }}
+          idPrefix={idPrefix}
+          error={errors.allowed_park_ids}
+        />
+        <FieldError id="allowed_park_ids" error={errors.allowed_park_ids} />
         {values.allowed_park_ids.length > 1 && (
           <Field id="preferred_park_id" label="Favorite park (optional)" error={errors.preferred_park_id}>
             <select

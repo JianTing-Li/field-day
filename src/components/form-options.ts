@@ -7,7 +7,7 @@ import type { ParkOption, TemplateOption } from "./BriefForm";
 export function briefFormOptions(): { parks: ParkOption[]; templates: TemplateOption[] } {
   return {
     parks: (parks as ParkCandidate[])
-      .map((p) => ({ id: p.id, name: p.name, borough: p.borough }))
+      .map((p) => ({ id: p.id, name: p.name, borough: p.borough, location: p.location }))
       .sort((a, b) => a.borough.localeCompare(b.borough) || a.name.localeCompare(b.name)),
     templates: (workouts as WorkoutTemplate[]).map((t) => ({
       id: t.id,

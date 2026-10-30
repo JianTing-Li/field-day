@@ -52,14 +52,19 @@ export const INPUT_LIMITS = {
   list_item: 200,
   duration_minutes: 240,
   group_size: 500,
+  /** Parks one event may consider (D-JT24-13): each adds forecasts and candidate plans for the agents. */
+  parks_per_event: 5,
 } as const;
 
 function tooLong(label: string, value: string | null, max: number = INPUT_LIMITS.text): string[] {
   return value !== null && value.length > max ? [`${label} is longer than ${max} characters`] : [];
 }
 
-/** Throws invalid_request when a brief is outside the limits, or (when new or changed) in the past. */
-function assertBriefInRange(brief: EventBrief, checkDate: boolean) {
+/**
+ * Throws invalid_request when a brief is outside the limits, or in the past or over the park cap
+ * when the date or park list is new or changed (so an older event's other fields can still be edited).
+ */
+function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = checkDate) {
   const L = INPUT_LIMITS;
   const problems = [
     ...tooLong("The name", brief.title, L.title),
@@ -72,6 +77,9 @@ function assertBriefInRange(brief: EventBrief, checkDate: boolean) {
         : [],
     ),
   ];
+  if (checkParks && brief.allowed_park_ids.length > L.parks_per_event) {
+    problems.push(`pick at most ${L.parks_per_event} parks`);
+  }
   if (problems.length > 0) {
     throw new ServiceError("invalid_request", `The brief is out of range: ${[...new Set(problems)].join("; ")}`);
   }
@@ -332,7 +340,11 @@ export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): P
   requireCurrent(event, req.based_on_version);
   assertCanStart("update_brief", current(event));
   // Only a changed date must be today or later, so an older event's other fields can still be edited.
-  assertBriefInRange(req.brief, req.brief.date !== event.brief.date);
+  assertBriefInRange(
+    req.brief,
+    req.brief.date !== event.brief.date,
+    JSON.stringify(req.brief.allowed_park_ids) !== JSON.stringify(event.brief.allowed_park_ids),
+  );
   const v = current(event);
   const next = event.current_version + 1;
   const material = isMaterialEdit(event.brief, req.brief);
