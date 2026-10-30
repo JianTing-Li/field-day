@@ -190,6 +190,23 @@ describe("allowed transitions", () => {
 });
 
 describe("audit fixes (JT-24)", () => {
+  it("seeds the demo events with plain names on upcoming dates, telling the same story (D-JT24-14)", async () => {
+    vi.setSystemTime(new Date("2026-10-30T16:00:00Z")); // all three fixture dates are past by now
+    const { events } = await svc.listEvents();
+    const byId = Object.fromEntries(events.map((e) => [e.id, e]));
+    expect(byId["evt-case-01"]).toMatchObject({ title: "Morning bodyweight class", date: "2026-11-01", status: "ready_for_approval" });
+    expect(byId["evt-case-02"]).toMatchObject({ title: "Run club intervals", date: "2026-11-02", status: "needs_verification" });
+    expect(byId["evt-case-03"]).toMatchObject({ title: "Early bodyweight class", date: "2026-11-03" });
+    const case2 = (await svc.getEvent("evt-case-02")).event;
+    expect(cur(case2).plan!.start_time).toBe("2026-11-02T10:00");
+    expect(cur(case2).alternatives!.ranked_options[0].plan.start_time!.startsWith("2026-11-02")).toBe(true);
+    // Case 1 still locks in end to end on its new date.
+    const v = cur((await svc.getEvent("evt-case-01")).event);
+    const { event } = await svc.approve("evt-case-01", { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id! });
+    expect((await svc.finalize(event.id, { version: v.version, idempotency_key: "k1" })).finalized).toBe(true);
+  });
+
+
   it("a draft that fails a critical check arrives with its alternatives, without a second click", async () => {
     const { event } = await svc.getEvent("evt-case-02");
     expect(cur(event).status).toBe("needs_verification");

@@ -196,3 +196,19 @@ export function candidatePlan(a: PlanArgs): CandidatePlan {
     session_outline: a.session_outline,
   };
 }
+
+/**
+ * Moves a scenario value (snapshot, agent output) from its fixture date to another date: every
+ * "YYYY-MM-DD" in it moves by the same number of days (a forecast that runs to the next midnight moves
+ * too), times of day unchanged. The seeded demo events use it so their dates are upcoming rather than
+ * in the past (D-JT24-14); the eval cases never do.
+ */
+export function shiftDate<T>(value: T, from: string, to: string): T {
+  if (from === to) return value;
+  const day = 86_400_000;
+  const offset = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / day);
+  const json = JSON.stringify(value).replace(/\b(\d{4}-\d{2}-\d{2})(?=[T"])/g, (d) =>
+    new Date(Date.parse(`${d}T00:00:00Z`) + offset * day).toISOString().slice(0, 10),
+  );
+  return JSON.parse(json) as T;
+}

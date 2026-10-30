@@ -24,7 +24,7 @@ import { toLocalDateTime } from "@/server/time";
 import { getStore, type EventStore } from "@/server/store";
 import { applyConfirmations, applyReports, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
-import { refreshedSnapshot, SCENARIO_EVENTS, snapshotFor } from "./snapshots";
+import { refreshedSnapshot, SCENARIO_EVENTS, seedBrief, snapshotFor } from "./snapshots";
 import { assertCanStart, deriveStatus, transition } from "./transitions";
 
 /**
@@ -261,10 +261,10 @@ let seeded: Promise<void> | null = null;
  */
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
-    for (const [id, scenario] of Object.entries(SCENARIO_EVENTS)) {
+    for (const id of Object.keys(SCENARIO_EVENTS) as (keyof typeof SCENARIO_EVENTS)[]) {
       if (await store.getEvent(id)) continue;
       try {
-        await commit(store, await plan(store, newEvent(id, scenario.brief), { agents: STUB_AGENTS }), null);
+        await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
       }

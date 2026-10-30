@@ -10,7 +10,9 @@ import * as raw09 from "./case-09-no-feasible-option";
 import * as raw10 from "./case-10-outside-forecast";
 import * as raw11 from "./case-11-malformed-output";
 import * as raw12 from "./case-12-untrusted-text";
-import { withDryForecasts } from "./helpers";
+import { shiftDate, withDryForecasts } from "./helpers";
+
+export { shiftDate };
 
 type HasSnapshot = { snapshot: (event_id: string, event_version: number) => import("@/contracts").EvidenceSnapshot };
 
