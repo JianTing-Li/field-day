@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Workspace, WorkspaceSkeleton } from "@/components/workspace/Workspace";
 import { todayInNewYork } from "@/components/format";
@@ -28,6 +29,8 @@ export default function EventPage(props: PageProps<"/events/[id]">) {
  */
 async function EventWorkspace({ params }: { params: PageProps<"/events/[id]">["params"] }) {
   const { id } = await params;
+  // Request time only: the event and "today" must never be baked into a prerendered shell.
+  await connection();
   const initial = await getEvent(id).catch(() => null);
   return <Workspace eventId={id} initial={initial} serverToday={todayInNewYork()} />;
 }

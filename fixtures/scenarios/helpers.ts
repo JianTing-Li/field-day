@@ -204,7 +204,8 @@ export function candidatePlan(a: PlanArgs): CandidatePlan {
  * in the past (D-JT24-14); the eval cases never do.
  */
 export function shiftDate<T>(value: T, from: string, to: string): T {
-  if (from === to) return value;
+  // Nothing recorded (a stub with no answer for this version) stays nothing.
+  if (from === to || value === undefined || value === null) return value;
   const day = 86_400_000;
   const offset = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / day);
   const json = JSON.stringify(value).replace(/\b(\d{4}-\d{2}-\d{2})(?=[T"])/g, (d) =>

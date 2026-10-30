@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { BriefForm } from "@/components/BriefForm";
 import { briefFormOptions } from "@/components/form-options";
@@ -20,6 +21,8 @@ export default function EditBriefPage(props: PageProps<"/events/[id]/brief">) {
 /** Reads the event ID from the URL and loads the brief on the server, so the form opens filled in. */
 async function EditBrief({ params }: { params: PageProps<"/events/[id]/brief">["params"] }) {
   const { id } = await params;
+  // Request time only: the event and "today" must never be baked into a prerendered shell.
+  await connection();
   const initial = await getEvent(id).catch(() => null);
   return (
     <>
