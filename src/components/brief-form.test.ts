@@ -148,7 +148,8 @@ describe("lengths, limits and activities (JT-24)", () => {
   });
 
   it("notes when the name asks for an activity FieldDay doesn't have", () => {
-    expect(activityHint("Sunrise yoga at Fort Greene", ["Beginner bodyweight circuit"])).toContain("doesn't have a yoga session");
+    expect(activityHint("Sunrise pilates at Fort Greene", ["Beginner bodyweight circuit"])).toContain("doesn't have a pilates session");
+    expect(activityHint("Sunrise yoga at Fort Greene", ["Beginner outdoor yoga flow"])).toBeNull();
     expect(activityHint("Saturday bootcamp", ["Beginner bodyweight circuit"])).toBeNull();
   });
 

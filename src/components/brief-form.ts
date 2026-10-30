@@ -188,7 +188,7 @@ export function lengthList(lengths: number[]): string {
 }
 
 /** Activities people name in titles that FieldDay has no reviewed workout for (yet). */
-const UNSUPPORTED_ACTIVITIES = ["yoga", "pilates", "barre", "zumba", "dance", "boxing", "kickboxing", "tai chi", "spin", "cycling", "swim"];
+const UNSUPPORTED_ACTIVITIES = ["pilates", "barre", "zumba", "dance", "boxing", "kickboxing", "tai chi", "spin", "cycling", "swim"];
 
 /**
  * A note when the event's name asks for an activity FieldDay can't plan (F-23), so nobody is
