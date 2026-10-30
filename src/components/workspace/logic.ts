@@ -85,15 +85,15 @@ export function approveBlockedReason(v: PlanVersion): string | null {
     case "ready_for_approval":
       return null;
     case "draft":
-      return v.plan ? "Generate the plan before approving." : "Generate a plan first.";
+      return "Draft a plan first.";
     case "needs_verification":
       return "Some critical checks failed or are not confirmed. Resolve what's blocking this plan, listed above, first.";
     case "no_feasible_option":
-      return "No workable option was found. Edit the brief or request a review.";
+      return "No safe option was found. Edit the brief or find alternatives.";
     case "approved":
-      return `v${v.version} is already approved.`;
+      return "This plan is already approved.";
     case "finalized":
-      return `v${v.version} is finalized.`;
+      return "This plan is locked in.";
   }
 }
 
@@ -126,4 +126,15 @@ export function formatLocal(dt: string | null): string {
 /** One key per finalize attempt of a version, so a double click or retry never saves twice. */
 export function finalizeKey(eventId: string, version: number): string {
   return `finalize-${eventId}-v${version}`;
+}
+
+/**
+ * Swaps park IDs in agent-written text for park names: "McCarren Park (park-b058)" -> "McCarren Park",
+ * "park-b058" -> "McCarren Park". Unknown IDs are left as they are.
+ */
+export function withParkNames(text: string, snapshot: EvidenceSnapshot | null): string {
+  const name = (id: string) => snapshot?.park_candidates.find((p) => p.id === id)?.name;
+  return text
+    .replace(/\s*\((park-[a-z0-9-]+)\)/g, (m, id: string) => (name(id) ? "" : m))
+    .replace(/\bpark-[a-z0-9-]+\b/g, (id) => name(id) ?? id);
 }

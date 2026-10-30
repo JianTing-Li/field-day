@@ -184,22 +184,14 @@ export function ApprovalPanel({
 
   return (
     <Card
-      title="Approve and finalize"
-      description="Approval is for this exact version and its evidence. Any change afterwards clears it."
+      title="Approve and lock in"
+      description="Two steps: approve when you're happy with the plan, then lock it in to run the final safety checks and save it. Any change after approving clears the approval. Nothing is booked or sent."
     >
       <ol className="space-y-4">
         <li className="flex gap-3">
           <Step n={1} done={approved || finalizedHere} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-ink">
-              Approve <span className="font-mono">v{v.version}</span>
-              {v.evidence_snapshot_id && (
-                <span className="font-normal text-ink-2">
-                  {" "}
-                  with evidence <span className="font-mono text-xs">{v.evidence_snapshot_id}</span>
-                </span>
-              )}
-            </p>
+            <p className="text-sm font-bold text-ink">Approve this plan</p>
             {approved || finalizedHere ? (
               <p className="text-sm text-ink">
                 Approved {event.approval ? formatUpdated(event.approval.approved_at) : ""}.
@@ -220,7 +212,7 @@ export function ApprovalPanel({
                   disabled={busy || blocked !== null || !v.evidence_snapshot_id}
                   onClick={onApprove}
                 >
-                  Approve v{v.version}
+                  Approve plan
                 </Button>
               </>
             )}
@@ -229,29 +221,27 @@ export function ApprovalPanel({
         <li className="flex gap-3">
           <Step n={2} done={finalizedHere} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-ink">
-              Finalize <span className="font-mono">v{v.version}</span>
-            </p>
+            <p className="text-sm font-bold text-ink">Lock it in</p>
             {finalizedHere ? (
               <p className="text-sm text-ink">
-                🔒 Saved as the final event record {formatUpdated(event.finalized!.finalized_at)}. Finalizing again
-                returns this same record; it is never saved twice.
+                🔒 Locked in {formatUpdated(event.finalized!.finalized_at)}. This is your final plan, saved once:
+                trying again never creates a duplicate.
               </p>
             ) : (
               <>
                 <p className="text-sm text-ink-2">
                   {approved
-                    ? "Runs the final save checks below. Nothing is booked, published or sent."
-                    : "Available after approval."}
+                    ? "Runs the final safety checks and saves this as your final plan. Nothing is booked or sent."
+                    : "Available after you approve."}
                 </p>
                 <Button variant="primary" className="mt-2" disabled={busy || !approved} onClick={onFinalize}>
-                  Finalize v{v.version}
+                  Lock it in
                 </Button>
               </>
             )}
             {event.finalized && !finalizedHere && (
               <p className="mt-2 text-sm text-ink-2">
-                v{event.finalized.version} is still the finalized record until this version is finalized.
+                An earlier version is still your locked-in plan until you lock in this one.
               </p>
             )}
           </div>
@@ -261,7 +251,7 @@ export function ApprovalPanel({
       {shownGate && (
         <div className="mt-5">
           {!finalizedHere && (
-            <Alert tone="danger" role="alert" title="Not finalized: these save checks didn't pass." />
+            <Alert tone="danger" role="alert" title="Not locked in: these final checks didn't pass." />
           )}
           <ul className="mt-3 space-y-1.5">
             {shownGate.map((g) => (

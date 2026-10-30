@@ -1,4 +1,5 @@
 import { EventBrief, TIME_ZONE } from "@/contracts";
+import { FORECAST_DAYS, daysFrom } from "./format";
 
 /**
  * Event brief form logic (owner: Yadan, task YT-08). The form keeps everything as text while the
@@ -92,8 +93,18 @@ export function equipmentLabel(id: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export function toBrief(v: BriefFormValues): { ok: true; brief: EventBrief } | { ok: false; errors: BriefErrors } {
+/**
+ * `today` ("YYYY-MM-DD", New York) turns on the "no past dates" rule; leave it out to skip it
+ * (e.g. when re-reading a saved brief).
+ */
+export function toBrief(
+  v: BriefFormValues,
+  today?: string,
+): { ok: true; brief: EventBrief } | { ok: false; errors: BriefErrors } {
   const errors: BriefErrors = {};
+  if (today && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && daysFrom(today, v.date) < 0) {
+    errors.date = "Pick today or a later date";
+  }
   const required = (field: BriefField, n: number | null) => {
     if (n === null) errors[field] = MESSAGES[field];
     return n ?? NaN;
@@ -151,4 +162,15 @@ export function fromBrief(b: EventBrief, knownEquipment: string[]): BriefFormVal
     limit_notes: b.instructor_limits.notes ?? "",
     priorities: b.priorities.join("\n"),
   };
+}
+
+/** A gentle note (not an error) for dates the forecasts don't reach yet. */
+export function dateHint(date: string, today: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const days = daysFrom(today, date);
+  if (days < 0) return null;
+  if (days > FORECAST_DAYS) {
+    return `Forecasts only reach about ${FORECAST_DAYS} days ahead, so the weather and air checks will say “unknown” until closer to the day. You can still plan now and check again later.`;
+  }
+  return null;
 }
