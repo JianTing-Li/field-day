@@ -1,14 +1,57 @@
 # FieldDay
 
 <!-- Owner: shared -->
-FieldDay is a multi-agent app that helps NYC organizers plan outdoor fitness events and resolve conflicts
-across locations, schedules, and workouts, with independent review and organizer approval.
+**Plan outdoor group workouts in New York City parks, and know they're safe before anyone shows up.**
 
-It turns an event brief into a checked plan (park, time, conditions, workout), shows the evidence and the
-unknowns behind every fact, and compares combined alternatives when something conflicts. FieldDay never
-books, files permits, or messages anyone.
+FieldDay turns an event brief (date, group size, start window, parks, type of session) into a checked plan: a park,
+a time and a workout, with weather, rain, air quality, space and equipment checked against the evidence. When
+something conflicts, four Claude agents propose fixes and an independent reviewer ranks them. The organizer
+confirms what only they can check, approves, and locks it in.
 
-**Demo:** not deployed yet.
+**[Live demo →](https://field-day-sepia.vercel.app)** · built by Jian Ting Li and Yadan Taino
+
+![FieldDay demo: a conflicted run club plan gets a suggested fix, two confirmations, then is locked in; a rain report then flags it again while keeping the locked-in plan](docs/media/fieldday-demo.gif)
+
+<sub>Recorded on the local build with recorded weather data: open a plan that runs too hot, take the suggested
+earlier time, confirm space and ground, lock it in, then report a storm.</sub>
+
+## What's interesting about it
+
+- **Agents propose, code decides.** Four agents (Planning, Event Logistics, Workout Adaptation, Independent
+  Reviewer) return Zod-validated JSON through read-only tools. A deterministic harness owns all state, runs every
+  safety check and holds the final save gate, so no model output can lock in an unsafe plan.
+- **"Unknown" is never "pass."** Each check is pass, fail or unknown. Missing weather, a stale forecast or unverified
+  space blocks lock-in. A gentler workout never makes a heat, rain or air-quality problem acceptable.
+- **Every fact shows its evidence:** source, retrieval time, valid period, where it applies, and whether it's live,
+  recorded or the organizer's word. An organizer's confirmation covers one check at one park and time, never more.
+- **Measured, not vibes.** 12 scenario evals (written before the first agent run) compare a rules-only baseline,
+  Planning alone and the full 4-agent workflow. The agents resolved 2 more conflicts than Planning alone (5 of 5),
+  at 2.6× the latency. [Results below](#eval-results).
+- **Bounded.** At most 7 agent runs and 1 revision round per request, caps on tokens, cost and time, rate limits per
+  visitor, and stale results from an older plan version are rejected.
+- **700+ tests**, none of them calling a live API or the model.
+
+```mermaid
+flowchart LR
+  B[Event brief] --> P[Planning agent]
+  P --> C{check_plan}
+  C -- all clear --> O[Organizer confirms<br/>and approves]
+  C -- conflict --> L[Logistics agent] & W[Workout agent]
+  L & W --> X[Combination checks] --> R[Independent reviewer]
+  R --> O
+  O --> G{Final save gate} --> F[Locked in]
+  E[(Evidence snapshot:<br/>NWS · AirNow · NYC Parks)] -.read only.-> P & L & W & R & C
+```
+
+**Stack:** Next.js 16 (App Router, cache components, view transitions) · React 19 · TypeScript · Zod · Tailwind 4 ·
+Anthropic API (Claude) · Neon Postgres · Vercel · Vitest. Data: National Weather Service, AirNow, NYC Parks Open
+Data (29 curated parks, searchable by name, borough, zip code or "near me").
+
+**Out of scope on purpose:** FieldDay never books a venue, files a permit, takes payment or messages attendees.
+
+---
+
+# For the team
 
 ## How we work
 <!-- Owner: shared -->
@@ -169,8 +212,8 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
 - Conditions data is recorded (fixture mode, covering Oct 27–Nov 2, 2026 for weather and Oct 27–28 for air quality) or
   live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 7 days ahead for weather and 1–2 days for air quality,
   so an event further out stays "waiting on weather data" until then (D-JT24-8).
-- Sessions run 30, 35 or 45 minutes and use one of 3 workouts, all pending instructor review; other activities need a
-  reviewed workout first (D-JT24-7).
+- Sessions run 30, 35 or 45 minutes and use one of 4 workouts (bodyweight, walk-run intervals, resistance bands, yoga),
+  all pending instructor review; other activities need a reviewed workout first (D-JT24-7).
 - Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support
   real-world finalization. The rain rule was added to the PRD on 2026-10-30 (D-JT24-11).
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
