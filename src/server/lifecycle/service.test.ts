@@ -262,6 +262,19 @@ describe("audit fixes (JT-24)", () => {
     ).rejects.toMatchObject({ code: "invalid_request" });
   });
 
+  it("re-checks the alternatives with the report, so an option at the reported time never looks like a fix", async () => {
+    const { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "conditions", description: "Storms at 8", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T08:00" },
+    });
+    const at8 = cur(event).alternatives!.ranked_options.filter((o) => o.plan.start_time === "2026-07-16T08:00");
+    expect(at8.length).toBeGreaterThan(0);
+    for (const o of at8) {
+      expect(o.checks.checks.find((c) => c.check_id === "weather.rain")!.status).toBe("fail");
+    }
+    expect(cur(event).alternatives!.recommendation).toBeNull();
+  });
+
   it("keeps the organizer's reported change on the event", async () => {
     const { event } = await svc.reportChange("evt-case-02", {
       version: 2,

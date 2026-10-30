@@ -12,6 +12,7 @@ import {
   type FinalizedRecord,
   type GateCheck,
   type PlanVersion,
+  type ReviewerOutput,
   type RunState,
   type Usage,
 } from "@/contracts";
@@ -221,7 +222,7 @@ async function plan(store: EventStore, event: FieldDayEvent, opts: RunOptions = 
   let revisions = 0;
   if (result.review?.ok) {
     requireMatchingResult("Review", result.review.review, next, snapshot.id);
-    alternatives = result.review.review;
+    alternatives = recheckOptions(event, result.review.review, snapshot, next);
     revisions = result.review.revision_rounds;
     steps.push("Found a conflict and compared alternatives");
   } else if (result.review) {
@@ -378,6 +379,19 @@ function harnessChecks(event: FieldDayEvent, plan: NonNullable<PlanVersion["plan
   return applyConfirmations(reported, event.confirmations, layout).checks;
 }
 
+/**
+ * The review's options, re-checked with what only the harness knows: organizer reports and
+ * confirmations (D-JT24-12). The agents' check_plan tool sees the evidence snapshot only, so an
+ * option at a time the organizer just reported as rainy would otherwise still look fine. A
+ * recommendation that no longer passes is withdrawn.
+ */
+function recheckOptions(event: FieldDayEvent, review: ReviewerOutput, snapshot: EvidenceSnapshot, version: number): ReviewerOutput {
+  const ranked_options = review.ranked_options.map((o) => ({ ...o, checks: harnessChecks(event, o.plan, snapshot, version) }));
+  const chosen = ranked_options.find((o) => o.combined_option_id === review.recommendation?.combined_option_id);
+  const recommendation = chosen && chosen.checks.overall === "pass" ? review.recommendation : null;
+  return { ...review, ranked_options, recommendation };
+}
+
 /** One blocking concern per critical check that isn't a pass, so concerns clear when the check passes. */
 function concernsFrom(checks: CheckPlanResult): PlanVersion["concerns"] {
   return checks.checks
@@ -509,7 +523,7 @@ async function review(
   const steps = ["Checking alternative parks and times", "Checking workout adaptations"];
   if (result.ok) {
     requireMatchingResult("Review", result.review, target.version, v.evidence_snapshot_id);
-    target.alternatives = result.review;
+    target.alternatives = recheckOptions(event, result.review, snapshot, target.version);
     if (result.revision_rounds > 0) steps.push("Specialists revised their options");
     steps.push("Independent review complete");
   } else {

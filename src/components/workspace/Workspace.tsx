@@ -123,7 +123,9 @@ export function Workspace({ eventId }: { eventId: string }) {
   const v = currentVersion(event);
   const actions = availableActions(v);
   const version = { version: v.version };
-  const items = actions.confirm ? confirmItems(v, snapshot, event.brief.group_size) : [];
+  // Nothing to confirm on a plan that already fails: the fix comes first, then its own checks.
+  const failing = v.checks?.checks.some((c) => c.critical && c.status === "fail") ?? false;
+  const items = actions.confirm && !failing ? confirmItems(v, snapshot, event.brief.group_size) : [];
   // The last failed lock-in survives a reload (F-18) until the plan changes.
   const shownGate = gate ?? (v.status === "approved" && event.last_gate?.version === v.version ? event.last_gate.gate : null);
   const demoOnly = event.finalized?.version === v.version && event.finalized.demo_only === true;

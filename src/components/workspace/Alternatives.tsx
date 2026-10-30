@@ -32,7 +32,15 @@ export function SuggestedFix({
 
   return (
     <div id="alternatives" className="animate-enter mt-6 scroll-mt-24 space-y-3">
-      <OptionCard option={best} snapshot={snapshot} label="Suggested fix" featured busy={busy} canApply={canApply} onApply={onApply} />
+      <OptionCard
+        option={best}
+        snapshot={snapshot}
+        label={best.checks.overall === "fail" ? "Closest option" : "Suggested fix"}
+        featured={best.checks.overall !== "fail"}
+        busy={busy}
+        canApply={canApply}
+        onApply={onApply}
+      />
       {others.length > 0 && (
         <Button variant="ghost" onClick={() => setShowOthers((s) => !s)} aria-expanded={showOthers}>
           {showOthers ? "Hide other options" : `Other options (${others.length})`}
