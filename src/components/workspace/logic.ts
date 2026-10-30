@@ -21,11 +21,11 @@ export function currentVersion(event: FieldDayEvent): PlanVersion {
   return v;
 }
 
-/** Icon + words for a check result. Unknown is never styled like pass. */
-export const CHECK_STATUS: Record<CheckStatus, { icon: string; label: string; tone: string }> = {
-  pass: { icon: "✓", label: "OK", tone: "text-ink bg-mint" },
-  fail: { icon: "✕", label: "Problem", tone: "text-ink bg-danger" },
-  unknown: { icon: "○", label: "To check", tone: "text-ink bg-butter" },
+/** Words for a check result. Unknown is never styled like pass. */
+export const CHECK_STATUS: Record<CheckStatus, { label: string; tone: string }> = {
+  pass: { label: "OK", tone: "text-ink bg-mint" },
+  fail: { label: "Problem", tone: "text-ink bg-danger" },
+  unknown: { label: "To check", tone: "text-ink bg-butter" },
 };
 
 const CHECK_NAMES: Record<CheckId, string> = {

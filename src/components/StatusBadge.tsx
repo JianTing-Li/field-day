@@ -10,7 +10,7 @@ const TONE: Record<string, string> = {
   danger: "bg-danger text-ink",
 };
 
-/** A lifecycle status as icon + words. Color only reinforces the text. */
+/** A lifecycle status in words. Color only reinforces the text. */
 export function StatusBadge({ status }: { status: LifecycleStatus }) {
   const s = STATUS[status];
   return (
@@ -18,7 +18,7 @@ export function StatusBadge({ status }: { status: LifecycleStatus }) {
       title={s.hint}
       className={`clay-sm inline-flex items-center gap-1.5 whitespace-nowrap rounded-control px-3 py-1 text-xs font-bold ${TONE[s.tone]}`}
     >
-      <span aria-hidden="true">{s.icon}</span>
+      {s.icon && <span aria-hidden="true">{s.icon}</span>}
       {s.label}
     </span>
   );

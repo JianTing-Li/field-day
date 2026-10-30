@@ -89,7 +89,6 @@ export function CheckStatusPill({ status, label }: { status: CheckPlanResult["ov
   const s = CHECK_STATUS[status];
   return (
     <span className={`clay-sm inline-flex h-fit shrink-0 items-center gap-1 rounded-control px-2.5 py-0.5 text-xs font-bold ${s.tone}`}>
-      <span aria-hidden="true">{s.icon}</span>
       {label ?? s.label}
     </span>
   );
