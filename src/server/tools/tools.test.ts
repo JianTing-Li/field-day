@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { ToolSchemas, type EvidenceSnapshot, type ToolContext } from "@/contracts";
-import { case01, case02 } from "../../../fixtures/scenarios";
+// The raw cases, without the dry rain forecasts the registry adds (D-JT24-11): these tests pin the
+// tool's coverage logic on exactly the recorded items.
+import * as case01 from "../../../fixtures/scenarios/case-01-normal";
+import * as case02 from "../../../fixtures/scenarios/case-02-conflict";
 import { evidence } from "../../../fixtures/scenarios/helpers";
 import { tools } from "./index";
 

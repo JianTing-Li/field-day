@@ -34,6 +34,7 @@ const CHECK_NAMES: Record<CheckId, string> = {
   "equipment.available": "Equipment",
   "duration.fits": "Workout length",
   "heat.max_temperature": "Heat limit",
+  "weather.rain": "Rain",
   "air_quality.max_aqi": "Air quality limit",
   "freshness.conditions": "Up-to-date weather and air data",
   "space_surface.space": "Workout space",

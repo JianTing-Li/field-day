@@ -40,6 +40,8 @@ export const CheckId = z.enum([
   "equipment.available",
   "duration.fits",
   "heat.max_temperature",
+  /** Chance of rain during the event (D-JT24-11). */
+  "weather.rain",
   "air_quality.max_aqi",
   "freshness.conditions",
   /** The space layout the session needs (running lane, stationary area, …) at the assessed park. */

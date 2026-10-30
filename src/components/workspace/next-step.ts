@@ -46,6 +46,7 @@ export interface NextStepContext {
 /** A failed check, in the organizer's words. */
 const PROBLEM: Record<CheckId, string> = {
   "heat.max_temperature": "it's too hot",
+  "weather.rain": "rain is likely",
   "air_quality.max_aqi": "the air quality is too poor",
   "space_surface.space": "the space doesn't work",
   "space_surface.surface": "the ground surface doesn't work",
@@ -57,7 +58,7 @@ const PROBLEM: Record<CheckId, string> = {
   "permissions.permit_review": "a permit may be needed",
 };
 
-const CONDITIONS: CheckId[] = ["heat.max_temperature", "air_quality.max_aqi", "freshness.conditions"];
+const CONDITIONS: CheckId[] = ["heat.max_temperature", "weather.rain", "air_quality.max_aqi", "freshness.conditions"];
 
 /** "it's too hot", "it's too hot and the space doesn't work", "it's too hot, … and 1 more problem". */
 export function problemSentence(ids: CheckId[]): string {

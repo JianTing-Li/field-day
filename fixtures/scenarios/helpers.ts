@@ -6,6 +6,7 @@ import type {
   CheckStatus,
   EvidenceItem,
   EvidenceMetric,
+  EvidenceSnapshot,
   EvidenceType,
   ParkCandidate,
   PolicyArea,
@@ -49,6 +50,19 @@ interface EvidenceArgs {
   confirms_check_id?: CheckId | null;
   /** Defaults to FIXTURE_RETRIEVED_AT. Set it when a case needs retrieval close to its own date. */
   retrieved_at?: string;
+}
+
+/**
+ * Adds a dry-weather rain forecast (10% chance) for every recorded temperature hour (D-JT24-11).
+ * The scenarios were written before the rain rule existed; this keeps every case's expected outcome
+ * the same instead of turning rain into an unknown blocker. A case that tests rain sets its own.
+ */
+export function withDryForecasts(snapshot: EvidenceSnapshot): EvidenceSnapshot {
+  const rain = snapshot.items
+    .filter((e) => e.metric === "temperature" && e.evidence_type === "forecast")
+    .filter((t) => !snapshot.items.some((e) => e.metric === "precipitation_probability" && e.applies_to.park_id === t.applies_to.park_id && e.valid_from === t.valid_from))
+    .map((t) => ({ ...t, id: `${t.id}-rain`, metric: "precipitation_probability" as const, value: 10, unit: "percent" }));
+  return rain.length === 0 ? snapshot : { ...snapshot, items: [...snapshot.items, ...rain] };
 }
 
 export function evidence(a: EvidenceArgs): EvidenceItem {

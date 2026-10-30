@@ -10,6 +10,7 @@ export const PolicyArea = z.enum([
   "equipment",
   "duration",
   "heat",
+  "rain",
   "air_quality",
   "freshness",
   "space_surface",

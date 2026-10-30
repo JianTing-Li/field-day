@@ -16,6 +16,10 @@ export const POLICY_CONFIG = {
     /** Inclusive: exactly 90°F passes, anything above fails. */
     max_value: 90,
   },
+  rain: {
+    /** NWS hourly probability of precipitation, in percent. Inclusive: exactly 40% passes, 41% fails (D-JT24-11). */
+    max_probability_percent: 40,
+  },
   air_quality: {
     /** Inclusive: AQI 100 (top of "Moderate") passes, 101 ("Unhealthy for Sensitive Groups") fails. */
     max_aqi: 100,
