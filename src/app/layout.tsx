@@ -44,8 +44,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </>
           )}
         </div>
-        <header className="px-4 pt-4 sm:px-6">
-          <div className="clay mx-auto flex w-full max-w-5xl items-center justify-between gap-4 rounded-control bg-cream px-4 py-2.5 sm:px-6">
+        {/* Same width and side padding as every page's <main>, so the bar lines up with the content. */}
+        <header className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6">
+          <div className="clay flex w-full items-center justify-between gap-4 rounded-control bg-cream px-4 py-2.5 sm:px-6">
             <Link href="/" className="focus-ring flex items-center gap-2.5 rounded-control font-bold tracking-tight text-ink">
               <span aria-hidden="true" className="clay-sm grid h-9 w-9 place-items-center rounded-full bg-accent text-base">
                 F

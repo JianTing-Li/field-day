@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Edit brief · FieldDay" };
 
 export default function EditBriefPage(props: PageProps<"/events/[id]/brief">) {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
       <Suspense fallback={<p role="status" className="text-sm text-ink-2">Loading the event brief…</p>}>
         <EditBrief params={props.params} />
       </Suspense>
