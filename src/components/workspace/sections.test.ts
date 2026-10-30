@@ -72,6 +72,7 @@ describe("event page in plain words (JT-24)", () => {
         busy: false,
         onReport: async () => true,
         onEditBrief: async () => true,
+        onRemove: () => {},
       }),
     );
     for (const label of ["Space is closed", "Ground is wet or unsafe", "Rain or storm", "Time doesn&#x27;t work", "Equipment missing", "Group size changed", "Something else"]) {

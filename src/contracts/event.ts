@@ -116,6 +116,8 @@ export const ChangeKind = z.enum(["time_unavailable", "park_issue", "workout_iss
 
 /** An organizer's report, kept on the event so it isn't lost after the review runs. */
 export const ChangeReportRecord = z.object({
+  /** Set on reports made since JT-24, so one can be removed. */
+  id: Id.optional(),
   at: Timestamp,
   /** The plan version the report was about. */
   version: z.number().int().positive(),

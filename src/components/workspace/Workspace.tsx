@@ -307,6 +307,7 @@ export function Workspace({ eventId }: { eventId: string }) {
         busy={!!busy}
         onReport={async (change) => (await act("Finding a fix", "changes", { ...version, change }, Api.reportChange.response)).ok}
         onEditBrief={editAndReplan}
+        onRemove={(report_id) => act("Removing your report", "changes/remove", { ...version, report_id }, Api.removeReport.response)}
       />
 
       <div className="space-y-3">

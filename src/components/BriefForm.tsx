@@ -208,6 +208,7 @@ export function BriefForm(props: Props) {
   const errorList = FIELD_ORDER.filter((f) => errors[f]);
   const template = props.templates.find((t) => t.id === values.workout_template_id);
   const lengths = lengthsFor(values.workout_template_id);
+  const needed = template ? template.equipment : knownEquipment;
   const activity = activityHint(values.title, props.templates.map((t) => t.name));
 
   function lengthsFor(templateId: string): number[] {
@@ -309,11 +310,33 @@ export function BriefForm(props: Props) {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-xs text-ink-2">
-            {template && !template.reviewed
-              ? "⚠ This workout hasn't been reviewed by an instructor yet."
-              : "More kinds of session, like yoga, need an instructor-reviewed workout first."}
-          </p>
+          {/* Ask about equipment only when it matters: for the chosen workout, or for any that needs some. */}
+          {needed.length > 0 && (
+            <fieldset className="mt-3">
+              <legend className="text-xs text-ink">
+                {template ? "This workout needs these. Do you have them?" : "Some workouts need these. Tick what you have."}
+              </legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {needed.map((id) => (
+                  <label
+                    key={id}
+                    className="clay-sm flex cursor-pointer items-center gap-2 rounded-control bg-cream px-3.5 py-1.5 text-sm has-[:checked]:clay-recessed has-[:checked]:bg-mint has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={values.equipment.includes(id)}
+                      onChange={() => toggle("equipment", id)}
+                      className="h-4 w-4 accent-ink"
+                    />
+                    {equipmentLabel(id)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          {template && !template.reviewed && (
+            <p className="mt-2 text-xs text-ink-2">⚠ This workout hasn&apos;t been reviewed by an instructor yet.</p>
+          )}
         </Field>
           <fieldset id={fid("duration_minutes")} {...describedBy(fid, "duration_minutes", errors.duration_minutes)}>
             <legend className="mb-2 block text-sm font-bold text-ink">Length</legend>
@@ -427,41 +450,13 @@ export function BriefForm(props: Props) {
               More options <Tag>Optional</Tag>
             </span>
             <span className="mt-1 block text-sm text-ink-2">
-              Equipment, safety limits and priorities. FieldDay uses sensible defaults if you skip these.
+              Exercises to avoid, stricter safety limits and priorities. FieldDay works fine without them.
             </span>
           </span>
         </summary>
         <div className="space-y-6 px-4 pb-6 sm:px-6 sm:pb-8">
-          <Section title="Equipment">
-            <fieldset className="sm:col-span-2">
-              <legend className="text-sm font-bold text-ink">Equipment you have</legend>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {knownEquipment.map((id) => (
-                  <label
-                    key={id}
-                    className="clay-sm flex cursor-pointer items-center gap-2 rounded-control bg-cream px-4 py-2 text-sm has-[:checked]:clay-recessed has-[:checked]:bg-mint has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ink"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={values.equipment.includes(id)}
-                      onChange={() => toggle("equipment", id)}
-                      className="h-4 w-4 accent-ink"
-                    />
-                    {equipmentLabel(id)}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <Field id="other_equipment" label="Other equipment (comma-separated)" error={errors.other_equipment} className="sm:col-span-2">
-              <input
-                id={fid("other_equipment")}
-                value={values.other_equipment}
-                onChange={(e) => set("other_equipment", e.target.value)}
-                placeholder="e.g. cones, jump ropes"
-                className={input(errors.other_equipment)}
-              />
-            </Field>
-            <Field id="exercise_exclusions" label="Exercises to avoid (one per line)" className="sm:col-span-2">
+          <Section title="Exercises to avoid">
+            <Field id="exercise_exclusions" label="One per line" className="sm:col-span-2">
               <textarea
                 id={fid("exercise_exclusions")}
                 rows={2}
@@ -474,8 +469,8 @@ export function BriefForm(props: Props) {
           </Section>
 
           <Section
-            title="Safety limits"
-            hint="Leave blank to use FieldDay's defaults: 90°F and AQI 100. You can only make them stricter."
+            title="Stricter safety limits"
+            hint="FieldDay always checks heat (90°F) and air quality (AQI 100). Fill these in only if your instructor wants a stricter limit."
           >
             <Field id="max_temperature_f" label="Max temperature (°F)" error={errors.max_temperature_f}>
               <input
@@ -485,7 +480,7 @@ export function BriefForm(props: Props) {
                 max={DEFAULT_LIMITS.max_temperature_f}
                 value={values.max_temperature_f}
                 onChange={(e) => set("max_temperature_f", e.target.value)}
-                placeholder="Default 90"
+                placeholder="90"
                 className={input(errors.max_temperature_f)}
                 {...describedBy(fid, "max_temperature_f", errors.max_temperature_f)}
               />
@@ -499,7 +494,7 @@ export function BriefForm(props: Props) {
                 max={DEFAULT_LIMITS.max_aqi}
                 value={values.max_aqi}
                 onChange={(e) => set("max_aqi", e.target.value)}
-                placeholder="Default 100"
+                placeholder="100"
                 className={input(errors.max_aqi)}
                 {...describedBy(fid, "max_aqi", errors.max_aqi)}
               />
@@ -560,7 +555,6 @@ const IdPrefix = createContext("new");
 
 /** Fields inside "More options"; an error in one of them opens it. */
 const MORE_FIELDS: BriefField[] = [
-  "other_equipment",
   "exercise_exclusions",
   "max_temperature_f",
   "max_aqi",

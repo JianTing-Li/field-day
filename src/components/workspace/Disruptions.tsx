@@ -35,6 +35,7 @@ export function SomethingChanged({
   busy,
   onReport,
   onEditBrief,
+  onRemove,
 }: {
   event: FieldDayEvent;
   version: PlanVersion;
@@ -42,6 +43,8 @@ export function SomethingChanged({
   busy: boolean;
   onReport: (change: ChangeReport) => Promise<boolean>;
   onEditBrief: (patch: Partial<EventBrief>) => Promise<boolean>;
+  /** Withdraws a report ("it's not going to rain after all"). */
+  onRemove: (reportId: string) => void;
 }) {
   const [open, setOpen] = useState<Choice | null>(null);
   const [details, setDetails] = useState("");
@@ -51,7 +54,8 @@ export function SomethingChanged({
   const p = v.plan;
   if (!p) return null;
   const park = parkName(snapshot, p.park_id);
-  const when = formatLocal(p.start_time);
+  const when = formatLocal(p.start_time).split(" · ").at(-1);
+  const reports = (event.change_reports ?? []).filter((r) => r.id && r.check_id);
 
   const pick = (c: Choice) => {
     setOpen(open?.id === c.id ? null : c);
@@ -85,6 +89,18 @@ export function SomethingChanged({
   return (
     <section className="clay rounded-surface bg-cream p-6 sm:p-8">
       <h2 className="text-xl font-bold tracking-tight text-ink">Something changed?</h2>
+      {reports.length > 0 && (
+        <ul className="mt-3 space-y-1.5" aria-label="What you reported">
+          {reports.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-x-3 text-sm text-ink">
+              <span>You said &ldquo;{r.description}&rdquo;</span>
+              <Button variant="ghost" className="px-0 py-1 text-xs" disabled={busy} onClick={() => onRemove(r.id!)}>
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="What changed">
         {CHOICES.map((c) => (
           <button

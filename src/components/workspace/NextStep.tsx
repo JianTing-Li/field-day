@@ -3,7 +3,7 @@ import type { EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Button, TONE_BG } from "../ui";
-import { formatLocal, parkName, templateName } from "./logic";
+import { conditionsLine, formatLocal, parkName, templateName } from "./logic";
 import type { NextStep } from "./next-step";
 
 /**
@@ -57,6 +57,13 @@ export function PlanSummary({
             {templateName(snapshot, p.workout_template_id)}
             {p.adaptation_ids.length > 0 && " (adapted)"} · {event.brief.group_size} people
             {p.duration_minutes && ` · ${p.duration_minutes} min`}
+          </p>
+        )}
+        {p && (
+          <p className="mt-2 text-sm font-bold text-ink">
+            <span aria-hidden="true">☀ </span>
+            {conditionsLine(snapshot, p) ?? "No forecast for this time yet"}
+            {snapshot?.origin === "fixture" && <span className="font-normal text-ink-2"> · recorded demo data</span>}
           </p>
         )}
         {problems.length > 0 && (

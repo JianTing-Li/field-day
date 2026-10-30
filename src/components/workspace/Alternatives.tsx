@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { isConfirmableCheck, type CombinedOption, type EvidenceSnapshot, type PlanChange, type PlanVersion } from "@/contracts";
 import { Button } from "../ui";
-import { adaptationName, checkName, formatLocal, parkName, plainText, problemLines, templateName } from "./logic";
+import { adaptationName, checkName, conditionsLine, formatLocal, parkName, plainText, problemLines, templateName } from "./logic";
 
 /**
  * The fix for a conflict, shown where the problem is (YT-10, reworked in JT-24): the reviewer's
@@ -98,6 +98,7 @@ function OptionCard({
         {templateName(snapshot, p.workout_template_id)}
         {adaptation && `, ${adaptation.charAt(0).toLowerCase()}${adaptation.slice(1)}`}
       </p>
+      {conditionsLine(snapshot, p) && <p className="mt-1 text-sm text-ink">☀ {conditionsLine(snapshot, p)}</p>}
       {notes.length > 0 && <p className="mt-1 text-sm text-ink-2">{notes.join(" · ")}</p>}
       {stillWrong.length > 0 && <p className="mt-1 text-sm font-bold text-ink">Still a problem: {stillWrong.join("; ")}</p>}
       <Button variant={featured ? "surface" : "primary"} className="mt-4" disabled={busy || !canApply} onClick={() => onApply(o)}>

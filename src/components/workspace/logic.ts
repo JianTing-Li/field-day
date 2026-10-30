@@ -248,3 +248,38 @@ export function gapSummary(gaps: string[], snapshot: EvidenceSnapshot | null): s
     ...rest.map((g) => plainText(g, snapshot)),
   ];
 }
+
+/**
+ * The forecast behind the verdicts, in one line (JT-24): "82°F · 10% rain · wind 6 mph · air quality 45 (good)".
+ * Highest value of each during the session at the plan's park; null when there's no plan or no forecast yet.
+ */
+export function conditionsLine(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]): string | null {
+  if (!snapshot || !plan?.park_id || !plan.start_time || !plan.duration_minutes) return null;
+  const start = plan.start_time;
+  const end = new Date(new Date(`${start}:00Z`).getTime() + plan.duration_minutes * 60_000).toISOString().slice(0, 16);
+  const during = (metric: string) =>
+    snapshot.items.filter(
+      (e) =>
+        e.metric === metric &&
+        e.evidence_type !== "organizer_confirmation" &&
+        (e.applies_to.park_id === plan.park_id || e.applies_to.park_id === null) &&
+        (e.valid_from === null || e.valid_from < end) &&
+        (e.valid_to === null || e.valid_to > start) &&
+        typeof e.value === "number",
+    );
+  const max = (metric: string) => {
+    const items = during(metric);
+    return items.length ? items.reduce((a, b) => ((b.value as number) > (a.value as number) ? b : a)) : null;
+  };
+  const temp = max("temperature");
+  const rain = max("precipitation_probability");
+  const wind = max("wind_speed");
+  const aqi = max("aqi");
+  const parts = [
+    temp && `${Math.round(temp.value as number)}°${(temp.unit ?? "F").replace("°", "").toUpperCase().startsWith("C") ? "C" : "F"}`,
+    rain && `${Math.round(rain.value as number)}% rain`,
+    wind && `wind ${Math.round(wind.value as number)} ${wind.unit === "km/h" ? "km/h" : "mph"}`,
+    aqi && `air quality ${Math.round(aqi.value as number)}${aqi.category ? ` (${aqi.category.toLowerCase()})` : ""}`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}

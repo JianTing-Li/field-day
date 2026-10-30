@@ -101,6 +101,13 @@ export const Api = {
     request: z.object({ version: z.number().int().positive() }),
     response: EventResponse,
   },
+  /** POST /api/events/:id/changes/remove — withdraws a report; the plan is checked again as a new version. */
+  removeReport: {
+    method: "POST",
+    path: "/api/events/:id/changes/remove",
+    request: z.object({ version: z.number().int().positive(), report_id: Id }),
+    response: EventResponse,
+  },
   /** POST /api/events/:id/apply-option — adopts a reviewed combined option as a new draft version. */
   applyOption: {
     method: "POST",

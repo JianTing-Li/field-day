@@ -112,7 +112,7 @@ export function applyReports(
     const cleared = confirmations.some((conf) => conf.confirmed_at > report.at && confirmationMatches(conf, c, layout));
     if (cleared) return c;
     changed = true;
-    return { ...c, status: "fail" as const, reason: `You reported: ${report.description}`, evidence_ids: [] };
+    return { ...c, status: "fail" as const, reason: `You said "${report.description}"`, evidence_ids: [] };
   });
   return changed ? summarizeChecks(result.event_version, result.evidence_snapshot_id, checks) : result;
 }

@@ -499,6 +499,7 @@ async function review(
     event.change_reports = [
       ...(event.change_reports ?? []),
       {
+        id: newId("report"),
         at: now(),
         version: v.version,
         kind: change.kind,
@@ -554,6 +555,39 @@ export async function reportChange(id: string, req: ApiRequest<"reportChange">):
     throw new ServiceError("invalid_request", `${check} can't be reported; only space, surface, rain and start time can (D-JT24-12)`);
   }
   return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
+}
+
+/**
+ * Withdraws a report ("it's not going to rain after all"). The check it failed goes back to what the
+ * evidence says, as a new version, so a locked-in plan stays as it was (D-JT24-12).
+ */
+export async function removeReport(id: string, req: ApiRequest<"removeReport">): Promise<ApiResponse<"removeReport">> {
+  const store = await withStore();
+  const event = await load(store, id);
+  const base = event.updated_at;
+  requireCurrent(event, req.version);
+  const reports = event.change_reports ?? [];
+  if (!reports.some((r) => r.id === req.report_id)) {
+    throw new ServiceError("not_found", `Report ${req.report_id} not found`);
+  }
+  event.change_reports = reports.filter((r) => r.id !== req.report_id);
+  const v = current(event);
+  const snapshot = v.plan && v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  if (v.plan && snapshot) {
+    const next = v.version + 1;
+    const checks = harnessChecks(event, v.plan, snapshot, next);
+    pushVersion(event, {
+      ...emptyVersion(next, v.version, "organizer_edit"),
+      status: deriveStatus(v.plan, checks),
+      plan: v.plan,
+      evidence_snapshot_id: v.evidence_snapshot_id,
+      checks,
+      facts: v.facts,
+      concerns: concernsFrom(checks),
+      organizer_tasks: v.organizer_tasks,
+    });
+  }
+  return { event: await commit(store, event, base) };
 }
 
 export async function requestReview(id: string, req: ApiRequest<"requestReview">): Promise<ApiResponse<"requestReview">> {

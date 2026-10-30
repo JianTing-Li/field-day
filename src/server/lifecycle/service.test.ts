@@ -222,7 +222,7 @@ describe("audit fixes (JT-24)", () => {
     expect(ver(event, 2).status).toBe("finalized");
     expect(event.finalized?.version).toBe(2);
     const space = cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
-    expect(space).toMatchObject({ status: "fail", reason: "You reported: The lawn is fenced off" });
+    expect(space).toMatchObject({ status: "fail", reason: 'You said "The lawn is fenced off"' });
     expect(cur(event).status).toBe("needs_verification");
   });
 
@@ -273,6 +273,22 @@ describe("audit fixes (JT-24)", () => {
       expect(o.checks.checks.find((c) => c.check_id === "weather.rain")!.status).toBe("fail");
     }
     expect(cur(event).alternatives!.recommendation).toBeNull();
+  });
+
+  it("withdrawing a report checks the plan again without it, and keeps a locked-in plan as it was", async () => {
+    let { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "conditions", description: "Storms at 10", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T10:00" },
+    });
+    const rain = () => cur(event).checks!.checks.find((c) => c.check_id === "weather.rain")!.status;
+    expect(rain()).toBe("fail");
+    const id = event.change_reports![0].id!;
+    ({ event } = await svc.removeReport(event.id, { version: event.current_version, report_id: id }));
+    expect(event.change_reports).toEqual([]);
+    expect(rain()).toBe("pass");
+    await expect(svc.removeReport(event.id, { version: event.current_version, report_id: id })).rejects.toMatchObject({
+      code: "not_found",
+    });
   });
 
   it("keeps the organizer's reported change on the event", async () => {
