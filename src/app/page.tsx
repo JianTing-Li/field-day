@@ -1,4 +1,7 @@
-import { EventList, NewEventLink } from "@/components/EventList";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { EventList, ListSkeleton, NewEventLink } from "@/components/EventList";
+import { listEvents } from "@/server/lifecycle/service";
 
 export default function Home() {
   return (
@@ -30,10 +33,19 @@ export default function Home() {
         <h2 id="your-events" className="px-2 text-2xl font-bold tracking-tight text-ink">
           Your events
         </h2>
-        <EventList />
+        <Suspense fallback={<ListSkeleton />}>
+          <Events />
+        </Suspense>
       </section>
     </main>
   );
+}
+
+/** Loads the list on the server at request time, so it arrives with the page instead of after it. */
+async function Events() {
+  await connection();
+  const initial = await listEvents().then((r) => r.events).catch(() => null);
+  return <EventList initial={initial} />;
 }
 
 const STEPS = [

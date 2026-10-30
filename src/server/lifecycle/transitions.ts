@@ -38,7 +38,9 @@ export const ACTION_FROM: Record<Exclude<LifecycleAction, "invalidate_approval">
   generate: ALL,
   recheck: ["needs_verification", "ready_for_approval", "approved", "finalized", "no_feasible_option"],
   apply_option: ["needs_verification", "ready_for_approval", "approved", "finalized", "no_feasible_option"],
-  report_change: ["needs_verification", "ready_for_approval", "approved", "no_feasible_option"],
+  // A report creates a new version, so it can start from a locked-in plan too (the PRD's "edits
+  // create a new draft version"; the finalized version stays as it was).
+  report_change: ["needs_verification", "ready_for_approval", "approved", "finalized", "no_feasible_option"],
   request_review: ["needs_verification", "ready_for_approval", "approved", "no_feasible_option"],
   add_confirmation: ["needs_verification", "ready_for_approval", "approved"],
   approve: ["ready_for_approval"],

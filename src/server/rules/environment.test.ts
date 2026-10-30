@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { case01 } from "@fixtures/scenarios";
 import type { CandidatePlan, EventBrief, EvidenceItem, RuleInput } from "@/contracts";
-import { airQualityCheck, effectiveLimit, heatCheck } from "./environment";
+import { airQualityCheck, effectiveLimit, heatCheck, rainCheck } from "./environment";
 
 const PARK = "park-a";
 const plan: CandidatePlan = {
@@ -111,6 +111,40 @@ describe("heatCheck", () => {
   it("is unknown when the plan has no park, start time or duration", () => {
     expect(heatCheck(input(fullDay, {}, { ...plan, start_time: null })).status).toBe("unknown");
     expect(heatCheck(input(fullDay, {}, { ...plan, duration_minutes: null })).status).toBe("unknown");
+  });
+});
+
+describe("rainCheck (D-JT24-11)", () => {
+  const rain = (from: string, to: string, value: number | null, extra: Partial<EvidenceItem> = {}) =>
+    ev({ id: `r-${from}`, metric: "precipitation_probability", value, unit: "percent", valid_from: `2026-10-29T${from}`, valid_to: `2026-10-29T${to}`, ...extra });
+
+  it("passes when every hour of the event is at or under 40%", () => {
+    const r = rainCheck(input([rain("09:00", "10:00", 20), rain("10:00", "11:00", 40)]));
+    expect(r).toMatchObject({ check_id: "weather.rain", status: "pass", critical: true });
+    expect(r.reason).toContain("40%");
+  });
+
+  it("fails on any hour over 40%, even when another hour is missing", () => {
+    const r = rainCheck(input([rain("09:00", "10:00", 70)]));
+    expect(r.status).toBe("fail");
+    expect(r.reason).toContain("70% chance of rain");
+    expect(r.evidence_ids).toEqual(["r-09:00"]);
+  });
+
+  it("is unknown, never pass, when an hour has no forecast", () => {
+    expect(rainCheck(input([rain("09:00", "10:00", 10)])).status).toBe("unknown");
+    expect(rainCheck(input([rain("09:00", "10:00", null), rain("10:00", "11:00", 10)])).status).toBe("unknown");
+  });
+
+  it("ignores observations and stale forecasts", () => {
+    const stale = { freshness: { status: "stale" as const, assessed_at: null, note: null } };
+    expect(rainCheck(input([rain("09:00", "10:00", 10, { evidence_type: "observation" }), rain("10:00", "11:00", 10)])).status).toBe("unknown");
+    expect(rainCheck(input([rain("09:00", "10:00", 10, stale), rain("10:00", "11:00", 10)])).status).toBe("unknown");
+  });
+
+  it("does not depend on the workout: a gentler session never lifts a rain block", () => {
+    const wet = [rain("09:00", "10:00", 80), rain("10:00", "11:00", 80)];
+    expect(rainCheck(input(wet, {}, { ...plan, adaptation_ids: ["adapt-low-impact"] })).status).toBe("fail");
   });
 });
 

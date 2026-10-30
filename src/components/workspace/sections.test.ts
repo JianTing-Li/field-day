@@ -1,98 +1,82 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { PlanVersion } from "@/contracts";
-import { BlockersCard } from "./sections";
+import { case02 } from "@fixtures/scenarios";
+import type { FieldDayEvent, PlanVersion } from "@/contracts";
+import { SuggestedFix } from "./Alternatives";
+import { SomethingChanged } from "./Disruptions";
+import { problemLines } from "./logic";
+import { PlanSummary } from "./NextStep";
+import { HowWeChecked } from "./sections";
 
-const concern = { id: "c1", description: "Template pending instructor review", blocking: true, related_check_ids: [] };
+const snapshot = case02.snapshot("evt", 2);
+const out = case02.planningOutput(2);
+const version = {
+  version: 2,
+  status: "needs_verification",
+  plan: out.plan,
+  checks: out.rule_checks,
+  concerns: [],
+  organizer_tasks: [],
+  facts: [],
+  alternatives: case02.reviewerOutput(2),
+} as unknown as PlanVersion;
+const event = {
+  id: "evt",
+  brief: case02.brief,
+  updated_at: "2026-10-29T19:00:00Z",
+  finalized: null,
+} as unknown as FieldDayEvent;
+const html = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
 
-function card(status: PlanVersion["status"]) {
-  const version = { status, concerns: [concern], organizer_tasks: [] } as unknown as PlanVersion;
-  return renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
-}
-
-describe("BlockersCard (D-JT23-1)", () => {
-  it("calls the agent's concerns notes to review on a version ready for approval", () => {
-    const html = card("ready_for_approval");
-    expect(html).toContain("Review before approving");
-    expect(html).toContain("can be approved");
-    expect(html).not.toContain("What&#x27;s blocking this plan");
-    expect(html).toContain("Template pending instructor review");
-  });
-
-  it("keeps them as blockers when the version needs verification", () => {
-    const html = card("needs_verification");
-    expect(html).toContain("What&#x27;s blocking this plan");
-    expect(html).toContain("Blocking: ");
-  });
-});
-
-describe("BlockersCard to-dos", () => {
-  const task = (id: string, park_id: string) => ({
-    id,
-    description: `Confirm space at ${park_id}`,
-    resolves_check_id: "space_surface.space" as const,
-    park_id,
-    start_time: "2026-07-16T08:00",
-  });
-  const version = {
-    status: "needs_verification",
-    concerns: [],
-    plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
-    checks: { blockers: ["space_surface.space"] },
-    organizer_tasks: [task("t-a", "park-a"), task("t-b", "park-b")],
-  } as unknown as PlanVersion;
-
-  it("puts tasks that unblock this plan first, and other parks' tasks under Good to know", () => {
-    const html = renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
-    const must = html.indexOf("Must do before approving");
-    const good = html.indexOf("Good to know");
-    expect(must).toBeGreaterThan(-1);
-    expect(good).toBeGreaterThan(must);
-    expect(html.indexOf("Confirm space at park-a")).toBeLessThan(good);
-    expect(html.indexOf("Confirm space at park-b")).toBeGreaterThan(good);
-  });
-});
-
-describe("BlockersCard done tasks", () => {
-  it("shows a confirmed task as done, without a Confirm button", () => {
-    const version = {
-      status: "needs_verification",
-      concerns: [],
-      plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
-      checks: { blockers: [], checks: [{ check_id: "space_surface.space", status: "pass" }] },
-      organizer_tasks: [
-        { id: "t1", description: "Confirm space", resolves_check_id: "space_surface.space", park_id: "park-a", start_time: "2026-07-16T08:00" },
-      ],
-    } as unknown as PlanVersion;
-    const html = renderToStaticMarkup(
-      createElement(BlockersCard, { version, snapshot: null, taskAction: () => createElement("button", null, "Confirm") }),
+describe("event page in plain words (JT-24)", () => {
+  it("says what's wrong in the summary, without opening the alternatives", () => {
+    const lines = problemLines(version, snapshot);
+    expect(lines.some((l) => l.startsWith("Too hot:"))).toBe(true);
+    const summary = html(
+      createElement(PlanSummary, {
+        event,
+        version,
+        snapshot,
+        step: { tone: "warning", title: "x", body: "y", action: "alternatives", label: "See alternatives" },
+        busy: null,
+        onAction: () => {},
+        problems: lines,
+      }),
     );
-    expect(html).toContain(">Done</h3>");
-    expect(html).not.toContain(">Confirm</button>");
+    expect(summary).toContain("This plan won&#x27;t work as it is");
+    expect(summary).toContain("Too hot:");
   });
-});
 
-describe("BlockersCard settled concerns", () => {
-  it("hides a blocking concern once its check passes", () => {
-    const version = {
-      status: "needs_verification",
-      plan: { park_id: "park-a", start_time: "2026-07-16T08:00" },
-      concerns: [
-        { id: "c1", description: "Space is not confirmed", blocking: true, related_check_ids: ["space_surface.space"] },
-        { id: "c2", description: "No air-quality forecast", blocking: true, related_check_ids: ["air_quality.max_aqi"] },
-      ],
-      checks: {
-        blockers: ["air_quality.max_aqi"],
-        checks: [
-          { check_id: "space_surface.space", status: "pass" },
-          { check_id: "air_quality.max_aqi", status: "unknown" },
-        ],
-      },
-      organizer_tasks: [],
-    } as unknown as PlanVersion;
-    const html = renderToStaticMarkup(createElement(BlockersCard, { version, snapshot: null }));
-    expect(html).not.toContain("Space is not confirmed");
-    expect(html).toContain("No air-quality forecast");
+  it("puts one suggested fix up front and the rest behind one button", () => {
+    const fix = html(createElement(SuggestedFix, { version, snapshot, busy: false, canApply: true, onApply: () => {} }));
+    expect(fix).toContain("Suggested fix");
+    expect(fix.match(/Use this plan/g)).toHaveLength(1);
+    expect(fix).toContain("Other options (1)");
+  });
+
+  it("shows check results as OK, Problem or To check, never a question mark", () => {
+    const checks = html(createElement(HowWeChecked, { checks: version.checks, snapshot }));
+    expect(checks).toContain("How we checked");
+    expect(checks).toMatch(/Problem|OK|To check/);
+    expect(checks).not.toContain("?");
+    expect(checks).not.toContain("Unknown");
+  });
+
+  it("offers every kind of change right on the page, including rain", () => {
+    const changed = html(
+      createElement(SomethingChanged, {
+        event,
+        version,
+        snapshot,
+        busy: false,
+        onReport: async () => true,
+        onEditBrief: async () => true,
+        onRemove: () => {},
+      }),
+    );
+    for (const label of ["Space is closed", "Ground is wet or unsafe", "Rain or storm", "Time doesn&#x27;t work", "Equipment missing", "Group size changed", "Something else"]) {
+      expect(changed).toContain(label);
+    }
   });
 });

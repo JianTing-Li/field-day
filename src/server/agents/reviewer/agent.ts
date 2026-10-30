@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { z } from "zod";
 import {
   ReviewerOutput,
   type AgentDefinition,
@@ -9,6 +8,7 @@ import {
   type CandidatePlan,
   type ReviewerInput,
 } from "@/contracts";
+import { REVIEWER_SCHEMA_JSON, ReviewerModelOutput } from "../model-output";
 import { runAgent } from "../runner";
 
 /**
@@ -24,18 +24,20 @@ import { runAgent } from "../runner";
 
 const SYSTEM_PROMPT = readFileSync(path.join(process.cwd(), "src/server/agents/reviewer/prompt.md"), "utf8");
 
-/** The exact output shape, so the model doesn't have to guess field names. */
-const OUTPUT_SCHEMA = JSON.stringify(z.toJSONSchema(ReviewerOutput, { io: "input" }));
+/** The exact output shape, without the checks the harness fills in (D-JT24-3). */
+const OUTPUT_SCHEMA = REVIEWER_SCHEMA_JSON;
 
 export const reviewerDefinition: AgentDefinition<"reviewer"> = {
   name: "reviewer",
   system_prompt: SYSTEM_PROMPT,
   allowed_tools: ["check_plan"],
-  output_schema: ReviewerOutput,
+  output_schema: ReviewerModelOutput,
   build_user_message: (input: ReviewerInput) =>
     [
       "Review the specialists' proposals for this conflict. Combine their options into complete park + time +",
-      "workout plans, call check_plan on each combined plan, rank them, then answer with only the JSON object.",
+      "workout plans and rank at most 3. The harness compatibility checks below already cover every pairing:",
+      "use them, and call check_plan only for a combination they don't cover. Leave each option's checks out;",
+      "the application fills them in. Then answer with only the JSON object.",
       "",
       `event_version: ${input.context.event_version}`,
       `evidence_snapshot_id: ${input.context.evidence_snapshot_id}`,

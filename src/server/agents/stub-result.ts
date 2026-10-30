@@ -1,4 +1,4 @@
-import { scenarioForSnapshot } from "@fixtures/scenarios";
+import { scenarioForSnapshot, shiftDate } from "@fixtures/scenarios";
 import { ZERO_USAGE, type AgentDeps, type AgentIO, type AgentName, type AgentResult } from "@/contracts";
 
 type Scenario = NonNullable<ReturnType<typeof scenarioForSnapshot>>;
@@ -13,7 +13,10 @@ export function stubResult<N extends AgentName>(
   pick: (s: Scenario, version: number) => unknown,
 ): AgentResult<N> {
   const scenario = scenarioForSnapshot(deps.tool_context.snapshot.id);
-  const output = scenario ? pick(scenario, deps.tool_context.event_version) : undefined;
+  // A seeded demo event may run on a later date than its fixture (D-JT24-14); its answers move with it.
+  const output = scenario
+    ? shiftDate(pick(scenario, deps.tool_context.event_version), scenario.brief.date, deps.tool_context.brief.date)
+    : undefined;
   if (!output) {
     return {
       ok: false,

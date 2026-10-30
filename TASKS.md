@@ -50,6 +50,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [x] **JT-17** Eval runner + comparison: rules vs 1 agent vs 4 agents (#19) · Wed–Thu
 - [x] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
 - [ ] **JT-23** Eval fixes found by the first real run: grade single on check_plan, raise the Logistics/Reviewer output limit; README eval results (follow-up to JT-17, no issue) · Wed · needs: JT-17
+- [ ] **JT-24** Audit fixes: confirmations only for space/surface/permit, harness-owned checks, full workflow on Generate, input and rate limits, form and workspace UX (no issue) · Thu
 - [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20
 - [ ] **JT-20** Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40) · Tue
 - [ ] **JT-21** Decide the hosted database and record it in docs/decisions.md (#41) · Tue PM

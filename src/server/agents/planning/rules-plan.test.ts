@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PlanningOutput, type AgentDeps, type EventBrief, type PlanningInput } from "@/contracts";
 import { case01, case02 } from "@fixtures/scenarios";
 import { createBudget } from "@/server/orchestrator/budget";
@@ -97,7 +97,9 @@ describe("practice planner", () => {
       instructor_limits: { max_temperature_f: null, max_aqi: null, notes: null },
       priorities: [],
     };
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-29T12:00:00Z") });
     const created = await createEvent({ brief });
+    vi.useRealTimers();
     const { event } = await generateDraft(created.event.id, { version: created.event.current_version });
     const v = event.versions.find((x) => x.version === event.current_version)!;
     expect(event.last_run?.status).toBe("completed");

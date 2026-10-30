@@ -5,14 +5,36 @@
     "duration_minutes": 45,
     "intensity": "moderate",
     "exercises": [
-      { "name": "Warm-up: easy walk in place, arm circles, leg swings", "minutes": 8, "intensity": "low" },
-      { "name": "Circuit, 5 rounds of 40s on / 20s rest: squats, incline push-ups or wall push-ups, glute bridges, reverse lunges, plank, step jacks", "minutes": 30, "intensity": "moderate" },
-      { "name": "Cool-down: hamstring, quad, hip flexor and shoulder stretches", "minutes": 7, "intensity": "low" }
+      {
+        "name": "Warm-up: easy walk in place, arm circles, leg swings",
+        "minutes": 8,
+        "intensity": "low"
+      },
+      {
+        "name": "Circuit, 5 rounds of 40s on / 20s rest: squats, incline push-ups or wall push-ups, glute bridges, reverse lunges, plank, step jacks",
+        "minutes": 30,
+        "intensity": "moderate"
+      },
+      {
+        "name": "Cool-down: hamstring, quad, hip flexor and shoulder stretches",
+        "minutes": 7,
+        "intensity": "low"
+      }
     ],
     "equipment": [],
-    "space": { "layout": "stationary", "min_area_sq_m": 100 },
-    "surfaces": ["grass", "turf", "paved"],
-    "group_size": { "min": 4, "max": 25 },
+    "space": {
+      "layout": "stationary",
+      "min_area_sq_m": 100
+    },
+    "surfaces": [
+      "grass",
+      "turf",
+      "paved"
+    ],
+    "group_size": {
+      "min": 4,
+      "max": 25
+    },
     "permitted_adaptations": [
       {
         "id": "adapt-low-impact",
@@ -29,7 +51,11 @@
         "duration_delta_minutes": -15
       }
     ],
-    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
+    "review": {
+      "status": "pending_instructor_review",
+      "reviewer": null,
+      "reviewed_at": null
+    },
     "evidence_id": "ev-tpl-bodyweight-45"
   },
   {
@@ -38,15 +64,40 @@
     "duration_minutes": 45,
     "intensity": "high",
     "exercises": [
-      { "name": "Warm-up: brisk walk, then easy jog", "minutes": 10, "intensity": "low" },
-      { "name": "Intervals, 7 rounds: 1 min run at a hard but steady pace, 2 min walk", "minutes": 21, "intensity": "high" },
-      { "name": "Steady easy jog or brisk walk", "minutes": 7, "intensity": "moderate" },
-      { "name": "Cool-down walk and calf, hamstring and hip stretches", "minutes": 7, "intensity": "low" }
+      {
+        "name": "Warm-up: brisk walk, then easy jog",
+        "minutes": 10,
+        "intensity": "low"
+      },
+      {
+        "name": "Intervals, 7 rounds: 1 min run at a hard but steady pace, 2 min walk",
+        "minutes": 21,
+        "intensity": "high"
+      },
+      {
+        "name": "Steady easy jog or brisk walk",
+        "minutes": 7,
+        "intensity": "moderate"
+      },
+      {
+        "name": "Cool-down walk and calf, hamstring and hip stretches",
+        "minutes": 7,
+        "intensity": "low"
+      }
     ],
     "equipment": [],
-    "space": { "layout": "running_lane", "min_area_sq_m": null },
-    "surfaces": ["paved", "track"],
-    "group_size": { "min": 4, "max": 20 },
+    "space": {
+      "layout": "running_lane",
+      "min_area_sq_m": null
+    },
+    "surfaces": [
+      "paved",
+      "track"
+    ],
+    "group_size": {
+      "min": 4,
+      "max": 20
+    },
     "permitted_adaptations": [
       {
         "id": "adapt-stationary-circuit",
@@ -63,7 +114,11 @@
         "duration_delta_minutes": 0
       }
     ],
-    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
+    "review": {
+      "status": "pending_instructor_review",
+      "reviewer": null,
+      "reviewed_at": null
+    },
     "evidence_id": "ev-tpl-run-intervals-45"
   },
   {
@@ -72,14 +127,38 @@
     "duration_minutes": 45,
     "intensity": "moderate",
     "exercises": [
-      { "name": "Warm-up: marching, arm circles, band pull-aparts", "minutes": 8, "intensity": "low" },
-      { "name": "Strength, 3 sets of 12 each: band rows, band chest press, banded squats, banded glute bridges, band overhead press", "minutes": 30, "intensity": "moderate" },
-      { "name": "Cool-down: mat stretches for back, hips and shoulders", "minutes": 7, "intensity": "low" }
+      {
+        "name": "Warm-up: marching, arm circles, band pull-aparts",
+        "minutes": 8,
+        "intensity": "low"
+      },
+      {
+        "name": "Strength, 3 sets of 12 each: band rows, band chest press, banded squats, banded glute bridges, band overhead press",
+        "minutes": 30,
+        "intensity": "moderate"
+      },
+      {
+        "name": "Cool-down: mat stretches for back, hips and shoulders",
+        "minutes": 7,
+        "intensity": "low"
+      }
     ],
-    "equipment": ["resistance_band", "exercise_mat"],
-    "space": { "layout": "stationary", "min_area_sq_m": 100 },
-    "surfaces": ["grass", "turf"],
-    "group_size": { "min": 4, "max": 20 },
+    "equipment": [
+      "resistance_band",
+      "exercise_mat"
+    ],
+    "space": {
+      "layout": "stationary",
+      "min_area_sq_m": 100
+    },
+    "surfaces": [
+      "grass",
+      "turf"
+    ],
+    "group_size": {
+      "min": 4,
+      "max": 20
+    },
     "permitted_adaptations": [
       {
         "id": "adapt-band-short-35",
@@ -89,7 +168,86 @@
         "duration_delta_minutes": -10
       }
     ],
-    "review": { "status": "pending_instructor_review", "reviewer": null, "reviewed_at": null },
+    "review": {
+      "status": "pending_instructor_review",
+      "reviewer": null,
+      "reviewed_at": null
+    },
     "evidence_id": "ev-tpl-band-strength-45"
+  },
+  {
+    "id": "tpl-yoga-45",
+    "name": "Beginner outdoor yoga flow",
+    "duration_minutes": 45,
+    "intensity": "low",
+    "exercises": [
+      {
+        "name": "Arrive and settle: seated breathing",
+        "minutes": 5,
+        "intensity": "low"
+      },
+      {
+        "name": "Warm-up on hands and knees: cat-cow, gentle neck and shoulder rolls",
+        "minutes": 5,
+        "intensity": "low"
+      },
+      {
+        "name": "Sun salutations, 4 slow rounds (half salutations as the easier option)",
+        "minutes": 10,
+        "intensity": "moderate"
+      },
+      {
+        "name": "Standing poses: warrior I and II, triangle, tree pose for balance",
+        "minutes": 13,
+        "intensity": "moderate"
+      },
+      {
+        "name": "Floor poses: bridge, seated forward fold, lying twist",
+        "minutes": 7,
+        "intensity": "low"
+      },
+      {
+        "name": "Rest lying down",
+        "minutes": 5,
+        "intensity": "low"
+      }
+    ],
+    "equipment": [
+      "exercise_mat"
+    ],
+    "space": {
+      "layout": "stationary",
+      "min_area_sq_m": 120
+    },
+    "surfaces": [
+      "grass",
+      "turf"
+    ],
+    "group_size": {
+      "min": 4,
+      "max": 25
+    },
+    "permitted_adaptations": [
+      {
+        "id": "adapt-yoga-short-30",
+        "description": "Do 2 rounds of sun salutations, a shorter standing sequence and 3 minutes of rest",
+        "effect": "Shortens the session by 15 minutes",
+        "resulting_layout": null,
+        "duration_delta_minutes": -15
+      },
+      {
+        "id": "adapt-yoga-standing",
+        "description": "Skip the floor poses and rest standing; use a bench or tree for balance",
+        "effect": "No time on the ground; for wet grass or anyone who can't get down to the floor",
+        "resulting_layout": null,
+        "duration_delta_minutes": 0
+      }
+    ],
+    "review": {
+      "status": "pending_instructor_review",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    "evidence_id": "ev-tpl-yoga-45"
   }
 ]

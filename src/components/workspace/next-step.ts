@@ -1,6 +1,9 @@
 import type { CheckId, FieldDayEvent, GateCheck, PlanVersion } from "@/contracts";
+import { daysFrom, FORECAST_DAYS } from "../format";
 import { aboutCurrentPlan, confirmable } from "./ApprovalFlow";
-import { checkName } from "./logic";
+import { plainIds, type ConfirmItem } from "./logic";
+
+export { plainIds };
 
 /**
  * The one thing the organizer should do next on an event (owner: Yadan). Every status gets a plain
@@ -14,6 +17,7 @@ export type StepAction =
   | "confirm"
   | "recheck"
   | "approve"
+  | "approve_and_lock"
   | "finalize"
   | "edit";
 
@@ -25,11 +29,24 @@ export interface NextStep {
   label: string | null;
   /** For "confirm": the organizer task to open. */
   taskId?: string;
+  /** For "confirm" from the harness's own checks: the check to confirm. */
+  checkId?: CheckId;
+}
+
+/** What the page knows beyond the version itself. */
+export interface NextStepContext {
+  /** What the organizer can confirm for this plan (from confirmItems); preferred over agent to-dos. */
+  confirm?: ConfirmItem[];
+  /** Today in New York ("YYYY-MM-DD"), read in the browser. */
+  today?: string | null;
+  /** The locked-in record rests on unreviewed limits, workouts or fixtures (D-JT24-2). */
+  demoOnly?: boolean;
 }
 
 /** A failed check, in the organizer's words. */
 const PROBLEM: Record<CheckId, string> = {
   "heat.max_temperature": "it's too hot",
+  "weather.rain": "rain is likely",
   "air_quality.max_aqi": "the air quality is too poor",
   "space_surface.space": "the space doesn't work",
   "space_surface.surface": "the ground surface doesn't work",
@@ -41,21 +58,13 @@ const PROBLEM: Record<CheckId, string> = {
   "permissions.permit_review": "a permit may be needed",
 };
 
-const CONDITIONS: CheckId[] = ["heat.max_temperature", "air_quality.max_aqi", "freshness.conditions"];
+const CONDITIONS: CheckId[] = ["heat.max_temperature", "weather.rain", "air_quality.max_aqi", "freshness.conditions"];
 
 /** "it's too hot", "it's too hot and the space doesn't work", "it's too hot, … and 1 more problem". */
 export function problemSentence(ids: CheckId[]): string {
   const parts = ids.map((id) => PROBLEM[id] ?? id);
   if (parts.length <= 2) return parts.join(" and ");
   return `${parts.slice(0, 2).join(", ")} and ${parts.length - 2} more problem${parts.length > 3 ? "s" : ""}`;
-}
-
-/** Swaps check IDs inside a harness message for their plain names ("space_surface.surface" -> "Ground surface"). */
-export function plainIds(text: string): string {
-  return text.replace(/\b[a-z_]+\.[a-z_]+\b/g, (id) => {
-    const name = checkName(id as CheckId);
-    return name === id ? id : name.toLowerCase();
-  });
 }
 
 /** Why drafting failed, in the organizer's words. */
@@ -80,6 +89,7 @@ export function nextStep(
   v: PlanVersion,
   gate: GateCheck[] | null = null,
   lastRun: FieldDayEvent["last_run"] = null,
+  ctx: NextStepContext = {},
 ): NextStep {
   // Drafting failed and left no plan: say so, instead of offering the same "Draft a plan" forever.
   if (!v.plan && lastRun && (lastRun.status === "failed" || lastRun.status === "budget_exhausted")) {
@@ -106,7 +116,9 @@ export function nextStep(
       return {
         tone: "success",
         title: "Locked in",
-        body: "This is your final plan. Nothing was booked or sent: share it with your group when you're ready.",
+        body: ctx.demoOnly
+          ? "Saved as your final plan in this demo. The safety limits and workouts aren't reviewed for real use yet, so don't run a real event on it. Nothing was booked or sent."
+          : "This is your final plan. Nothing was booked or sent: share it with your group when you're ready.",
         action: null,
         label: null,
       };
@@ -122,15 +134,15 @@ export function nextStep(
       return {
         tone: "success",
         title: "Everything checks out",
-        body: "Every safety check passes for this park, time and workout. Approve it when you're happy with it.",
-        action: "approve",
-        label: "Approve plan",
+        body: "Every safety check passes for this park, time and workout. Approving runs one last safety check and saves it as your final plan.",
+        action: "approve_and_lock",
+        label: "Approve and lock in",
       };
     case "no_feasible_option":
       return {
         tone: "danger",
         title: "No safe option found",
-        body: "None of your allowed parks and times works for this workout. Try another date, a wider time window or more parks.",
+        body: "FieldDay couldn't find a park, time and workout that pass every check. See what's blocking below, then change the brief.",
         action: "edit",
         label: "Edit the brief",
       };
@@ -143,15 +155,25 @@ export function nextStep(
         label: "Draft a plan",
       };
     case "needs_verification":
-      return needsVerification(v);
+      return needsVerification(v, ctx);
   }
 }
 
-function needsVerification(v: PlanVersion): NextStep {
+function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
   const checks = v.checks?.checks ?? [];
   const failed = checks.filter((c) => c.critical && c.status === "fail").map((c) => c.check_id);
   if (failed.length > 0) {
     const problems = capitalize(problemSentence(failed));
+    // The review ran and nothing in the brief fixes it: say how to widen the brief, not "see alternatives".
+    if (v.alternatives && v.alternatives.ranked_options.length === 0) {
+      return {
+        tone: "danger",
+        title: `${problems}, and nothing in your brief fixes it`,
+        body: "FieldDay tried the other times, parks and workouts your brief allows, and none of them work. Allow another start time or park, or pick a different date.",
+        action: "edit",
+        label: "Edit the brief",
+      };
+    }
     return v.alternatives
       ? {
           tone: "warning",
@@ -169,12 +191,25 @@ function needsVerification(v: PlanVersion): NextStep {
         };
   }
 
+  // What only the organizer can check, from the harness's own unknown checks (D-JT24-1).
+  const required = (ctx.confirm ?? []).filter((c) => c.required);
+  if (required.length > 0) {
+    return {
+      tone: "warning",
+      title: required.length === 1 ? "One thing left to check" : `${required.length} things left to check`,
+      body: required[0].question,
+      action: "confirm",
+      label: "Check it now",
+      checkId: required[0].check_id,
+    };
+  }
+
   // Only tasks that still matter: about this plan, and their check isn't confirmed yet.
   const open = new Set(checks.filter((c) => c.status !== "pass").map((c) => c.check_id));
   const tasks = v.organizer_tasks.filter(
     (t) => confirmable(t) && aboutCurrentPlan(t, v.plan) && open.has(t.resolves_check_id),
   );
-  if (tasks.length > 0) {
+  if (ctx.confirm === undefined && tasks.length > 0) {
     return {
       tone: "warning",
       title: tasks.length === 1 ? "One thing left to confirm" : `${tasks.length} things left to confirm`,
@@ -187,10 +222,15 @@ function needsVerification(v: PlanVersion): NextStep {
 
   const unknown = checks.filter((c) => c.critical && c.status === "unknown").map((c) => c.check_id);
   if (unknown.some((id) => CONDITIONS.includes(id))) {
+    const date = v.plan?.start_time?.slice(0, 10);
+    const ahead = date && ctx.today ? daysFrom(ctx.today, date) : null;
     return {
       tone: "info",
       title: "Waiting on weather data",
-      body: "There's no current forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
+      body:
+        ahead !== null && ahead > FORECAST_DAYS
+          ? `It's too early for a forecast. Weather forecasts reach about ${FORECAST_DAYS} days ahead and air quality about 1 to 2, so check again in the last few days before the event.`
+          : "There's no current forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
       action: "recheck",
       label: "Check the latest weather",
     };

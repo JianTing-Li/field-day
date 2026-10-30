@@ -3,7 +3,6 @@ import { CheckId, LifecycleStatus, type CheckResult, type PlanVersion } from "@/
 import { case02 } from "@fixtures/scenarios";
 import {
   adaptationName,
-  approveBlockedReason,
   availableActions,
   checkName,
   finalizeKey,
@@ -48,16 +47,6 @@ describe("availableActions", () => {
   it("never offers changes or confirmations on a finalized version", () => {
     const a = availableActions(at("finalized"));
     expect(a).toMatchObject({ reportChange: false, requestReview: false, confirm: false, approve: false });
-  });
-});
-
-describe("approveBlockedReason", () => {
-  it("explains every status except ready_for_approval", () => {
-    for (const s of LifecycleStatus.options) {
-      const reason = approveBlockedReason(at(s));
-      if (s === "ready_for_approval") expect(reason).toBeNull();
-      else expect(reason).toBeTruthy();
-    }
   });
 });
 

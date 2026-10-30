@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { z } from "zod";
 import {
   WorkoutOutput,
   type AgentDefinition,
@@ -9,6 +8,7 @@ import {
   type Concern,
   type SpecialistInput,
 } from "@/contracts";
+import { WORKOUT_SCHEMA_JSON, WorkoutModelOutput } from "../model-output";
 import { runAgent } from "../runner";
 
 /**
@@ -22,18 +22,19 @@ import { runAgent } from "../runner";
 
 const SYSTEM_PROMPT = readFileSync(path.join(process.cwd(), "src/server/agents/workout/prompt.md"), "utf8");
 
-/** The exact output shape, so the model doesn't have to guess field names. */
-const OUTPUT_SCHEMA = JSON.stringify(z.toJSONSchema(WorkoutOutput, { io: "input" }));
+/** The exact output shape, without the checks the harness fills in (D-JT24-3). */
+const OUTPUT_SCHEMA = WORKOUT_SCHEMA_JSON;
 
 export const workoutDefinition: AgentDefinition<"workout"> = {
   name: "workout",
   system_prompt: SYSTEM_PROMPT,
   allowed_tools: ["get_forecast", "get_air_quality", "get_workout_templates", "check_plan"],
-  output_schema: WorkoutOutput,
+  output_schema: WorkoutModelOutput,
   build_user_message: (input: SpecialistInput) =>
     [
       "Propose up to 3 workout alternatives for this conflict. Read the evidence and templates with your tools,",
       "call check_plan on each option's plan, then answer with only the JSON object.",
+      "Leave each option's checks out: the application runs check_plan on every option and fills them in.",
       "",
       `event_version: ${input.context.event_version}`,
       `evidence_snapshot_id: ${input.context.evidence_snapshot_id}`,
