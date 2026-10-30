@@ -4,18 +4,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { z } from "zod";
-import { Api, ChangeReport, CheckId, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
+import { Api, type EventBrief, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
 import { AUTODRAFT_KEY } from "../BriefForm";
-import { formatUpdated, startWindowText, todayInNewYork } from "../format";
-import { Alert, Button, buttonClass, Card, fieldClass } from "../ui";
-import { Alternatives } from "./Alternatives";
-import { ApprovalPanel, ConfirmationsList, ConfirmPanel } from "./ApprovalFlow";
-import { availableActions, confirmItems, currentVersion, finalizeKey } from "./logic";
+import { todayInNewYork } from "../format";
+import { Alert, Button, buttonClass } from "../ui";
+import { SuggestedFix } from "./Alternatives";
+import { ConfirmPanel } from "./ApprovalFlow";
+import { SomethingChanged } from "./Disruptions";
+import { availableActions, confirmItems, currentVersion, finalizeKey, problemLines } from "./logic";
 import { PlanSummary } from "./NextStep";
 import { nextStep, type NextStep } from "./next-step";
-import { BlockersCard, ChecksList, EvidenceList, PlanCard, TechnicalDetails } from "./sections";
+import { HowWeChecked, SessionOutline } from "./sections";
 
 /** Event workspace (GET /api/events/:id). Owner: Yadan, tasks YT-09 to YT-12. */
 
@@ -30,12 +31,10 @@ export function Workspace({ eventId }: { eventId: string }) {
     label: string;
     error: ApiFailure;
   } | null>(null);
-  const [showChange, setShowChange] = useState(false);
   const [gate, setGate] = useState<GateCheck[] | null>(null);
   // Next keeps pages you left mounted but hidden; scroll targets are looked up inside this page only.
   const rootRef = useRef<HTMLDivElement>(null);
   const today = useSyncExternalStore(noSubscribe, todayInNewYork, () => null);
-  const [blockedDetails, setBlockedDetails] = useState<CheckId[]>([]);
   const router = useRouter();
   const base = `/api/events/${encodeURIComponent(eventId)}`;
 
@@ -89,15 +88,12 @@ export function Workspace({ eventId }: { eventId: string }) {
   ): Promise<ApiResult<z.infer<S>>> {
     setBusy(label);
     setActionError(null);
-    setBlockedDetails([]);
     const r = await apiSend("POST", `${base}/${path}`, body, schema);
     if (r.ok) {
       setGate(null);
       await load();
     } else {
       setActionError({ label, error: r });
-      const ids = CheckId.array().safeParse(r.details);
-      if (r.code === "blocked" && ids.success) setBlockedDetails(ids.data);
     }
     setBusy(null);
     return r;
@@ -183,22 +179,86 @@ export function Workspace({ eventId }: { eventId: string }) {
     }
   };
 
+  /**
+   * Equipment and group-size changes edit the brief, then draft again straight away, so "Something
+   * changed?" is one click whatever the change is.
+   */
+  const editAndReplan = async (patch: Partial<EventBrief>): Promise<boolean> => {
+    setBusy("Finding a fix");
+    setActionError(null);
+    const edited = await apiSend(
+      "PUT",
+      `${base}/brief`,
+      { brief: { ...event.brief, ...patch }, based_on_version: v.version },
+      Api.updateBrief.response,
+    );
+    const drafted = edited.ok
+      ? await apiSend("POST", `${base}/generate`, { version: edited.data.event.current_version }, Api.generateDraft.response)
+      : edited;
+    if (!drafted.ok) setActionError({ label: "Finding a fix", error: drafted });
+    setGate(null);
+    await load();
+    setBusy(null);
+    return drafted.ok;
+  };
+
+  const date = new Date(`${event.brief.date}T12:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+
   return (
     <div ref={rootRef} data-workspace className="animate-enter space-y-5 pb-28 md:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
-          <p className="mt-1 text-sm text-ink-2">
-            {event.brief.group_size} people · {event.brief.duration_minutes} minutes ·{" "}
-            {startWindowText(event.brief.start_window.earliest, event.brief.start_window.latest)}
+          <p className="text-sm text-ink-2">
+            {date} · {event.brief.group_size} people
           </p>
+          <h1 className="mt-1 text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-5xl">{event.brief.title}</h1>
         </div>
         <Link href={`/events/${encodeURIComponent(event.id)}/brief`} className={buttonClass("secondary")}>
-          Edit brief
+          Edit
         </Link>
       </div>
 
-      <PlanSummary event={event} version={v} snapshot={snapshot} step={step} busy={busy} onAction={() => runStep(step)} />
+      <PlanSummary
+        event={event}
+        version={v}
+        snapshot={snapshot}
+        step={step}
+        busy={busy}
+        onAction={() => runStep(step)}
+        problems={problemLines(v, snapshot)}
+        fix={
+          step.action === "alternatives" ? (
+            <SuggestedFix
+              version={v}
+              snapshot={snapshot}
+              busy={!!busy}
+              canApply={actions.applyOption}
+              onApply={(o) =>
+                act("Switching to this plan", "apply-option", { ...version, combined_option_id: o.combined_option_id }, Api.applyOption.response)
+              }
+            />
+          ) : undefined
+        }
+        footer={
+          v.plan && !busy ? (
+            <>
+              {actions.recheck && (
+                <Button variant="ghost" className="px-0" onClick={recheck}>
+                  Check the weather again
+                </Button>
+              )}
+              <Button variant="ghost" className="px-0" onClick={draftPlan}>
+                Start over with a new plan
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
       {actionError && (
         <ActionErrorBanner
@@ -219,20 +279,12 @@ export function Workspace({ eventId }: { eventId: string }) {
       {v.plan && event.last_run && (event.last_run.status === "failed" || event.last_run.status === "budget_exhausted") && (
         <Alert tone="warning" role="status" title="The last run didn't finish">
           {event.last_run.status === "budget_exhausted"
-            ? "The agents hit their time or call limit, so nothing from that run was saved."
+            ? "FieldDay ran out of time before it finished, so nothing from that run was saved."
             : "Something went wrong during the run, so nothing from it was saved."}{" "}
-          Your plan below is unchanged.
+          Your plan is unchanged.
         </Alert>
       )}
 
-      {v.evidence_snapshot_id && !snapshot && (
-        <Alert tone="warning" role="status" title="The sources for this plan couldn't be loaded">
-          The checks below may be out of date. Use &ldquo;Check the latest weather&rdquo; to fetch fresh data before
-          approving.
-        </Alert>
-      )}
-
-      <BlockersCard version={v} snapshot={snapshot} />
       <ConfirmPanel
         items={items}
         busy={!!busy}
@@ -245,95 +297,20 @@ export function Workspace({ eventId }: { eventId: string }) {
           )
         }
       />
-      <Card
-        title="More actions"
-        description={
-          <span aria-live="polite">
-            {busy ? `${busy}… this can take a minute.` : "Change the plan or check it again."}
-          </span>
-        }
-      >
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={v.plan ? "secondary" : "primary"}
-            disabled={!!busy}
-            onClick={draftPlan}
-          >
-            {v.plan ? "Draft a new plan" : "Draft a plan"}
-          </Button>
-          {actions.recheck && (
-            <Button disabled={!!busy} onClick={recheck}>
-              Check the latest weather
-            </Button>
-          )}
-          {actions.reportChange && (
-            <Button disabled={!!busy} onClick={() => setShowChange((s) => !s)} aria-expanded={showChange}>
-              Report a problem
-            </Button>
-          )}
-          {actions.requestReview && (
-            <Button
-              disabled={!!busy}
-              onClick={findAlternatives}
-            >
-              Find alternatives
-            </Button>
-          )}
-        </div>
-        {(event.change_reports ?? []).length > 0 && (
-          <div className="mt-5 text-sm">
-            <h3 className="font-bold text-ink">You reported</h3>
-            <ul className="mt-1.5 space-y-1 text-ink-2">
-              {(event.change_reports ?? []).slice(-3).map((r) => (
-                <li key={r.at}>
-                  “{r.description}” · {formatUpdated(r.at)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {showChange && (
-          <ChangeForm
-            disabled={!!busy}
-            onCancel={() => setShowChange(false)}
-            onSubmit={async (change) => {
-              const r = await act("Reporting a problem", "changes", { ...version, change }, Api.reportChange.response);
-              if (r.ok) setShowChange(false);
-            }}
-          />
-        )}
-      </Card>
 
-      <ConfirmationsList event={event} snapshot={snapshot} />
-      <Alternatives
+      <SomethingChanged
+        event={event}
         version={v}
         snapshot={snapshot}
         busy={!!busy}
-        canApply={actions.applyOption}
-        onApply={(o) =>
-          act(
-            "Switching to this option",
-            "apply-option",
-            { ...version, combined_option_id: o.combined_option_id },
-            Api.applyOption.response,
-          )
-        }
+        onReport={async (change) => (await act("Finding a fix", "changes", { ...version, change }, Api.reportChange.response)).ok}
+        onEditBrief={editAndReplan}
       />
-      <div className="grid gap-5 lg:grid-cols-2">
-        <PlanCard version={v} snapshot={snapshot} />
-        <ChecksList checks={v.checks} snapshot={snapshot} />
+
+      <div className="space-y-3">
+        <HowWeChecked checks={v.checks} snapshot={snapshot} />
+        <SessionOutline version={v} snapshot={snapshot} />
       </div>
-      <ApprovalPanel
-        event={event}
-        version={v}
-        busy={!!busy}
-        gate={shownGate}
-        blockedDetails={blockedDetails}
-        onApprove={approve}
-        onFinalize={lockIn}
-      />
-      <EvidenceList snapshot={snapshot} />
-      <TechnicalDetails event={event} version={v} />
     </div>
   );
 }
@@ -361,94 +338,6 @@ function ActionErrorBanner({
         </Button>
       )}
     </Alert>
-  );
-}
-
-const CHANGE_KINDS: { value: ChangeReport["kind"]; label: string }[] = [
-  { value: "time_unavailable", label: "The time doesn't work anymore" },
-  { value: "park_issue", label: "Problem at the park" },
-  { value: "workout_issue", label: "Problem with the workout" },
-  { value: "conditions", label: "Weather or air quality changed" },
-  { value: "other", label: "Something else" },
-];
-
-function ChangeForm({
-  disabled,
-  onSubmit,
-  onCancel,
-}: {
-  disabled: boolean;
-  onSubmit: (c: ChangeReport) => void;
-  onCancel: () => void;
-}) {
-  const [kind, setKind] = useState<ChangeReport["kind"]>("park_issue");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <form
-      className="clay-recessed mt-5 space-y-4 rounded-surface bg-lavender/50 p-5 sm:p-6"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const parsed = ChangeReport.safeParse({
-          kind,
-          description: description.trim(),
-        });
-        if (!parsed.success) return setError("Describe what changed");
-        onSubmit(parsed.data);
-      }}
-    >
-      <p className="text-sm text-ink-2">
-        FieldDay will ask its specialists for alternatives. Your current plan stays as it is until you pick one.
-      </p>
-      <div>
-        <label htmlFor="change-kind" className="mb-2 block text-sm font-bold text-ink">
-          What changed?
-        </label>
-        <select
-          id="change-kind"
-          value={kind}
-          onChange={(e) => setKind(e.target.value as ChangeReport["kind"])}
-          className={fieldClass()}
-        >
-          {CHANGE_KINDS.map((k) => (
-            <option key={k.value} value={k.value}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label htmlFor="change-description" className="mb-2 block text-sm font-bold text-ink">
-          Details
-        </label>
-        <textarea
-          id="change-description"
-          rows={2}
-          value={description}
-          onChange={(e) => {
-            setDescription(e.target.value);
-            setError(null);
-          }}
-          placeholder="e.g. The running lane at the park is closed for repairs"
-          aria-invalid={!!error}
-          aria-describedby={error ? "change-error" : undefined}
-          className={fieldClass(error, true)}
-        />
-        {error && (
-          <p id="change-error" className="mt-1.5 text-sm font-bold text-danger-ink">
-            {error}
-          </p>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <Button type="submit" variant="primary" disabled={disabled}>
-          Find alternatives
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
   );
 }
 

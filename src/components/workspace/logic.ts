@@ -23,9 +23,9 @@ export function currentVersion(event: FieldDayEvent): PlanVersion {
 
 /** Icon + words for a check result. Unknown is never styled like pass. */
 export const CHECK_STATUS: Record<CheckStatus, { icon: string; label: string; tone: string }> = {
-  pass: { icon: "✓", label: "Pass", tone: "text-ink bg-mint" },
-  fail: { icon: "✕", label: "Fail", tone: "text-ink bg-danger" },
-  unknown: { icon: "?", label: "Unknown", tone: "text-ink bg-butter" },
+  pass: { icon: "✓", label: "OK", tone: "text-ink bg-mint" },
+  fail: { icon: "✕", label: "Problem", tone: "text-ink bg-danger" },
+  unknown: { icon: "○", label: "To check", tone: "text-ink bg-butter" },
 };
 
 const CHECK_NAMES: Record<CheckId, string> = {
@@ -80,24 +80,6 @@ export function availableActions(v: PlanVersion): Actions {
     finalize: s === "approved",
     editBrief: true,
   };
-}
-
-/** Why Approve is unavailable, in plain words. Null when it is available. */
-export function approveBlockedReason(v: PlanVersion): string | null {
-  switch (v.status) {
-    case "ready_for_approval":
-      return null;
-    case "draft":
-      return "Draft a plan first.";
-    case "needs_verification":
-      return "Some critical checks failed or are not confirmed. Resolve what's blocking this plan, listed above, first.";
-    case "no_feasible_option":
-      return "No safe option was found. Edit the brief or find alternatives.";
-    case "approved":
-      return "This plan is already approved.";
-    case "finalized":
-      return "This plan is locked in.";
-  }
 }
 
 export function parkName(snapshot: EvidenceSnapshot | null, id: string | null): string {
@@ -162,15 +144,39 @@ export function plainText(text: string, snapshot: EvidenceSnapshot | null): stri
     .replace(/\s*\(unreviewed demo policy\)/g, "");
 }
 
-/** The overall result in a few plain words: "All checks pass", "2 to confirm", "1 problem". */
+/** The overall result in a few plain words: "All clear", "2 to check", "1 problem". */
 export function overallLabel(checks: CheckPlanResult): string {
   const critical = checks.checks.filter((c) => c.critical);
   const failed = critical.filter((c) => c.status === "fail").length;
   const unknown = critical.filter((c) => c.status === "unknown").length;
   if (failed > 0) return `${failed} problem${failed === 1 ? "" : "s"}`;
-  if (unknown > 0) return `${unknown} not checked yet`;
-  return "All checks pass";
+  if (unknown > 0) return `${unknown} to check`;
+  return "All clear";
 }
+
+/** What a failed check means, as a short headline. */
+const PROBLEM_TITLE: Record<CheckId, string> = {
+  "event_constraints.start_window": "Time doesn't work",
+  "event_constraints.allowed_park": "Park isn't on your list",
+  "equipment.available": "Missing equipment",
+  "duration.fits": "Workout doesn't fit the time",
+  "heat.max_temperature": "Too hot",
+  "weather.rain": "Rain likely",
+  "air_quality.max_aqi": "Air quality too poor",
+  "freshness.conditions": "No current forecast",
+  "space_surface.space": "No room for the workout",
+  "space_surface.surface": "Ground isn't suitable",
+  "permissions.permit_review": "Permit may be needed",
+};
+
+/** Each critical check that failed, as one plain line: "Too hot: forecast reaches 93°F…". */
+export function problemLines(v: PlanVersion, snapshot: EvidenceSnapshot | null): string[] {
+  return (v.checks?.checks ?? [])
+    .filter((c) => c.critical && c.status === "fail")
+    .map((c) => `${PROBLEM_TITLE[c.check_id] ?? checkName(c.check_id)}: ${lowerFirst(plainText(c.reason, snapshot))}`);
+}
+
+const lowerFirst = (t: string) => (/^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
 
 /** Something only the organizer can check at the park, with the sentence they confirm (F-15). */
 export interface ConfirmItem {

@@ -1,20 +1,16 @@
-import type { CombinedOption, EvidenceSnapshot, PlanChange, PlanVersion } from "@/contracts";
-import { Alert, Button, Pill } from "../ui";
-import { adaptationName, checkName, formatLocal, overallLabel, parkName, plainText, sortChecks, templateName } from "./logic";
-import { CheckStatusPill } from "./sections";
+"use client";
 
-/** Ranked alternatives from conflict review (alternatives on the current version). Task YT-10. */
+import { useState } from "react";
+import { isConfirmableCheck, type CombinedOption, type EvidenceSnapshot, type PlanChange, type PlanVersion } from "@/contracts";
+import { Button } from "../ui";
+import { adaptationName, checkName, formatLocal, parkName, plainText, problemLines, templateName } from "./logic";
 
-const FIELD_LABEL: Record<PlanChange["field"], string> = {
-  park: "Park",
-  start_time: "Start",
-  duration: "Length",
-  workout: "Workout",
-  adaptation: "Adaptation",
-  session: "Session",
-};
+/**
+ * The fix for a conflict, shown where the problem is (YT-10, reworked in JT-24): the reviewer's
+ * recommendation (or best-ranked option) up front with one button, the others one tap away.
+ */
 
-export function Alternatives({
+export function SuggestedFix({
   version,
   snapshot,
   busy,
@@ -27,182 +23,85 @@ export function Alternatives({
   canApply: boolean;
   onApply: (option: CombinedOption) => void;
 }) {
+  const [showOthers, setShowOthers] = useState(false);
   const review = version.alternatives;
-  if (!review) return null;
-  const recommended = review.recommendation?.combined_option_id ?? null;
+  if (!review || review.ranked_options.length === 0) return null;
+  const options = [...review.ranked_options].sort((a, b) => rank(a) - rank(b));
+  const best = options.find((o) => o.combined_option_id === review.recommendation?.combined_option_id) ?? options[0];
+  const others = options.filter((o) => o !== best);
 
   return (
-    <section id="alternatives" className="clay animate-enter scroll-mt-24 rounded-surface bg-lavender p-6 sm:p-8 md:rounded-tray md:p-10">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-ink">Alternatives</h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-2">
-            Ranked by the reviewer. Picking one makes it your plan, and FieldDay checks it again before you approve.
-          </p>
-        </div>
-        <Pill tone={review.status === "draft" ? "success" : "warning"}>{reviewStatus(review.status)}</Pill>
-      </div>
-      {review.blocking_issues.length > 0 && (
-        <div className="mb-5">
-          <Alert tone="warning" title="Still unresolved">
-            <ul className="list-disc space-y-0.5 pl-5">
-              {review.blocking_issues.map((b, i) => (
-                <li key={i}>{plainText(b, snapshot)}</li>
-              ))}
-            </ul>
-          </Alert>
-        </div>
+    <div id="alternatives" className="animate-enter mt-6 scroll-mt-24 space-y-3">
+      <OptionCard option={best} snapshot={snapshot} label="Suggested fix" featured busy={busy} canApply={canApply} onApply={onApply} />
+      {others.length > 0 && (
+        <Button variant="ghost" onClick={() => setShowOthers((s) => !s)} aria-expanded={showOthers}>
+          {showOthers ? "Hide other options" : `Other options (${others.length})`}
+        </Button>
       )}
-      <p className="mb-5 text-sm text-ink">
-        {review.recommendation ? (
-          <>
-            <strong className="font-bold">Recommendation:</strong> {plainText(review.recommendation.reason, snapshot)}
-          </>
-        ) : (
-          "No option is recommended yet: each one still has something unconfirmed. Compare them and confirm what you can."
-        )}
-      </p>
-      {review.ranked_options.length === 0 ? (
-        <p className="text-sm text-ink">The reviewer found no workable option.</p>
-      ) : (
-        <ol className="space-y-5">
-          {review.ranked_options.map((o, i) => (
-            <OptionShelf
-              key={o.combined_option_id}
-              rank={i + 1}
-              option={o}
-              snapshot={snapshot}
-              recommended={o.combined_option_id === recommended}
-              busy={busy}
-              canApply={canApply}
-              onApply={() => onApply(o)}
-            />
-          ))}
-        </ol>
-      )}
-    </section>
+      {showOthers &&
+        others.map((o) => (
+          <OptionCard key={o.combined_option_id} option={o} snapshot={snapshot} busy={busy} canApply={canApply} onApply={onApply} />
+        ))}
+    </div>
   );
 }
 
-/** One broad horizontal shelf: identity, details, action. The recommended shelf is teal. */
-function OptionShelf({
-  rank,
+/** Options with a failed check sort last; fewer things left to check sort first. */
+function rank(o: CombinedOption): number {
+  const critical = o.checks.checks.filter((c) => c.critical);
+  return critical.filter((c) => c.status === "fail").length * 10 + critical.filter((c) => c.status === "unknown").length;
+}
+
+function OptionCard({
   option: o,
   snapshot,
-  recommended,
+  label,
+  featured = false,
   busy,
   canApply,
   onApply,
 }: {
-  rank: number;
   option: CombinedOption;
   snapshot: EvidenceSnapshot | null;
-  recommended: boolean;
+  label?: string;
+  featured?: boolean;
   busy: boolean;
   canApply: boolean;
-  onApply: () => void;
+  onApply: (option: CombinedOption) => void;
 }) {
-  const problems = sortChecks(o.checks.checks).filter((c) => c.critical && c.status !== "pass");
-  // The reviewer often repeats a check's reason as an unknown; show each one once.
-  const reasons = new Set(problems.map((c) => plainText(c.reason, snapshot).toLowerCase()));
-  const unknowns = [...new Set(o.unknowns.map((u) => plainText(u, snapshot)))].filter((u) => !reasons.has(u.toLowerCase()));
   const p = o.plan;
+  const time = formatLocal(p.start_time).split(" · ").at(-1);
+  const adaptation = p.adaptation_ids.map((a) => shortAdaptation(adaptationName(snapshot, p.workout_template_id, a))).join(", ");
+  const toCheck = o.checks.checks
+    .filter((c) => c.critical && c.status === "unknown" && isConfirmableCheck(c.check_id))
+    .map((c) => checkName(c.check_id).toLowerCase());
+  const stillWrong = problemLines({ checks: o.checks } as PlanVersion, snapshot);
+  const notes = [
+    ...o.tradeoffs.slice(0, 2).map((t) => plainText(t, snapshot)),
+    ...(toCheck.length > 0 ? [`you'll confirm the ${toCheck.join(" and ")}`] : []),
+  ];
   return (
-    <li
-      className={`clay grid gap-5 rounded-surface p-5 sm:p-6 min-[1100px]:grid-cols-[minmax(12rem,15rem)_1fr_auto] min-[1100px]:items-start ${
-        recommended ? "bg-accent" : "bg-cream"
-      }`}
-    >
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="clay-sm grid h-9 w-9 place-items-center rounded-full bg-cream text-sm font-bold text-ink">
-            <span className="sr-only">Option </span>
-            {rank}
-          </span>
-          {recommended && <Pill tone="success">★ Recommended</Pill>}
-        </div>
-        <p className="mt-3 text-lg leading-snug font-bold text-ink">{parkName(snapshot, p.park_id)}</p>
-        <p className="text-sm text-ink">{formatLocal(p.start_time)}</p>
-        <p className="mt-1 text-sm text-ink-2">
-          {templateName(snapshot, p.workout_template_id)}
-          {p.adaptation_ids.length > 0 &&
-            ` · ${p.adaptation_ids.map((a) => adaptationName(snapshot, p.workout_template_id, a)).join("; ")}`}
-        </p>
-        <div className="mt-3">
-          <CheckStatusPill status={o.checks.overall} label={overallLabel(o.checks)} />
-        </div>
-      </div>
-
-      <div className="grid min-w-0 gap-4 min-[1300px]:grid-cols-2">
-        {o.changes_from_original.length > 0 && (
-          <div>
-            <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">What changes</h4>
-            <ul className="mt-1.5 space-y-1 text-sm">
-              {o.changes_from_original.map((c, i) => (
-                <li key={i} className="flex flex-wrap items-baseline gap-1.5">
-                  <span className="font-bold text-ink">{FIELD_LABEL[c.field]}:</span>
-                  <span className="text-ink-2 line-through decoration-ink-2">
-                    {changeValue(c, c.from, snapshot, p.workout_template_id)}
-                  </span>
-                  <span aria-label="becomes">→</span>
-                  <span className="text-ink">{changeValue(c, c.to, snapshot, p.workout_template_id)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {(problems.length > 0 || unknowns.length > 0) && (
-          <div>
-            <h4 className="text-xs font-bold tracking-wide text-ink-2 uppercase">Not resolved yet</h4>
-            <ul className="mt-1.5 space-y-1.5">
-              {problems.map((c) => (
-                <li key={c.check_id} className="flex gap-2 text-sm">
-                  <CheckStatusPill status={c.status} />
-                  <span className="text-ink">
-                    {checkName(c.check_id)}: {plainText(c.reason, snapshot)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {unknowns.length > 0 && (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-ink">
-                {unknowns.map((u, i) => (
-                  <li key={i}>{u}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        {o.tradeoffs.length > 0 && (
-          <ul className="space-y-0.5 text-sm text-ink-2 sm:col-span-2">
-            {o.tradeoffs.map((t, i) => (
-              <li key={i}>⚖ {plainText(t, snapshot)}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="min-[1100px]:w-44">
-        <Button
-          variant={recommended ? "surface" : "primary"}
-          disabled={busy || !canApply}
-          onClick={onApply}
-          className="w-full"
-        >
-          Use this option
-        </Button>
-        {o.checks.overall === "fail" && (
-          <p className="mt-2 text-xs font-bold text-ink">
-            This option still fails a critical check, so it can&apos;t be approved as is.
-          </p>
-        )}
-      </div>
-    </li>
+    <div className={`clay-sm rounded-disclosure p-5 ${featured ? "bg-mint" : "bg-cream"}`}>
+      {label && <p className="text-xs font-bold tracking-wide text-ink uppercase">{label}</p>}
+      <p className="mt-1 text-lg leading-snug font-bold text-ink">
+        {time} at {parkName(snapshot, p.park_id)}
+      </p>
+      <p className="text-sm text-ink">
+        {templateName(snapshot, p.workout_template_id)}
+        {adaptation && `, ${adaptation.charAt(0).toLowerCase()}${adaptation.slice(1)}`}
+      </p>
+      {notes.length > 0 && <p className="mt-1 text-sm text-ink-2">{notes.join(" · ")}</p>}
+      {stillWrong.length > 0 && <p className="mt-1 text-sm font-bold text-ink">Still a problem: {stillWrong.join("; ")}</p>}
+      <Button variant={featured ? "surface" : "primary"} className="mt-4" disabled={busy || !canApply} onClick={() => onApply(o)}>
+        Use this plan
+      </Button>
+    </div>
   );
 }
 
-function reviewStatus(s: NonNullable<PlanVersion["alternatives"]>["status"]) {
-  return { draft: "Ready to compare", revision_requested: "Revision requested", needs_verification: "Needs checking", no_feasible_option: "No workable option" }[s];
+/** "Replace the running intervals with a stationary circuit (high knees, …)" -> the part before the list. */
+function shortAdaptation(text: string): string {
+  return text.replace(/\s*\(.*\)\s*$/, "");
 }
 
 /** A change's before/after value in words. */
