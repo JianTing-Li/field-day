@@ -172,7 +172,7 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
 - Sessions run 30, 35 or 45 minutes and use one of 3 workouts, all pending instructor review; other activities need a
   reviewed workout first (D-JT24-7).
 - Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support
-  real-world finalization. The rain rule is not in the PRD yet (D-JT24-11).
+  real-world finalization. The rain rule was added to the PRD on 2026-10-30 (D-JT24-11).
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
 - Approval does not establish venue permission, usable space, or guaranteed conditions.
