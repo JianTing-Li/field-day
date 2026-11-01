@@ -16,9 +16,9 @@ function withRecords(edit: (records: RecordedParksResponse["records"]) => Record
 }
 
 describe("curated parks", () => {
-  it("has 10 parks across all five boroughs with reviewed coordinates", async () => {
+  it("has 29 parks across all five boroughs with reviewed coordinates (D-020, D-JT24-13)", async () => {
     const parks = await getCuratedParks();
-    expect(parks).toHaveLength(10);
+    expect(parks).toHaveLength(29);
     expect(new Set(parks.map((p) => p.borough))).toEqual(
       new Set(["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"]),
     );
@@ -124,9 +124,10 @@ describe("fetchParkRecords (live, injected fetch)", () => {
     expect(result.origin).toBe("live");
     expect(result.coverage_gaps).toEqual([]);
     const url = new URL(String((fetchFn.mock.calls[0] as unknown[])[0]));
-    expect(url.searchParams.get("$where")).toBe(
-      "gispropnum in('M047','M088','B058','B032','Q004','Q102','X010','X104','R005','R031')",
-    );
+    // One request for every curated park, however many there are.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const ids = (await getCuratedParks()).map((p) => `'${propertyId(p)}'`).join(",");
+    expect(url.searchParams.get("$where")).toBe(`gispropnum in(${ids})`);
     for (const item of result.items) {
       expect(item.origin).toBe("live");
       expect(item.retrieved_at).toBe("2026-10-28T13:00:00.000Z");
@@ -137,7 +138,7 @@ describe("fetchParkRecords (live, injected fetch)", () => {
   it("an HTTP failure returns null-valued items and a gap instead of throwing", async () => {
     const fetchFn = vi.fn(async () => new Response("error", { status: 503 }));
     const result = await fetchParkRecords("live", { fetch: fetchFn as unknown as typeof fetch, now });
-    expect(result.items).toHaveLength(10);
+    expect(result.items).toHaveLength((await getCuratedParks()).length);
     for (const item of result.items) {
       expect(item.value).toBeNull();
       expect(item.missing_reason).toBe("Parks Properties request failed: HTTP 503");

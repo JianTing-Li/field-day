@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Button, TONE_BG } from "../ui";
-import { formatLocal, parkName, templateName } from "./logic";
+import { conditionsLine, formatLocal, parkName, templateName } from "./logic";
 import type { NextStep } from "./next-step";
 
 /**
@@ -17,6 +17,9 @@ export function PlanSummary({
   step,
   busy,
   onAction,
+  problems = [],
+  fix,
+  footer,
 }: {
   event: FieldDayEvent;
   version: PlanVersion;
@@ -24,6 +27,12 @@ export function PlanSummary({
   step: NextStep;
   busy: string | null;
   onAction: () => void;
+  /** What's wrong with this plan, in plain lines (JT-24): shown here, not behind another click. */
+  problems?: string[];
+  /** The suggested fix; shown instead of the next-step box when there is one. */
+  fix?: ReactNode;
+  /** Small secondary actions under the card. */
+  footer?: ReactNode;
 }) {
   const p = v.plan;
   const lockedOlder = event.finalized && event.finalized.version !== v.version;
@@ -50,30 +59,56 @@ export function PlanSummary({
             {p.duration_minutes && ` · ${p.duration_minutes} min`}
           </p>
         )}
+        {p && (
+          <p className="mt-2 text-sm font-bold text-ink">
+            <span aria-hidden="true">☀ </span>
+            {conditionsLine(snapshot, p) ?? "No forecast for this time yet"}
+            {snapshot?.origin === "fixture" && <span className="font-normal text-ink-2"> · recorded demo data</span>}
+          </p>
+        )}
+        {problems.length > 0 && (
+          <div className="clay-sm animate-enter mt-5 rounded-disclosure bg-danger px-5 py-4 text-sm text-ink">
+            <p className="font-bold">This plan won&apos;t work as it is</p>
+            <ul className="mt-1 space-y-0.5">
+              {problems.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {lockedOlder && (
           <p className="mt-2 text-sm font-bold text-ink">
-            🔒 An earlier version (v{event.finalized!.version}) is locked in. This newer version isn&apos;t yet.
+            🔒 Your earlier locked-in plan is still saved. This new plan isn&apos;t locked in yet.
           </p>
         )}
 
-        <div className={`clay-sm mt-6 rounded-disclosure p-5 ${TONE_BG[step.tone === "danger" ? "danger" : step.tone]}`}>
-          <p className="text-xs font-bold tracking-wide text-ink uppercase">Next step</p>
-          <p className="mt-1 text-lg leading-snug font-bold text-ink">{step.title}</p>
-          <p className="mt-1 text-sm text-ink">{step.body}</p>
-          {busy ? (
-            <Working label={busy} />
-          ) : (
-            step.action &&
-            step.label && (
-              <Button variant="surface" className="mt-4 px-6 py-3 text-base" onClick={onAction}>
-                {step.label}
-              </Button>
-            )
-          )}
-        </div>
+        {/* The step box is keyed by the step, so a new next step eases in and the change is noticed. */}
+        {fix && !busy ? (
+          fix
+        ) : (
+          <div
+            key={step.title}
+            className={`clay-sm animate-enter mt-6 rounded-disclosure p-5 transition-colors ${TONE_BG[step.tone === "danger" ? "danger" : step.tone]}`}
+          >
+            <p className="text-xs font-bold tracking-wide text-ink uppercase">Next step</p>
+            <p className="mt-1 text-lg leading-snug font-bold text-ink">{step.title}</p>
+            <p className="mt-1 text-sm text-ink">{step.body}</p>
+            {busy ? (
+              <Working label={busy} />
+            ) : (
+              step.action &&
+              step.label && (
+                <Button variant="surface" className="mt-4 px-6 py-3 text-base" onClick={onAction}>
+                  {step.label}
+                </Button>
+              )
+            )}
+          </div>
+        )}
+        {footer && <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1">{footer}</div>}
       </section>
 
-      {step.action && step.label && (
+      {step.action && step.label && !fix && (
         <div className="fixed inset-x-0 bottom-0 z-20 px-3 pb-3 md:hidden">
           <div className="clay flex items-center gap-3 rounded-surface bg-cream px-4 py-3">
             <p className="min-w-0 flex-1 text-sm leading-snug font-bold text-ink">{step.title}</p>
@@ -97,6 +132,9 @@ const WORK: Record<string, string> = {
     "Looking for other times, parks and workouts that fix it, then comparing them. Usually 1 to 4 minutes.",
   "Checking the latest weather": "Fetching the latest forecast and air quality and checking the plan again.",
   "Locking it in": "Running the final safety checks and saving your plan.",
+  "Finding a fix":
+    "Checking the plan again with what changed, then looking for other times, parks and workouts. Usually 1 to 4 minutes.",
+  "Switching to this plan": "Checking the new park, time and workout.",
 };
 
 /** Shows that FieldDay is working, for how long, and what it's doing, so nobody clicks twice. */
@@ -109,7 +147,7 @@ function Working({ label }: { label: string }) {
   }, [label]);
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   return (
-    <div role="status" aria-live="polite" className="clay-recessed mt-4 rounded-disclosure bg-cream px-4 py-3 text-sm text-ink">
+    <div role="status" aria-live="polite" className="clay-recessed animate-enter mt-4 rounded-disclosure bg-cream px-4 py-3 text-sm text-ink">
       <p className="font-bold">
         <span aria-hidden="true" className="mr-2 inline-block animate-spin motion-reduce:animate-none">
           ◐

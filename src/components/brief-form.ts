@@ -93,17 +93,34 @@ export function equipmentLabel(id: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** The defaults the safety limits can only tighten (policy-config.ts, D-JT24-6). */
+export const DEFAULT_LIMITS = { max_temperature_f: 90, max_aqi: 100 } as const;
+
 /**
  * `today` ("YYYY-MM-DD", New York) turns on the "no past dates" rule; leave it out to skip it
- * (e.g. when re-reading a saved brief).
+ * (e.g. when re-reading a saved brief). `lengths` are the session lengths the workouts support;
+ * any other length can never pass the workout-length check (D-JT24-7).
  */
 export function toBrief(
   v: BriefFormValues,
   today?: string,
+  lengths?: number[],
 ): { ok: true; brief: EventBrief } | { ok: false; errors: BriefErrors } {
   const errors: BriefErrors = {};
   if (today && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && daysFrom(today, v.date) < 0) {
     errors.date = "Pick today or a later date";
+  }
+  const length = num(v.duration_minutes);
+  if (lengths && length !== null && !lengths.includes(length)) {
+    errors.duration_minutes = `Pick ${lengthList(lengths)} minutes: those are the lengths FieldDay's workouts run`;
+  }
+  const maxTemp = num(v.max_temperature_f);
+  if (maxTemp !== null && maxTemp > DEFAULT_LIMITS.max_temperature_f) {
+    errors.max_temperature_f = `Use ${DEFAULT_LIMITS.max_temperature_f}°F or lower: a limit can only be stricter than the default`;
+  }
+  const maxAqi = num(v.max_aqi);
+  if (maxAqi !== null && (maxAqi > DEFAULT_LIMITS.max_aqi || maxAqi < 0)) {
+    errors.max_aqi = `Use an AQI from 0 to ${DEFAULT_LIMITS.max_aqi}: a limit can only be stricter than the default`;
   }
   const required = (field: BriefField, n: number | null) => {
     if (n === null) errors[field] = MESSAGES[field];
@@ -162,6 +179,26 @@ export function fromBrief(b: EventBrief, knownEquipment: string[]): BriefFormVal
     limit_notes: b.instructor_limits.notes ?? "",
     priorities: b.priorities.join("\n"),
   };
+}
+
+/** "30, 35 or 45". */
+export function lengthList(lengths: number[]): string {
+  const sorted = [...lengths].sort((a, b) => a - b).map(String);
+  return sorted.length <= 1 ? sorted.join("") : `${sorted.slice(0, -1).join(", ")} or ${sorted.at(-1)}`;
+}
+
+/** Activities people name in titles that FieldDay has no reviewed workout for (yet). */
+const UNSUPPORTED_ACTIVITIES = ["pilates", "barre", "zumba", "dance", "boxing", "kickboxing", "tai chi", "spin", "cycling", "swim"];
+
+/**
+ * A note when the event's name asks for an activity FieldDay can't plan (F-23), so nobody is
+ * surprised when "Sunrise yoga" comes back as a bodyweight circuit.
+ */
+export function activityHint(title: string, workoutNames: string[]): string | null {
+  const t = title.toLowerCase();
+  const asked = UNSUPPORTED_ACTIVITIES.find((a) => new RegExp(`\\b${a}\\b`).test(t));
+  if (!asked) return null;
+  return `FieldDay doesn't have a ${asked} session yet. It will plan one of these instead: ${workoutNames.join(", ")}.`;
 }
 
 /** A gentle note (not an error) for dates the forecasts don't reach yet. */

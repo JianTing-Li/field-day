@@ -53,6 +53,8 @@ beforeEach(async () => {
   // Fresh store and freshly seeded events for every test.
   hooks.snapshot = hooks.checks = hooks.review = null;
   vi.useRealTimers();
+  // Fixture events are dated mid-2026; pin "today" before them so the past-date rule never trips.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-07-01T12:00:00Z") });
   delete (globalThis as { __fieldDayStore?: unknown }).__fieldDayStore;
   vi.resetModules();
   svc = await import("./service");
@@ -74,7 +76,18 @@ async function approvedCase1() {
   return (await svc.approve(e.id, { version: e.current_version, evidence_snapshot_id: snap(e) })).event;
 }
 
-/** Case 2: review, apply combo-1 (Park A 8 a.m.), confirm Park A space → v3 ready for approval. */
+const surfaceParkA = {
+  check_id: "space_surface.surface" as const,
+  park_id: "park-a",
+  start_time: "2026-07-16T08:00",
+  statement: "Lawn surface is dry, level grass",
+  note: null,
+};
+
+/**
+ * Case 2: review, apply combo-1 (Park A 8 a.m.), confirm Park A space and surface → v3 ready for
+ * approval. The harness checks the applied option itself, so both show as unknown until confirmed.
+ */
 async function readyCase2() {
   let { event } = await svc.requestReview("evt-case-02", { version: 2 });
   ({ event } = await svc.applyOption(event.id, { version: 2, combined_option_id: "combo-1" }));
@@ -86,16 +99,10 @@ async function readyCase2() {
     statement: "Open lawn fits 18 people",
     note: null,
   }));
+  ({ event } = await svc.addConfirmation(event.id, { ...surfaceParkA, version: 3 }));
   return event;
 }
 
-const surfaceParkA = {
-  check_id: "space_surface.surface" as const,
-  park_id: "park-a",
-  start_time: "2026-07-16T08:00",
-  statement: "Lawn surface is dry, level grass",
-  note: null,
-};
 
 const parkB = {
   check_id: "space_surface.space" as const,
@@ -158,9 +165,6 @@ describe("allowed transitions", () => {
 
   it("walks Case 2 from conflict review to a single finalized event", async () => {
     let event = await readyCase2();
-    // The save gate reruns check_plan, which also needs the surface confirmed at Park A (the fixture
-    // review's option checks are more optimistic than check_plan).
-    ({ event } = await svc.addConfirmation(event.id, { ...surfaceParkA, version: 3 }));
     ({ event } = await svc.approve(event.id, { version: 3, evidence_snapshot_id: snap(event) }));
     const first = await svc.finalize(event.id, { version: 3, idempotency_key: "k1" });
     expect(first.gate.every((g) => g.status === "pass")).toBe(true);
@@ -185,6 +189,222 @@ describe("allowed transitions", () => {
   });
 });
 
+describe("audit fixes (JT-24)", () => {
+  it("seeds the demo events with plain names on upcoming dates, telling the same story (D-JT24-14)", async () => {
+    vi.setSystemTime(new Date("2026-10-30T16:00:00Z")); // all three fixture dates are past by now
+    const { events } = await svc.listEvents();
+    const byId = Object.fromEntries(events.map((e) => [e.id, e]));
+    expect(byId["evt-case-01"]).toMatchObject({ title: "Morning bodyweight class", date: "2026-11-01", status: "ready_for_approval" });
+    expect(byId["evt-case-02"]).toMatchObject({ title: "Run club intervals", date: "2026-11-02", status: "needs_verification" });
+    expect(byId["evt-case-03"]).toMatchObject({ title: "Early bodyweight class", date: "2026-11-03" });
+    const case2 = (await svc.getEvent("evt-case-02")).event;
+    expect(cur(case2).plan!.start_time).toBe("2026-11-02T10:00");
+    expect(cur(case2).alternatives!.ranked_options[0].plan.start_time!.startsWith("2026-11-02")).toBe(true);
+    // In November weather (D-JT24-16): 10 a.m. fails on rain, not a 93°F heat wave.
+    const status = (id: string) => cur(case2).checks!.checks.find((c) => c.check_id === id)?.status;
+    expect(status("weather.rain")).toBe("fail");
+    expect(status("heat.max_temperature")).toBe("pass");
+    // Case 1 still locks in end to end on its new date.
+    const v = cur((await svc.getEvent("evt-case-01")).event);
+    const { event } = await svc.approve("evt-case-01", { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id! });
+    expect((await svc.finalize(event.id, { version: v.version, idempotency_key: "k1" })).finalized).toBe(true);
+  });
+
+
+  it("a draft that fails a critical check arrives with its alternatives, without a second click", async () => {
+    const { event } = await svc.getEvent("evt-case-02");
+    expect(cur(event).status).toBe("needs_verification");
+    expect(cur(event).alternatives?.ranked_options.length).toBeGreaterThan(0);
+  });
+
+  it("applying an option drops facts about the old time and to-dos about other parks", async () => {
+    let { event } = await svc.requestReview("evt-case-02", { version: 2 });
+    const oldFacts = cur(event).facts.map((f) => f.claim);
+    expect(oldFacts.some((c) => c.includes("10 a.m."))).toBe(true);
+    ({ event } = await svc.applyOption(event.id, { version: 2, combined_option_id: "combo-1" }));
+    const v = cur(event);
+    expect(v.facts.some((f) => f.claim.includes("10 a.m."))).toBe(false);
+    expect(v.organizer_tasks.every((t) => t.park_id === null || t.park_id === "park-a")).toBe(true);
+    // Every critical check that isn't a pass has a blocking concern from the harness's own result.
+    for (const id of v.checks!.blockers) {
+      expect(v.concerns.some((c) => c.blocking && c.related_check_ids.includes(id))).toBe(true);
+    }
+  });
+
+  it("a report on a locked-in plan adds a new version and leaves the locked-in one as it was (D-JT24-12)", async () => {
+    const e = await approvedCase1();
+    const { event: done } = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    const plan = cur(done).plan!;
+    const { event } = await svc.reportChange(done.id, {
+      version: 2,
+      change: { kind: "park_issue", description: "The lawn is fenced off", check_id: "space_surface.space", park_id: plan.park_id, start_time: null },
+    });
+    expect(event.current_version).toBe(3);
+    expect(ver(event, 2).status).toBe("finalized");
+    expect(event.finalized?.version).toBe(2);
+    const space = cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
+    expect(space).toMatchObject({ status: "fail", reason: 'You said "The lawn is fenced off"' });
+    expect(cur(event).status).toBe("needs_verification");
+  });
+
+  it("a report keeps failing that check at that park, and a later confirmation clears it", async () => {
+    let event = await readyCase2(); // v3 at Park A 8 a.m., space and surface confirmed
+    ({ event } = await svc.reportChange(event.id, {
+      version: 3,
+      change: { kind: "park_issue", description: "Lawn closed for reseeding", check_id: "space_surface.space", park_id: "park-a", start_time: null },
+    }));
+    const space = () => cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
+    expect(space().status).toBe("fail");
+    // Newer than the report, so it supersedes it.
+    vi.setSystemTime(new Date("2026-07-01T13:00:00Z"));
+    ({ event } = await svc.addConfirmation(event.id, {
+      version: 4,
+      check_id: "space_surface.space",
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+      statement: "The fence is gone, the lawn is open",
+      note: null,
+    }));
+    expect(space().status).toBe("pass");
+    expect(cur(event).status).toBe("ready_for_approval");
+  });
+
+  it("a rain report fails rain at that time at every park, and only checks people can report are accepted", async () => {
+    const { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "conditions", description: "Storms expected all morning", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T10:00" },
+    });
+    expect(cur(event).checks!.checks.find((c) => c.check_id === "weather.rain")!.status).toBe("fail");
+    await expect(
+      svc.reportChange(event.id, {
+        version: event.current_version,
+        change: { kind: "other", description: "x", check_id: "duration.fits", park_id: null, start_time: null },
+      }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  it("re-checks the alternatives with the report, so an option at the reported time never looks like a fix", async () => {
+    const { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "conditions", description: "Storms at 8", check_id: "weather.rain", park_id: null, start_time: "2026-07-16T08:00" },
+    });
+    const at8 = cur(event).alternatives!.ranked_options.filter((o) => o.plan.start_time === "2026-07-16T08:00");
+    expect(at8.length).toBeGreaterThan(0);
+    for (const o of at8) {
+      expect(o.checks.checks.find((c) => c.check_id === "weather.rain")!.status).toBe("fail");
+    }
+    expect(cur(event).alternatives!.recommendation).toBeNull();
+  });
+
+  it("withdrawing a report checks the plan again without it, and keeps a locked-in plan as it was", async () => {
+    let { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "park_issue", description: "The field is flooded", check_id: "space_surface.surface", park_id: "park-a", start_time: null },
+    });
+    // The demo's 10 a.m. is already rainy (D-JT24-16), so this uses the ground, which only the report fails.
+    const ground = () => cur(event).checks!.checks.find((c) => c.check_id === "space_surface.surface")!.status;
+    expect(ground()).toBe("fail");
+    const id = event.change_reports![0].id!;
+    ({ event } = await svc.removeReport(event.id, { version: event.current_version, report_id: id }));
+    expect(event.change_reports).toEqual([]);
+    expect(ground()).not.toBe("fail");
+    await expect(svc.removeReport(event.id, { version: event.current_version, report_id: id })).rejects.toMatchObject({
+      code: "not_found",
+    });
+  });
+
+  it("keeps the organizer's reported change on the event", async () => {
+    const { event } = await svc.reportChange("evt-case-02", {
+      version: 2,
+      change: { kind: "park_issue", description: "The lawn is fenced off for reseeding" },
+    });
+    expect(event.change_reports).toEqual([
+      expect.objectContaining({ version: 2, kind: "park_issue", description: "The lawn is fenced off for reseeding" }),
+    ]);
+  });
+
+  it("keeps a failed lock-in on the event until the plan changes", async () => {
+    const e = await approvedCase1();
+    hooks.checks = (r) => ({
+      ...r,
+      overall: "unknown",
+      blockers: ["freshness.conditions"],
+      checks: r.checks.map((c) => (c.check_id === "freshness.conditions" ? { ...c, status: "unknown", reason: "Forecast is stale" } : c)),
+    });
+    await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    let { event } = await svc.getEvent(e.id);
+    expect(event.last_gate).toMatchObject({ version: 2 });
+    expect(event.last_gate!.gate.some((g) => g.status === "fail")).toBe(true);
+    hooks.checks = null;
+    ({ event } = await svc.generateDraft(e.id, { version: 2 }));
+    expect(event.last_gate).toBeNull();
+  });
+
+  it("rejects a past date on a new event, and a changed date in the past on an edit", async () => {
+    await expect(svc.createEvent({ brief: { ...case01.brief, date: "2026-06-30" } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    const e = await readyCase1();
+    await expect(
+      svc.updateBrief(e.id, { brief: { ...e.brief, date: "2026-06-30" }, based_on_version: 2 }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  it("still lets an older event's other fields be edited", async () => {
+    vi.setSystemTime(new Date("2026-11-15T12:00:00Z"));
+    const { event } = await svc.getEvent("evt-case-02"); // dated Jul 16, now in the past
+    const r = await svc.updateBrief(event.id, { brief: { ...event.brief, title: "Renamed" }, based_on_version: 2 });
+    expect(r.event.brief.title).toBe("Renamed");
+  });
+
+  it("an edit to the name, notes or priorities keeps the plan and confirmations (D-JT24-5)", async () => {
+    const e = await readyCase2(); // v3, two confirmations
+    const { event } = await svc.updateBrief(e.id, {
+      brief: { ...e.brief, title: "Renamed run club", priorities: ["Keep Park A"] },
+      based_on_version: 3,
+    });
+    expect(cur(event)).toMatchObject({ version: 4, status: "ready_for_approval", source: "organizer_edit" });
+    expect(cur(event).plan).toEqual(ver(event, 3).plan);
+    expect(event.confirmations).toHaveLength(2);
+  });
+
+  it("a material edit still clears the plan", async () => {
+    const e = await readyCase2();
+    const { event } = await svc.updateBrief(e.id, { brief: { ...e.brief, group_size: 12 }, based_on_version: 3 });
+    expect(cur(event).plan).toBeNull();
+  });
+
+  it("caps a new event at 5 parks (D-JT24-13)", async () => {
+    const six = ["park-a", "park-b", "park-c", "park-d", "park-e", "park-f"];
+    await expect(
+      svc.createEvent({ brief: { ...case01.brief, allowed_park_ids: six, preferred_park_id: null } }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  it("rejects briefs and statements outside the input limits", async () => {
+    await expect(svc.createEvent({ brief: { ...case01.brief, title: "x".repeat(121) } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(svc.createEvent({ brief: { ...case01.brief, duration_minutes: 999_999 } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(svc.createEvent({ brief: { ...case01.brief, group_size: 100_000 } })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    const { event } = await svc.requestReview("evt-case-02", { version: 2 });
+    await expect(
+      svc.addConfirmation(event.id, { ...parkB, statement: "x".repeat(501), version: 2 }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  it("marks a locked-in plan demo-only while it rests on fixtures or unreviewed limits", async () => {
+    const e = await approvedCase1();
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(true);
+    expect(r.event.finalized?.demo_only).toBe(true);
+  });
+});
+
 describe("invalid transitions", () => {
   it("rejects approving, confirming, rechecking or reviewing a draft", async () => {
     const { event } = await svc.createEvent({ brief: case01.brief });
@@ -202,7 +422,7 @@ describe("invalid transitions", () => {
     const { event } = await svc.getEvent("evt-case-02");
     await expect(svc.approve(event.id, { version: 2, evidence_snapshot_id: snap(event) })).rejects.toMatchObject({
       code: "blocked",
-      details: expect.arrayContaining(["heat.max_temperature", "space_surface.space"]),
+      details: expect.arrayContaining(["weather.rain", "space_surface.space"]),
     });
   });
 
@@ -218,9 +438,6 @@ describe("invalid transitions", () => {
     const v = { version: 2 };
     await expect(svc.addConfirmation(event.id, { ...parkB, ...v })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(svc.requestReview(event.id, v)).rejects.toMatchObject({ code: "invalid_request" });
-    await expect(
-      svc.reportChange(event.id, { ...v, change: { kind: "other", description: "x" } }),
-    ).rejects.toMatchObject({ code: "invalid_request" });
     await expect(svc.approve(event.id, { ...v, evidence_snapshot_id: snap(event) })).rejects.toMatchObject({
       code: "invalid_request",
     });
@@ -345,9 +562,10 @@ describe("stale-result rejection", () => {
 
   it("rejects a review result for another version or snapshot without saving it", async () => {
     hooks.review = (r) => (r.ok ? { ...r, review: { ...r.review, evidence_snapshot_id: "snap-old" } } : r);
+    const before = cur((await svc.getEvent("evt-case-02")).event).alternatives;
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
     const { event } = await svc.getEvent("evt-case-02");
-    expect(cur(event).alternatives).toBeNull();
+    expect(cur(event).alternatives).toEqual(before);
 
     hooks.review = (r) => (r.ok ? { ...r, review: { ...r.review, event_version: 1 } } : r);
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
@@ -355,7 +573,9 @@ describe("stale-result rejection", () => {
 
   it("rejects a result that finishes after the event changed, even within the same millisecond", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-28T12:00:00Z") });
-    const { brief } = (await svc.getEvent("evt-case-02")).event;
+    const loaded = (await svc.getEvent("evt-case-02")).event;
+    const { brief } = loaded;
+    const before = cur(loaded).alternatives;
     // Another request creates version 3 while the review of version 2 is still running.
     hooks.review = async (r) => {
       await svc.updateBrief("evt-case-02", { brief: { ...brief, group_size: 12 }, based_on_version: 2 });
@@ -364,7 +584,7 @@ describe("stale-result rejection", () => {
     await expect(svc.requestReview("evt-case-02", { version: 2 })).rejects.toMatchObject({ code: "stale_version" });
     const { event } = await svc.getEvent("evt-case-02");
     expect(event.current_version).toBe(3);
-    expect(ver(event, 2).alternatives).toBeNull();
+    expect(ver(event, 2).alternatives).toEqual(before);
   });
 
   it("Case 3: refreshed evidence blocks the approved time; the old approval cannot finalize", async () => {
@@ -438,8 +658,10 @@ describe("confirmations", () => {
         : r;
     ({ event } = await svc.requestReview(event.id, { version: 3 }));
     ({ event } = await svc.applyOption(event.id, { version: 3, combined_option_id: "combo-1" }));
+    // The running workout needs the running lane, which Case 2 reports unusable: the stationary
+    // confirmation doesn't carry over, and the harness's own check fails it.
     const space = cur(event).checks!.checks.find((c) => c.check_id === "space_surface.space")!;
-    expect(space.status).toBe("unknown");
+    expect(space.status).not.toBe("pass");
     expect(cur(event).status).toBe("needs_verification");
   });
 
@@ -455,9 +677,64 @@ describe("confirmations", () => {
     expect(cur(event).status).toBe("needs_verification");
   });
 
+  it("rejects confirming anything but space, surface or permit (D-JT24-1)", async () => {
+    const { event } = await svc.requestReview("evt-case-02", { version: 2 });
+    for (const check_id of ["heat.max_temperature", "air_quality.max_aqi", "freshness.conditions", "duration.fits"] as const) {
+      await expect(
+        svc.addConfirmation(event.id, { ...parkB, check_id, park_id: "park-a", start_time: "2026-07-16T10:00", version: 2 }),
+      ).rejects.toMatchObject({ code: "invalid_request" });
+    }
+    expect((await svc.getEvent(event.id)).event.confirmations).toEqual([]);
+  });
+
+  it("a stored heat confirmation never turns missing heat data into a pass, at approval or at the gate", async () => {
+    const e = await approvedCase1();
+    const { getStore } = await import("@/server/store");
+    const stored = (await getStore().getEvent(e.id))!;
+    const plan = cur(stored).plan!;
+    // Saved before the rule existed (the audit's bypass): it must be ignored, not trusted.
+    stored.confirmations.push({
+      id: "conf-legacy-heat",
+      check_id: "heat.max_temperature",
+      park_id: plan.park_id!,
+      start_time: plan.start_time,
+      statement: "yes it's confirmed",
+      confirmed_by: "Organizer",
+      confirmed_at: new Date().toISOString(),
+      note: null,
+      layout: "stationary",
+    });
+    await getStore().saveEvent(stored, stored.updated_at);
+    hooks.checks = (r) => ({
+      ...r,
+      overall: "unknown",
+      blockers: ["heat.max_temperature"],
+      checks: r.checks.map((c) =>
+        c.check_id === "heat.max_temperature" ? { ...c, status: "unknown", reason: "No forecast", evidence_ids: [] } : c,
+      ),
+    });
+    const r = await svc.finalize(e.id, { version: 2, idempotency_key: "k1" });
+    expect(r.finalized).toBe(false);
+    expect(r.gate.find((g) => g.id === "hard_constraints")).toMatchObject({ status: "fail" });
+  });
+
+  it("saves a repeated confirmation only once", async () => {
+    let event = await readyCase2();
+    const before = event.confirmations.length;
+    ({ event } = await svc.addConfirmation(event.id, {
+      version: 3,
+      check_id: "space_surface.space",
+      park_id: "park-a",
+      start_time: "2026-07-16T08:00",
+      statement: "Open lawn fits 18 people, again",
+      note: null,
+    }));
+    expect(event.confirmations).toHaveLength(before);
+  });
+
   it("a brief edit retires confirmations made under the old brief", async () => {
     const event = await readyCase2();
-    expect(event.confirmations).toHaveLength(1);
+    expect(event.confirmations).toHaveLength(2);
     const edited = await svc.updateBrief(event.id, { brief: { ...event.brief, group_size: 30 }, based_on_version: 3 });
     expect(edited.event.confirmations).toEqual([]);
   });

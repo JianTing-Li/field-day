@@ -1,5 +1,7 @@
 import {
   EventBrief,
+  isConfirmableCheck,
+  REPORTABLE_CHECK_IDS,
   ZERO_USAGE,
   type ApiRequest,
   type ApiResponse,
@@ -10,15 +12,19 @@ import {
   type FinalizedRecord,
   type GateCheck,
   type PlanVersion,
+  type ReviewerOutput,
   type RunState,
   type Usage,
 } from "@/contracts";
-import { runConflictReview, runPlanning } from "@/server/orchestrator";
+import { runConflictReview, runWorkflow, type RunOptions } from "@/server/orchestrator";
+import { STUB_AGENTS } from "@/server/orchestrator/agents";
 import { checkPlan } from "@/server/rules/check-plan";
+import { POLICY_CONFIG } from "@/server/rules/policy-config";
+import { toLocalDateTime } from "@/server/time";
 import { getStore, type EventStore } from "@/server/store";
-import { applyConfirmations, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
+import { applyConfirmations, applyReports, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
-import { refreshedSnapshot, SCENARIO_EVENTS, snapshotFor } from "./snapshots";
+import { refreshedSnapshot, SCENARIO_EVENTS, seedBrief, snapshotFor } from "./snapshots";
 import { assertCanStart, deriveStatus, transition } from "./transitions";
 
 /**
@@ -34,6 +40,54 @@ import { assertCanStart, deriveStatus, transition } from "./transitions";
  */
 
 const now = () => new Date().toISOString();
+
+/**
+ * Upper bounds on what an organizer can send (F-09). The form keeps people well inside them; these
+ * stop a script from storing a 200,000-character title or a 999,999-minute event.
+ */
+export const INPUT_LIMITS = {
+  title: 120,
+  text: 500,
+  list_items: 20,
+  list_item: 200,
+  duration_minutes: 240,
+  group_size: 500,
+  /** Parks one event may consider (D-JT24-13): each adds forecasts and candidate plans for the agents. */
+  parks_per_event: 5,
+} as const;
+
+function tooLong(label: string, value: string | null, max: number = INPUT_LIMITS.text): string[] {
+  return value !== null && value.length > max ? [`${label} is longer than ${max} characters`] : [];
+}
+
+/**
+ * Throws invalid_request when a brief is outside the limits, or in the past or over the park cap
+ * when the date or park list is new or changed (so an older event's other fields can still be edited).
+ */
+function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = checkDate) {
+  const L = INPUT_LIMITS;
+  const problems = [
+    ...tooLong("The name", brief.title, L.title),
+    ...(brief.duration_minutes > L.duration_minutes ? [`the length is over ${L.duration_minutes} minutes`] : []),
+    ...(brief.group_size > L.group_size ? [`the group is over ${L.group_size} people`] : []),
+    ...tooLong("The instructor notes", brief.instructor_limits.notes),
+    ...[brief.allowed_park_ids, brief.equipment_available, brief.exercise_exclusions, brief.priorities].flatMap((list) =>
+      list.length > L.list_items || list.some((x) => x.length > L.list_item)
+        ? [`a list has more than ${L.list_items} items or an item over ${L.list_item} characters`]
+        : [],
+    ),
+  ];
+  if (checkParks && brief.allowed_park_ids.length > L.parks_per_event) {
+    problems.push(`pick at most ${L.parks_per_event} parks`);
+  }
+  if (problems.length > 0) {
+    throw new ServiceError("invalid_request", `The brief is out of range: ${[...new Set(problems)].join("; ")}`);
+  }
+  // New York's today, the same calendar the brief's date is in.
+  if (checkDate && brief.date < toLocalDateTime(new Date()).slice(0, 10)) {
+    throw new ServiceError("invalid_request", "The event date is in the past; pick today or a later date");
+  }
+}
 const newId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 
 function current(event: FieldDayEvent): PlanVersion {
@@ -105,6 +159,7 @@ function clearApproval(event: FieldDayEvent) {
 /** Adds a new current version. The previous version is frozen from here on. */
 function pushVersion(event: FieldDayEvent, v: PlanVersion) {
   clearApproval(event);
+  event.last_gate = null;
   event.versions.push(v);
   event.current_version = v.version;
 }
@@ -123,12 +178,6 @@ function requireMatchingResult(
         `does not match version ${version} / snapshot ${snapshotId}`,
     );
   }
-}
-
-/** Workout templates in a snapshot; empty if there is none, so no layout can be worked out. */
-async function templatesFor(store: EventStore, snapshotId: string | null) {
-  const snapshot = snapshotId ? await store.getSnapshot(snapshotId) : null;
-  return snapshot?.workout_templates ?? [];
 }
 
 async function load(store: EventStore, id: string): Promise<FieldDayEvent> {
@@ -154,30 +203,39 @@ async function commit(store: EventStore, event: FieldDayEvent, base: string | nu
   return event;
 }
 
-/** Runs the Planning Agent and adds its draft as a new version. */
-async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEvent> {
+/**
+ * Runs the whole workflow (D-JT24-4): Planning drafts, the harness checks the draft, and a failed
+ * critical check starts the specialists and the Reviewer in the same run, so a conflict arrives
+ * with its alternatives. The version's checks always come from the harness, never from an agent.
+ */
+async function plan(store: EventStore, event: FieldDayEvent, opts: RunOptions = {}): Promise<FieldDayEvent> {
   const base = current(event);
   const next = event.current_version + 1;
   const snapshot = await snapshotFor(event, next);
   await store.saveSnapshot(snapshot);
-  const result = await runPlanning({
-    event_id: event.id,
-    event_version: next,
-    brief: event.brief,
-    snapshot,
-  });
+  const result = await runWorkflow({ event_id: event.id, event_version: next, brief: event.brief, snapshot }, opts);
   if (!result.ok) {
     event.last_run = run(
-      result.error.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
-      ["Drafting plan", `Could not draft a plan: ${result.error.message}`],
+      result.kind === "budget_exhausted" ? "budget_exhausted" : "failed",
+      ["Drafting plan", `Could not draft a plan: ${result.message}`],
       result.usage,
     );
     return event;
   }
-  const out = result.output;
+  const out = result.planning;
   requireMatchingResult("Planning", out, next, snapshot.id);
-  const layout = planLayout(out.plan, snapshot.workout_templates);
-  const checks = out.rule_checks ? applyConfirmations(out.rule_checks, event.confirmations, layout).checks : null;
+  const checks = harnessChecks(event, out.plan, snapshot, next);
+  const steps = ["Reading park, weather and air-quality evidence", "Drafted plan"];
+  let alternatives: PlanVersion["alternatives"] = null;
+  let revisions = 0;
+  if (result.review?.ok) {
+    requireMatchingResult("Review", result.review.review, next, snapshot.id);
+    alternatives = recheckOptions(event, result.review.review, snapshot, next);
+    revisions = result.review.revision_rounds;
+    steps.push("Found a conflict and compared alternatives");
+  } else if (result.review) {
+    steps.push(`Found a conflict, but the alternatives could not be compared: ${result.review.message}`);
+  }
   pushVersion(event, {
     ...emptyVersion(next, base.version, "planning"),
     status: deriveStatus(out.plan, checks, out.status),
@@ -187,12 +245,9 @@ async function plan(store: EventStore, event: FieldDayEvent): Promise<FieldDayEv
     facts: out.facts,
     concerns: out.concerns,
     organizer_tasks: out.organizer_tasks,
+    alternatives,
   });
-  event.last_run = run(
-    "completed",
-    ["Reading park, weather and air-quality evidence", "Drafted plan"],
-    result.usage,
-  );
+  event.last_run = { ...run("completed", steps, result.usage), revision_count: revisions };
   return event;
 }
 
@@ -201,14 +256,15 @@ let seeded: Promise<void> | null = null;
 /**
  * Seeds the demo events (Cases 1, 2 and 3) that are missing, once per server process. With Neon
  * they are seeded once and then persist; if two servers seed at once, the second insert is
- * dropped. A failed seed is retried on the next request.
+ * dropped. A failed seed is retried on the next request. Seeding always uses the fixture-backed
+ * stub agents, so the demo is the same every time and a page view never spends model credits.
  */
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
-    for (const [id, scenario] of Object.entries(SCENARIO_EVENTS)) {
+    for (const id of Object.keys(SCENARIO_EVENTS) as (keyof typeof SCENARIO_EVENTS)[]) {
       if (await store.getEvent(id)) continue;
       try {
-        await commit(store, await plan(store, newEvent(id, scenario.brief)), null);
+        await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
       }
@@ -247,6 +303,7 @@ export async function listEvents(): Promise<ApiResponse<"listEvents">> {
 }
 
 export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiResponse<"createEvent">> {
+  assertBriefInRange(req.brief, true);
   const store = await withStore();
   return { event: await commit(store, newEvent(newId("evt"), req.brief), null) };
 }
@@ -258,16 +315,61 @@ export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
 
-/** A brief edit starts a new draft version and retires confirmations made under the old brief. */
+/**
+ * Whether an edit changes anything the checks or the plan depend on. The name, the instructor's
+ * free-text notes and the ranking priorities don't (D-JT24-5); everything else does.
+ */
+export function isMaterialEdit(before: EventBrief, after: EventBrief): boolean {
+  const strip = (b: EventBrief) => ({
+    ...b,
+    title: "",
+    priorities: [],
+    instructor_limits: { ...b.instructor_limits, notes: null },
+  });
+  return JSON.stringify(strip(before)) !== JSON.stringify(strip(after));
+}
+
+/**
+ * A material brief edit starts a new draft version with no plan and retires confirmations made
+ * under the old brief. A non-material edit keeps the plan in the new version.
+ */
 export async function updateBrief(id: string, req: ApiRequest<"updateBrief">): Promise<ApiResponse<"updateBrief">> {
   const store = await withStore();
   const event = await load(store, id);
   const base = event.updated_at;
   requireCurrent(event, req.based_on_version);
   assertCanStart("update_brief", current(event));
+  // Only a changed date must be today or later, so an older event's other fields can still be edited.
+  assertBriefInRange(
+    req.brief,
+    req.brief.date !== event.brief.date,
+    JSON.stringify(req.brief.allowed_park_ids) !== JSON.stringify(event.brief.allowed_park_ids),
+  );
+  const v = current(event);
+  const next = event.current_version + 1;
+  const material = isMaterialEdit(event.brief, req.brief);
   event.brief = req.brief;
-  event.confirmations = [];
-  pushVersion(event, emptyVersion(event.current_version + 1, event.current_version, "organizer_edit"));
+  if (material || !v.plan || !v.evidence_snapshot_id || v.status === "no_feasible_option") {
+    event.confirmations = [];
+    pushVersion(event, emptyVersion(next, event.current_version, "organizer_edit"));
+    return { event: await commit(store, event, base) };
+  }
+  // Only the name, instructor notes or priorities changed (D-JT24-5): the plan, its checks and the
+  // confirmations still hold. It is still a new version, so approval has to be given again.
+  const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
+  if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
+  const checks = harnessChecks(event, v.plan, snapshot, next);
+  pushVersion(event, {
+    ...v,
+    version: next,
+    based_on_version: v.version,
+    created_at: now(),
+    source: "organizer_edit",
+    status: deriveStatus(v.plan, checks),
+    checks,
+    // The review answered for the old version; applying one of its options would be rejected as stale.
+    alternatives: null,
+  });
   return { event: await commit(store, event, base) };
 }
 
@@ -282,8 +384,36 @@ export async function generateDraft(id: string, req: ApiRequest<"generateDraft">
 
 /** check_plan for a plan on a snapshot, with the event's organizer confirmations applied. */
 function harnessChecks(event: FieldDayEvent, plan: NonNullable<PlanVersion["plan"]>, snapshot: EvidenceSnapshot, version: number) {
+  const layout = planLayout(plan, snapshot.workout_templates);
   const raw = checkPlan({ plan, brief: event.brief, snapshot, event_version: version });
-  return applyConfirmations(raw, event.confirmations, planLayout(plan, snapshot.workout_templates)).checks;
+  // Reports first (they fail a check), then confirmations (they only settle what is still unknown).
+  const reported = applyReports(raw, event.change_reports ?? [], event.confirmations, layout);
+  return applyConfirmations(reported, event.confirmations, layout).checks;
+}
+
+/**
+ * The review's options, re-checked with what only the harness knows: organizer reports and
+ * confirmations (D-JT24-12). The agents' check_plan tool sees the evidence snapshot only, so an
+ * option at a time the organizer just reported as rainy would otherwise still look fine. A
+ * recommendation that no longer passes is withdrawn.
+ */
+function recheckOptions(event: FieldDayEvent, review: ReviewerOutput, snapshot: EvidenceSnapshot, version: number): ReviewerOutput {
+  const ranked_options = review.ranked_options.map((o) => ({ ...o, checks: harnessChecks(event, o.plan, snapshot, version) }));
+  const chosen = ranked_options.find((o) => o.combined_option_id === review.recommendation?.combined_option_id);
+  const recommendation = chosen && chosen.checks.overall === "pass" ? review.recommendation : null;
+  return { ...review, ranked_options, recommendation };
+}
+
+/** One blocking concern per critical check that isn't a pass, so concerns clear when the check passes. */
+function concernsFrom(checks: CheckPlanResult): PlanVersion["concerns"] {
+  return checks.checks
+    .filter((c) => c.critical && c.status !== "pass")
+    .map((c) => ({
+      id: `concern-${c.check_id.replace(/\./g, "-")}`,
+      description: `${c.status === "fail" ? "Failed" : "Not verified"}: ${c.reason}`,
+      blocking: true,
+      related_check_ids: [c.check_id],
+    }));
 }
 
 /**
@@ -345,6 +475,7 @@ async function review(
   version: number,
   description: string,
   action: "report_change" | "request_review",
+  change?: ApiRequest<"reportChange">["change"],
 ) {
   const store = await withStore();
   const event = await load(store, id);
@@ -357,20 +488,55 @@ async function review(
   }
   const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
   if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
-  // A reported change is new information about the plan, so it clears approval.
-  if (action === "report_change") clearApproval(event);
+  let target = v;
+  if (action === "report_change" && change) {
+    // A report is new information (D-JT24-12): it's kept on the event, the check it names fails at
+    // that park and time from now on, and the plan is re-checked as a new version, so a locked-in
+    // or approved version is never changed in place.
+    const layout = ["space_surface.space", "space_surface.surface"].includes(change.check_id ?? "")
+      ? planLayout(v.plan, snapshot.workout_templates)
+      : null;
+    event.change_reports = [
+      ...(event.change_reports ?? []),
+      {
+        id: newId("report"),
+        at: now(),
+        version: v.version,
+        kind: change.kind,
+        description: change.description,
+        check_id: change.check_id ?? null,
+        park_id: change.park_id ?? null,
+        start_time: change.start_time ?? null,
+        layout,
+      },
+    ];
+    const next = v.version + 1;
+    const checks = harnessChecks(event, v.plan, snapshot, next);
+    pushVersion(event, {
+      ...emptyVersion(next, v.version, "organizer_edit"),
+      status: deriveStatus(v.plan, checks),
+      plan: v.plan,
+      evidence_snapshot_id: v.evidence_snapshot_id,
+      checks,
+      facts: v.facts,
+      concerns: concernsFrom(checks),
+      organizer_tasks: v.organizer_tasks,
+    });
+    target = current(event);
+  }
+  const plan = target.plan!;
   const result = await runConflictReview({
     event_id: event.id,
-    event_version: v.version,
+    event_version: target.version,
     brief: event.brief,
     snapshot,
-    current_plan: v.plan,
-    conflict: { source: "organizer", description, check_ids: v.checks?.blockers ?? [] },
+    current_plan: plan,
+    conflict: { source: "organizer", description, check_ids: target.checks?.blockers ?? [] },
   });
   const steps = ["Checking alternative parks and times", "Checking workout adaptations"];
   if (result.ok) {
-    requireMatchingResult("Review", result.review, v.version, v.evidence_snapshot_id);
-    v.alternatives = result.review;
+    requireMatchingResult("Review", result.review, target.version, v.evidence_snapshot_id);
+    target.alternatives = recheckOptions(event, result.review, snapshot, target.version);
     if (result.revision_rounds > 0) steps.push("Specialists revised their options");
     steps.push("Independent review complete");
   } else {
@@ -382,7 +548,46 @@ async function review(
 }
 
 export async function reportChange(id: string, req: ApiRequest<"reportChange">): Promise<ApiResponse<"reportChange">> {
-  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change");
+  const long = tooLong("The description", req.change.description, 1000);
+  if (long.length > 0) throw new ServiceError("invalid_request", long[0]);
+  const check = req.change.check_id;
+  if (check && !(REPORTABLE_CHECK_IDS as readonly string[]).includes(check)) {
+    throw new ServiceError("invalid_request", `${check} can't be reported; only space, surface, rain and start time can (D-JT24-12)`);
+  }
+  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
+}
+
+/**
+ * Withdraws a report ("it's not going to rain after all"). The check it failed goes back to what the
+ * evidence says, as a new version, so a locked-in plan stays as it was (D-JT24-12).
+ */
+export async function removeReport(id: string, req: ApiRequest<"removeReport">): Promise<ApiResponse<"removeReport">> {
+  const store = await withStore();
+  const event = await load(store, id);
+  const base = event.updated_at;
+  requireCurrent(event, req.version);
+  const reports = event.change_reports ?? [];
+  if (!reports.some((r) => r.id === req.report_id)) {
+    throw new ServiceError("not_found", `Report ${req.report_id} not found`);
+  }
+  event.change_reports = reports.filter((r) => r.id !== req.report_id);
+  const v = current(event);
+  const snapshot = v.plan && v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  if (v.plan && snapshot) {
+    const next = v.version + 1;
+    const checks = harnessChecks(event, v.plan, snapshot, next);
+    pushVersion(event, {
+      ...emptyVersion(next, v.version, "organizer_edit"),
+      status: deriveStatus(v.plan, checks),
+      plan: v.plan,
+      evidence_snapshot_id: v.evidence_snapshot_id,
+      checks,
+      facts: v.facts,
+      concerns: concernsFrom(checks),
+      organizer_tasks: v.organizer_tasks,
+    });
+  }
+  return { event: await commit(store, event, base) };
 }
 
 export async function requestReview(id: string, req: ApiRequest<"requestReview">): Promise<ApiResponse<"requestReview">> {
@@ -402,26 +607,27 @@ export async function applyOption(id: string, req: ApiRequest<"applyOption">): P
   requireMatchingResult("Review", review, v.version, v.evidence_snapshot_id ?? "");
   requireMatchingResult("Option checks", option.checks, v.version, v.evidence_snapshot_id ?? "");
   const next = v.version + 1;
-  const templates = await templatesFor(store, v.evidence_snapshot_id);
-  const { checks } = applyConfirmations(
-    { ...option.checks, event_version: next },
-    event.confirmations,
-    planLayout(option.plan, templates),
-  );
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
+  // The harness checks the chosen plan itself; the option's checks were for display only (D-JT24-3).
+  const checks = harnessChecks(event, option.plan, snapshot, next);
+  const p = option.plan;
+  const optionEvidence = new Set(option.evidence_ids);
   pushVersion(event, {
     ...emptyVersion(next, v.version, "review"),
-    status: deriveStatus(option.plan, checks),
-    plan: option.plan,
+    status: deriveStatus(p, checks),
+    plan: p,
     evidence_snapshot_id: v.evidence_snapshot_id,
     checks,
-    facts: v.facts,
-    concerns: option.unknowns.map((u, i) => ({
-      id: `unknown-${i + 1}`,
-      description: u,
-      blocking: true,
-      related_check_ids: option.checks.blockers,
-    })),
-    organizer_tasks: review.organizer_tasks,
+    // Only facts the chosen option itself cites; the rest described the old park or time.
+    facts: v.facts.filter((f) => f.evidence_ids.length > 0 && f.evidence_ids.every((id) => optionEvidence.has(id))),
+    // Concerns come from the harness's own result, so they clear when the check passes. The option's
+    // unknowns restate the same checks in the agent's words and would linger after a confirmation.
+    concerns: concernsFrom(checks),
+    // Only to-dos about the chosen park and time (or about the event as a whole).
+    organizer_tasks: review.organizer_tasks.filter(
+      (t) => t.park_id === null || (t.park_id === p.park_id && (t.start_time === null || t.start_time === p.start_time)),
+    ),
   });
   return { event: await commit(store, event, base) };
 }
@@ -437,7 +643,30 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
   requireCurrent(event, req.version);
   const v = current(event);
   assertCanStart("add_confirmation", v);
-  const templates = await templatesFor(store, v.evidence_snapshot_id);
+  const long = [...tooLong("The statement", req.statement), ...tooLong("The note", req.note)];
+  if (long.length > 0) throw new ServiceError("invalid_request", long.join("; "));
+  if (!isConfirmableCheck(req.check_id)) {
+    throw new ServiceError(
+      "invalid_request",
+      `${req.check_id} can't be confirmed by the organizer; only space, surface and permit checks can (D-JT24-1)`,
+    );
+  }
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  const templates = snapshot?.workout_templates ?? [];
+  const layout = confirmationLayout(req, v.plan, templates);
+  // A newer report about this check and park ("the lawn is closed") makes a fresh confirmation count again.
+  const lastReport = (event.change_reports ?? [])
+    .filter((r) => r.check_id === req.check_id && (r.park_id === null || r.park_id === undefined || r.park_id === req.park_id))
+    .at(-1)?.at;
+  const repeat = event.confirmations.some(
+    (c) =>
+      c.check_id === req.check_id &&
+      c.park_id === req.park_id &&
+      c.start_time === req.start_time &&
+      (c.layout ?? null) === layout &&
+      (lastReport === undefined || c.confirmed_at > lastReport),
+  );
+  if (repeat) return { event };
   const conf = {
     id: newId("conf"),
     check_id: req.check_id,
@@ -448,14 +677,15 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
     confirmed_at: now(),
     note: req.note,
     // Space and surface confirmations only resolve plans with this layout (D-JT22-1).
-    layout: confirmationLayout(req, v.plan, templates),
+    layout,
   };
   event.confirmations.push(conf);
   clearApproval(event);
-  if (v.checks) {
-    const { checks, changed } = applyConfirmations(v.checks, [conf], planLayout(v.plan, templates));
-    v.checks = checks;
-    if (changed && v.status === "needs_verification" && checks.overall === "pass") {
+  if (v.plan && snapshot) {
+    // Re-check from scratch, so a confirmation that supersedes a report takes effect too.
+    v.checks = harnessChecks(event, v.plan, snapshot, v.version);
+    v.concerns = concernsFrom(v.checks);
+    if (v.status === "needs_verification" && v.checks.overall === "pass") {
       transition(v, "ready_for_approval", "add_confirmation");
     }
   }
@@ -608,15 +838,21 @@ export async function finalize(id: string, req: ApiRequest<"finalize">): Promise
       : fail("required_confirmations", `Not yet confirmed: ${unresolved.map((c) => c.check_id).join(", ")}`),
   );
   if (gate.some((g) => g.status === "fail")) {
-    return snapshot === approvedSnapshot ? { event, gate, finalized: false } : { event: await commit(store, event, base), gate, finalized: false };
+    // Kept on the event so the organizer still sees why after a reload (F-18).
+    event.last_gate = { version: v.version, at: now(), gate };
+    return { event: await commit(store, event, base), gate, finalized: false };
   }
 
+  const template = snapshot.workout_templates.find((t) => t.id === v.plan!.workout_template_id);
   const record: FinalizedRecord = {
     version: v.version,
     evidence_snapshot_id: snapshot.id,
     finalized_at: now(),
     gate,
     idempotency_key: req.idempotency_key,
+    // Saved, but not for real-world use while anything it rests on is unreviewed (D-JT24-2).
+    demo_only:
+      POLICY_CONFIG.review_status === "unreviewed_demo_policy" || template?.review.status !== "reviewed" || snapshot.origin === "fixture",
   };
   const saved = (await store.recordFinalized(event.id, record)) ? record : await store.getFinalized(event.id, v.version);
   applyFinalized(event, saved ?? record);

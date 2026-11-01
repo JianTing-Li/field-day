@@ -12,8 +12,9 @@ import { Alert, Button, buttonClass } from "./ui";
 type ListResult = ApiResult<{ events: EventSummary[] }>;
 
 /** The organizer's events (GET /api/events), newest change first. Owner: Yadan, task YT-07. */
-export function EventList() {
-  const [result, setResult] = useState<ListResult | null>(null);
+export function EventList({ initial = null }: { initial?: EventSummary[] | null }) {
+  // Server-rendered list first (no skeleton), refreshed on mount and whenever Next shows the page again.
+  const [result, setResult] = useState<ListResult | null>(initial ? { ok: true, data: { events: initial } } : null);
 
   const load = useCallback(async () => {
     setResult(null);
@@ -22,7 +23,7 @@ export function EventList() {
 
   useEffect(() => {
     let live = true;
-    apiGet(Api.listEvents.path, Api.listEvents.response).then((r) => live && setResult(r));
+    apiGet(Api.listEvents.path, Api.listEvents.response).then((r) => live && setResult((prev) => (r.ok || prev === null ? r : prev)));
     return () => {
       live = false;
     };
@@ -95,7 +96,7 @@ function EventRow({ event: e }: { event: EventSummary }) {
   );
 }
 
-function ListSkeleton() {
+export function ListSkeleton() {
   return (
     <div role="status" aria-label="Loading events" className="clay space-y-1 rounded-surface bg-cream p-5 md:rounded-tray md:p-8">
       {[0, 1, 2].map((i) => (

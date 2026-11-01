@@ -171,5 +171,328 @@
       "Permit requirement not confirmed",
       "Large park: the coordinate is the property center for weather/AQI lookups, not a meeting point"
     ]
+  },
+  {
+    "id": "park-b057",
+    "name": "Marine Park",
+    "borough": "Brooklyn",
+    "acreage": 800.0,
+    "location": {
+      "lat": 40.5965,
+      "lon": -73.9193
+    },
+    "evidence_id": "ev-park-b057-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b073",
+    "name": "Prospect Park",
+    "borough": "Brooklyn",
+    "acreage": 526.25,
+    "location": {
+      "lat": 40.6614,
+      "lon": -73.9697
+    },
+    "evidence_id": "ev-park-b073-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b087",
+    "name": "Sunset Park",
+    "borough": "Brooklyn",
+    "acreage": 24.498,
+    "location": {
+      "lat": 40.648,
+      "lon": -74.0037
+    },
+    "evidence_id": "ev-park-b087-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m010",
+    "name": "Central Park",
+    "borough": "Manhattan",
+    "acreage": 840.01,
+    "location": {
+      "lat": 40.7825,
+      "lon": -73.9655
+    },
+    "evidence_id": "ev-park-m010-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m042",
+    "name": "Inwood Hill Park",
+    "borough": "Manhattan",
+    "acreage": 196.398,
+    "location": {
+      "lat": 40.8721,
+      "lon": -73.9246
+    },
+    "evidence_id": "ev-park-m042-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m071",
+    "name": "Riverside Park",
+    "borough": "Manhattan",
+    "acreage": 253.168,
+    "location": {
+      "lat": 40.806,
+      "lon": -73.9692
+    },
+    "evidence_id": "ev-park-m071-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m098",
+    "name": "Washington Square Park",
+    "borough": "Manhattan",
+    "acreage": 9.749,
+    "location": {
+      "lat": 40.7309,
+      "lon": -73.9976
+    },
+    "evidence_id": "ev-park-m098-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-m104",
+    "name": "Randall's Island Park",
+    "borough": "Manhattan",
+    "acreage": 254.3,
+    "location": {
+      "lat": 40.7952,
+      "lon": -73.9259
+    },
+    "evidence_id": "ev-park-m104-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q015",
+    "name": "Forest Park",
+    "borough": "Queens",
+    "acreage": 506.86,
+    "location": {
+      "lat": 40.699,
+      "lon": -73.8622
+    },
+    "evidence_id": "ev-park-q015-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q021",
+    "name": "Cunningham Park",
+    "borough": "Queens",
+    "acreage": 358.0,
+    "location": {
+      "lat": 40.7282,
+      "lon": -73.7725
+    },
+    "evidence_id": "ev-park-q021-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q024",
+    "name": "Kissena Park",
+    "borough": "Queens",
+    "acreage": 237.147,
+    "location": {
+      "lat": 40.7459,
+      "lon": -73.8081
+    },
+    "evidence_id": "ev-park-q024-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-q099",
+    "name": "Flushing Meadows Corona Park",
+    "borough": "Queens",
+    "acreage": 870.761,
+    "location": {
+      "lat": 40.7484,
+      "lon": -73.8416
+    },
+    "evidence_id": "ev-park-q099-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-r022",
+    "name": "Silver Lake Park",
+    "borough": "Staten Island",
+    "acreage": 205.977,
+    "location": {
+      "lat": 40.6259,
+      "lon": -74.0974
+    },
+    "evidence_id": "ev-park-r022-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-r030",
+    "name": "Willowbrook Park",
+    "borough": "Staten Island",
+    "acreage": 214.947,
+    "location": {
+      "lat": 40.6007,
+      "lon": -74.157
+    },
+    "evidence_id": "ev-park-r030-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-x008",
+    "name": "Claremont Park",
+    "borough": "Bronx",
+    "acreage": 38.536,
+    "location": {
+      "lat": 40.8404,
+      "lon": -73.9075
+    },
+    "evidence_id": "ev-park-x008-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-x039",
+    "name": "Pelham Bay Park",
+    "borough": "Bronx",
+    "acreage": 2771.747,
+    "location": {
+      "lat": 40.8699,
+      "lon": -73.7951
+    },
+    "evidence_id": "ev-park-x039-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-x045",
+    "name": "St. Mary's Park",
+    "borough": "Bronx",
+    "acreage": 35.311,
+    "location": {
+      "lat": 40.8115,
+      "lon": -73.9122
+    },
+    "evidence_id": "ev-park-x045-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-x092",
+    "name": "Van Cortlandt Park",
+    "borough": "Bronx",
+    "acreage": 1146.43,
+    "location": {
+      "lat": 40.894,
+      "lon": -73.8918
+    },
+    "evidence_id": "ev-park-x092-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
+  },
+  {
+    "id": "park-b114",
+    "name": "Msgr. McGolrick Park",
+    "borough": "Brooklyn",
+    "acreage": 9.134,
+    "location": {
+      "lat": 40.7244,
+      "lon": -73.9434
+    },
+    "evidence_id": "ev-park-b114-record",
+    "unknowns": [
+      "Usable workout space not confirmed",
+      "Surface not confirmed",
+      "Capacity, availability and closures not confirmed",
+      "Permit requirement not confirmed"
+    ]
   }
 ]

@@ -28,7 +28,11 @@ export interface RateLimiter {
   take(visitor: string, now: number): { ok: true } | { ok: false; retry_after_s: number; reason: string };
 }
 
-export function createRateLimiter(limits: RateLimits = AGENT_RUN_LIMITS): RateLimiter {
+/** New events per visitor and per day, in every mode: creating is free, so it's the cheap way to fill the database (F-09). */
+export const EVENT_CREATION_LIMITS: RateLimits = { per_visitor_per_hour: 20, global_per_day: 300 };
+
+/** `what` names the counted thing in the refusal message, e.g. "agent runs". */
+export function createRateLimiter(limits: RateLimits = AGENT_RUN_LIMITS, what = "agent runs"): RateLimiter {
   const runs = new Map<string, number[]>();
   let day = "";
   let dayCount = 0;
@@ -44,7 +48,7 @@ export function createRateLimiter(limits: RateLimits = AGENT_RUN_LIMITS): RateLi
         return {
           ok: false,
           retry_after_s: Math.ceil((nextDay - now) / 1000),
-          reason: `The demo has used today's ${limits.global_per_day} agent runs. Try again tomorrow (UTC).`,
+          reason: `The demo has used today's ${limits.global_per_day} ${what}. Try again tomorrow (UTC).`,
         };
       }
       const recent = (runs.get(visitor) ?? []).filter((t) => t > now - HOUR_MS);
@@ -54,7 +58,7 @@ export function createRateLimiter(limits: RateLimits = AGENT_RUN_LIMITS): RateLi
         return {
           ok: false,
           retry_after_s: retry,
-          reason: `You've used ${limits.per_visitor_per_hour} agent runs in the last hour. Try again in ${Math.ceil(retry / 60)} min.`,
+          reason: `You've used ${limits.per_visitor_per_hour} ${what} in the last hour. Try again in ${Math.ceil(retry / 60)} min.`,
         };
       }
       recent.push(now);
@@ -71,11 +75,34 @@ export function visitorOf(request: Request): string {
   return forwarded || request.headers.get("x-real-ip") || "unknown";
 }
 
-const globalForLimiter = globalThis as unknown as { __fieldDayRateLimiter?: RateLimiter };
+const globalForLimiter = globalThis as unknown as {
+  __fieldDayRateLimiter?: RateLimiter;
+  __fieldDayCreateLimiter?: RateLimiter;
+};
 
 function limiter(): RateLimiter {
   globalForLimiter.__fieldDayRateLimiter ??= createRateLimiter();
   return globalForLimiter.__fieldDayRateLimiter;
+}
+
+function createLimiter(): RateLimiter {
+  globalForLimiter.__fieldDayCreateLimiter ??= createRateLimiter(EVENT_CREATION_LIMITS, "new events");
+  return globalForLimiter.__fieldDayCreateLimiter;
+}
+
+function refused(r: { retry_after_s: number; reason: string }): Response {
+  const body: ApiError = { error: { code: "rate_limited", message: r.reason } };
+  return Response.json(body, { status: 429, headers: { "Retry-After": String(r.retry_after_s) } });
+}
+
+/** Wraps event creation with its own limit, in stub and real mode alike. */
+export async function limitEventCreation(
+  request: Request,
+  run: () => Promise<Response>,
+  deps: { limiter?: RateLimiter; now?: () => number } = {},
+): Promise<Response> {
+  const r = (deps.limiter ?? createLimiter()).take(visitorOf(request), (deps.now ?? Date.now)());
+  return r.ok ? run() : refused(r);
 }
 
 /**
@@ -89,7 +116,5 @@ export async function limitAgentRuns(
 ): Promise<Response> {
   if (!(deps.real ?? agentMode() === "real")) return run();
   const r = (deps.limiter ?? limiter()).take(visitorOf(request), (deps.now ?? Date.now)());
-  if (r.ok) return run();
-  const body: ApiError = { error: { code: "rate_limited", message: r.reason } };
-  return Response.json(body, { status: 429, headers: { "Retry-After": String(r.retry_after_s) } });
+  return r.ok ? run() : refused(r);
 }

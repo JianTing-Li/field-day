@@ -1,38 +1,36 @@
 import type { LifecycleStatus } from "@/contracts";
 
 /**
- * Display helpers shared by the UI (owner: Yadan). Every status is shown as an icon plus words,
- * never color alone.
+ * Display helpers shared by the UI (owner: Yadan). Every status is shown in words, never color
+ * alone. No symbol in front of the words: "!", "?" or "✕" only made people ask what it meant.
  */
 
 export interface StatusStyle {
   label: string;
   /** One-line meaning, used as the badge's tooltip and for screen readers. */
   hint: string;
-  icon: string;
+  /** Only where a picture says something the words don't: the lock on a locked-in plan. */
+  icon?: string;
   tone: "neutral" | "warning" | "info" | "success" | "final" | "danger";
 }
 
 export const STATUS: Record<LifecycleStatus, StatusStyle> = {
-  draft: { label: "Draft", hint: "No plan generated yet, or a plan is being edited", icon: "✎", tone: "neutral" },
+  draft: { label: "Draft", hint: "No plan generated yet, or a plan is being edited", tone: "neutral" },
   needs_verification: {
     label: "Needs checking",
     hint: "Some critical checks failed or are not confirmed yet",
-    icon: "!",
     tone: "warning",
   },
   ready_for_approval: {
     label: "Ready for approval",
     hint: "Every critical check passes; waiting for the organizer to approve",
-    icon: "●",
     tone: "info",
   },
-  approved: { label: "Approved", hint: "The organizer approved this exact version", icon: "✓", tone: "success" },
+  approved: { label: "Approved", hint: "The organizer approved this exact version", tone: "success" },
   finalized: { label: "Finalized", hint: "Saved as the final event record", icon: "🔒", tone: "final" },
   no_feasible_option: {
     label: "No workable option",
     hint: "No park, time and workout satisfies the constraints",
-    icon: "✕",
     tone: "danger",
   },
 };

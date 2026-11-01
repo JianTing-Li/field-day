@@ -1,11 +1,13 @@
-import type {
-  CheckId,
-  CheckResult,
-  CheckStatus,
-  EvidenceSnapshot,
-  FieldDayEvent,
-  LifecycleStatus,
-  PlanVersion,
+import {
+  isConfirmableCheck,
+  type CheckId,
+  type CheckPlanResult,
+  type CheckResult,
+  type CheckStatus,
+  type EvidenceSnapshot,
+  type FieldDayEvent,
+  type LifecycleStatus,
+  type PlanVersion,
 } from "@/contracts";
 
 /**
@@ -19,11 +21,11 @@ export function currentVersion(event: FieldDayEvent): PlanVersion {
   return v;
 }
 
-/** Icon + words for a check result. Unknown is never styled like pass. */
-export const CHECK_STATUS: Record<CheckStatus, { icon: string; label: string; tone: string }> = {
-  pass: { icon: "✓", label: "Pass", tone: "text-ink bg-mint" },
-  fail: { icon: "✕", label: "Fail", tone: "text-ink bg-danger" },
-  unknown: { icon: "?", label: "Unknown", tone: "text-ink bg-butter" },
+/** Words for a check result. Unknown is never styled like pass. */
+export const CHECK_STATUS: Record<CheckStatus, { label: string; tone: string }> = {
+  pass: { label: "OK", tone: "text-ink bg-mint" },
+  fail: { label: "Problem", tone: "text-ink bg-danger" },
+  unknown: { label: "To check", tone: "text-ink bg-butter" },
 };
 
 const CHECK_NAMES: Record<CheckId, string> = {
@@ -32,6 +34,7 @@ const CHECK_NAMES: Record<CheckId, string> = {
   "equipment.available": "Equipment",
   "duration.fits": "Workout length",
   "heat.max_temperature": "Heat limit",
+  "weather.rain": "Rain",
   "air_quality.max_aqi": "Air quality limit",
   "freshness.conditions": "Up-to-date weather and air data",
   "space_surface.space": "Workout space",
@@ -79,24 +82,6 @@ export function availableActions(v: PlanVersion): Actions {
   };
 }
 
-/** Why Approve is unavailable, in plain words. Null when it is available. */
-export function approveBlockedReason(v: PlanVersion): string | null {
-  switch (v.status) {
-    case "ready_for_approval":
-      return null;
-    case "draft":
-      return "Draft a plan first.";
-    case "needs_verification":
-      return "Some critical checks failed or are not confirmed. Resolve what's blocking this plan, listed above, first.";
-    case "no_feasible_option":
-      return "No safe option was found. Edit the brief or find alternatives.";
-    case "approved":
-      return "This plan is already approved.";
-    case "finalized":
-      return "This plan is locked in.";
-  }
-}
-
 export function parkName(snapshot: EvidenceSnapshot | null, id: string | null): string {
   if (!id) return "No park yet";
   return snapshot?.park_candidates.find((p) => p.id === id)?.name ?? id;
@@ -137,4 +122,164 @@ export function withParkNames(text: string, snapshot: EvidenceSnapshot | null): 
   return text
     .replace(/\s*\((park-[a-z0-9-]+)\)/g, (m, id: string) => (name(id) ? "" : m))
     .replace(/\bpark-[a-z0-9-]+\b/g, (id) => name(id) ?? id);
+}
+
+/** Swaps check IDs inside a harness message for their plain names ("space_surface.surface" -> "ground surface"). */
+export function plainIds(text: string): string {
+  return text.replace(/\b[a-z_]+\.[a-z_]+\b/g, (id) => {
+    const name = checkName(id as CheckId);
+    return name === id ? id : name.toLowerCase();
+  });
+}
+
+/**
+ * Agent and rule text, in the organizer's words (F-13, F-17): park, template and check IDs become
+ * names, and the "(unreviewed demo policy)" label is dropped because the banner states it once.
+ */
+export function plainText(text: string, snapshot: EvidenceSnapshot | null): string {
+  const template = (id: string) => snapshot?.workout_templates.find((t) => t.id === id)?.name;
+  return plainIds(withParkNames(text, snapshot))
+    .replace(/\s*\((tpl-[a-z0-9-]+)\)/g, (m, id: string) => (template(id) ? "" : m))
+    .replace(/\btpl-[a-z0-9-]+\b/g, (id) => template(id) ?? id)
+    .replace(/\s*\(unreviewed demo policy\)/g, "");
+}
+
+/** The overall result in a few plain words: "All clear", "2 to check", "1 problem". */
+export function overallLabel(checks: CheckPlanResult): string {
+  const critical = checks.checks.filter((c) => c.critical);
+  const failed = critical.filter((c) => c.status === "fail").length;
+  const unknown = critical.filter((c) => c.status === "unknown").length;
+  if (failed > 0) return `${failed} problem${failed === 1 ? "" : "s"}`;
+  if (unknown > 0) return `${unknown} to check`;
+  return "All clear";
+}
+
+/** What a failed check means, as a short headline. */
+const PROBLEM_TITLE: Record<CheckId, string> = {
+  "event_constraints.start_window": "Time doesn't work",
+  "event_constraints.allowed_park": "Park isn't on your list",
+  "equipment.available": "Missing equipment",
+  "duration.fits": "Workout doesn't fit the time",
+  "heat.max_temperature": "Too hot",
+  "weather.rain": "Rain likely",
+  "air_quality.max_aqi": "Air quality too poor",
+  "freshness.conditions": "No current forecast",
+  "space_surface.space": "No room for the workout",
+  "space_surface.surface": "Ground isn't suitable",
+  "permissions.permit_review": "Permit may be needed",
+};
+
+/** Each critical check that failed, as one plain line: "Too hot: forecast reaches 93°F…". */
+export function problemLines(v: PlanVersion, snapshot: EvidenceSnapshot | null): string[] {
+  return (v.checks?.checks ?? [])
+    .filter((c) => c.critical && c.status === "fail")
+    .map((c) => `${PROBLEM_TITLE[c.check_id] ?? checkName(c.check_id)}: ${lowerFirst(plainText(c.reason, snapshot))}`);
+}
+
+const lowerFirst = (t: string) => (/^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+
+/** Something only the organizer can check at the park, with the sentence they confirm (F-15). */
+export interface ConfirmItem {
+  check_id: CheckId;
+  park_id: string;
+  start_time: string | null;
+  /** Blocks approval until confirmed (space and surface); permit is advisory. */
+  required: boolean;
+  question: string;
+  statement: string;
+}
+
+/**
+ * What the organizer can confirm for the current plan, taken from the harness's own checks rather
+ * than from agent to-dos (D-JT24-1): every space, surface or permit check that is still unknown at
+ * the plan's park. Nothing else can be confirmed, so nothing else is offered.
+ */
+export function confirmItems(v: PlanVersion, snapshot: EvidenceSnapshot | null, groupSize: number): ConfirmItem[] {
+  const p = v.plan;
+  if (!p?.park_id || !v.checks) return [];
+  const park = parkName(snapshot, p.park_id);
+  const when = formatLocal(p.start_time);
+  const template = snapshot?.workout_templates.find((t) => t.id === p.workout_template_id);
+  const layout =
+    p.adaptation_ids
+      .map((id) => template?.permitted_adaptations.find((a) => a.id === id)?.resulting_layout)
+      .filter(Boolean)
+      .at(-1) ?? template?.space.layout;
+  const room = layout === "running_lane" || layout === "loop_path" ? "a clear running path" : "open, flat space";
+  const surfaces = template?.surfaces.length ? template.surfaces.join(", ") : "a safe surface";
+  return v.checks.checks
+    .filter((c) => c.status === "unknown" && isConfirmableCheck(c.check_id) && c.assessed.park_id === p.park_id)
+    .map((c) => {
+      const base = { check_id: c.check_id, park_id: p.park_id!, start_time: c.assessed.start_time, required: c.critical };
+      if (c.check_id === "space_surface.space") {
+        return {
+          ...base,
+          question: `Is there room at ${park}?`,
+          statement: `I checked: there's ${room} for ${groupSize} people at ${park} at ${when}.`,
+        };
+      }
+      if (c.check_id === "space_surface.surface") {
+        return {
+          ...base,
+          question: `Is the ground right at ${park}?`,
+          statement: `I checked: the ground at ${park} is suitable for this workout (${surfaces}).`,
+        };
+      }
+      return {
+        ...base,
+        question: `Do you need a permit at ${park}?`,
+        statement: `I checked: a permit is sorted, or not needed, for ${groupSize} people at ${park} at ${when}.`,
+      };
+    })
+    .sort((a, b) => Number(b.required) - Number(a.required));
+}
+
+/**
+ * Coverage gaps in one or two plain lines (F-26): the snapshot lists one gap per park and provider,
+ * which for a far-off date is twenty lines saying the same thing.
+ */
+export function gapSummary(gaps: string[], snapshot: EvidenceSnapshot | null): string[] {
+  const weather = gaps.filter((g) => /^NWS hourly forecast .* does not cover/.test(g));
+  const air = gaps.filter((g) => /^AirNow has no forecast/.test(g));
+  const rest = gaps.filter((g) => !weather.includes(g) && !air.includes(g));
+  return [
+    ...(weather.length > 0 ? ["No weather forecast reaches this time yet."] : []),
+    ...(air.length > 0 ? ["No air-quality forecast for this date yet."] : []),
+    ...rest.map((g) => plainText(g, snapshot)),
+  ];
+}
+
+/**
+ * The forecast behind the verdicts, in one line (JT-24): "82°F · 10% rain · wind 6 mph · air quality 45 (good)".
+ * Highest value of each during the session at the plan's park; null when there's no plan or no forecast yet.
+ */
+export function conditionsLine(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]): string | null {
+  if (!snapshot || !plan?.park_id || !plan.start_time || !plan.duration_minutes) return null;
+  const start = plan.start_time;
+  const end = new Date(new Date(`${start}:00Z`).getTime() + plan.duration_minutes * 60_000).toISOString().slice(0, 16);
+  const during = (metric: string) =>
+    snapshot.items.filter(
+      (e) =>
+        e.metric === metric &&
+        e.evidence_type !== "organizer_confirmation" &&
+        (e.applies_to.park_id === plan.park_id || e.applies_to.park_id === null) &&
+        (e.valid_from === null || e.valid_from < end) &&
+        (e.valid_to === null || e.valid_to > start) &&
+        typeof e.value === "number",
+    );
+  const max = (metric: string) => {
+    const items = during(metric);
+    return items.length ? items.reduce((a, b) => ((b.value as number) > (a.value as number) ? b : a)) : null;
+  };
+  const temp = max("temperature");
+  const rain = max("precipitation_probability");
+  const wind = max("wind_speed");
+  const aqi = max("aqi");
+  const parts = [
+    temp && `${Math.round(temp.value as number)}°${(temp.unit ?? "F").replace("°", "").toUpperCase().startsWith("C") ? "C" : "F"}`,
+    rain && `${Math.round(rain.value as number)}% rain`,
+    wind && `wind ${Math.round(wind.value as number)} ${wind.unit === "km/h" ? "km/h" : "mph"}`,
+    aqi && `air quality ${Math.round(aqi.value as number)}${aqi.category ? ` (${aqi.category.toLowerCase()})` : ""}`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
