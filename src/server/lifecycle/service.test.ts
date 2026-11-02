@@ -1025,3 +1025,24 @@ describe("repairing old demo events (D-JT27-1)", () => {
     expect((await svc.getEvent("evt-case-02")).event.updated_at).toBe(before.updated_at);
   });
 });
+
+describe("seeding again after a reset (D-JT27-2)", () => {
+  it("refills the demo events when the database is emptied after this server seeded", async () => {
+    vi.setSystemTime(new Date("2026-11-02T16:00:00Z"));
+    expect((await svc.listEvents()).events).toHaveLength(3);
+    const { getStore } = await import("@/server/store");
+    await getStore().reset();
+    const { events } = await svc.listEvents();
+    expect(events.map((e) => e.id).sort()).toEqual(["evt-case-01", "evt-case-02", "evt-case-03"]);
+    expect(events.find((e) => e.id === "evt-case-01")).toMatchObject({ title: "Morning bodyweight class", status: "finalized" });
+  });
+
+  it("refills them when a demo event is opened first", async () => {
+    vi.setSystemTime(new Date("2026-11-02T16:00:00Z"));
+    await svc.listEvents();
+    const { getStore } = await import("@/server/store");
+    await getStore().reset();
+    expect((await svc.getEvent("evt-case-02")).event.brief.title).toBe("Run club intervals");
+    await expect(svc.getEvent("evt-nope")).rejects.toMatchObject({ code: "not_found" });
+  });
+});

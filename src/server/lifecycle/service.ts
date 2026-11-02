@@ -319,7 +319,10 @@ function isLegacySeed(event: FieldDayEvent): boolean {
   return !!scenario && event.brief.title === scenario.brief.title;
 }
 
-/** Seeds again, for legacy seeds written after this server seeded (an old copy of the app shares the database). */
+/**
+ * Seeds again, for demo events missing or old since this server seeded: the database was reset, or an old copy of
+ * the app that shares it wrote legacy seeds.
+ */
 async function reseed(store: EventStore) {
   seeded = null;
   await ensureSeeded(store);
@@ -349,7 +352,9 @@ function summary(e: FieldDayEvent): EventSummary {
 export async function listEvents(): Promise<ApiResponse<"listEvents">> {
   const store = await withStore();
   let events = await store.listEvents();
-  if (events.some(isLegacySeed)) {
+  // A demo event that's missing (the database was reset after this server seeded) or old: seed again.
+  const missing = Object.keys(SCENARIO_EVENTS).some((id) => !events.some((e) => e.id === id));
+  if (missing || events.some(isLegacySeed)) {
     await reseed(store);
     events = await store.listEvents();
   }
@@ -364,11 +369,12 @@ export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiRe
 
 export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   const store = await withStore();
-  let event = await load(store, id);
-  if (isLegacySeed(event)) {
+  let stored = await store.getEvent(id);
+  if (id in SCENARIO_EVENTS && (!stored || isLegacySeed(stored))) {
     await reseed(store);
-    event = await load(store, id);
+    stored = await store.getEvent(id);
   }
+  const event = stored ?? (await load(store, id));
   const snapId = current(event).evidence_snapshot_id;
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
