@@ -111,6 +111,7 @@ function OptionCard({
   const stillWrong = problemLines({ checks: o.checks } as PlanVersion, snapshot);
   const changes = optionChanges(o, current, snapshot);
   const conditions = conditionsLine(snapshot, p);
+  const newWorkout = !!current && p.workout_template_id !== current.workout_template_id;
   return (
     <div className={`clay-sm flex flex-col rounded-disclosure p-5 ${featured ? "bg-mint" : "bg-cream"}`}>
       <p className="text-xs font-bold tracking-wide text-ink uppercase">{label}</p>
@@ -120,16 +121,19 @@ function OptionCard({
       {changes.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="What changes">
           {changes.map((c) => (
-            <li key={c} className="rounded-control bg-cream/70 px-2.5 py-0.5 text-xs font-bold text-ink">
+            <li key={c} className={`rounded-control px-2.5 py-0.5 text-xs font-bold text-ink ${featured ? "bg-cream/70" : "bg-ground"}`}>
               {c}
             </li>
           ))}
         </ul>
       )}
-      <p className="mt-2 text-sm text-ink">
-        {templateName(snapshot, p.workout_template_id)}
-        {adaptation && <span className="block text-ink-2">Swap: {adaptation.charAt(0).toLowerCase()}{adaptation.slice(1)}</span>}
-      </p>
+      {/* A new workout is already named in its chip; say it once. */}
+      {(!newWorkout || adaptation) && (
+        <p className="mt-2 text-sm text-ink">
+          {!newWorkout && templateName(snapshot, p.workout_template_id)}
+          {adaptation && <span className="block text-ink-2">Swap: {adaptation.charAt(0).toLowerCase()}{adaptation.slice(1)}</span>}
+        </p>
+      )}
       {conditions && (
         <p className="mt-1 text-sm text-ink">
           <span aria-hidden="true">{weatherIcon(snapshot, p)} </span>
