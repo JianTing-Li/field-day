@@ -96,6 +96,8 @@ export const FinalizedRecord = z.object({
    * policy, a workout template pending instructor review, or fixture data (D-JT24-2).
    */
   demo_only: z.boolean().optional(),
+  /** Forecast checks not published yet when this was locked in (D-JT26-1); checked again on reopen. */
+  pending_checks: z.array(CheckId).optional(),
 });
 export type FinalizedRecord = z.infer<typeof FinalizedRecord>;
 

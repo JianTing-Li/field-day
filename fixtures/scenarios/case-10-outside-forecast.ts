@@ -15,8 +15,9 @@ import type { ExpectedOutcome } from "./expected";
  * 45-minute bodyweight class for 15 adults at Park A, 9 a.m. on 2026-11-12, planned on 2026-10-28.
  * NWS hourly forecasts and AirNow forecasts do not reach that date. Space and permission are
  * confirmed. Expected: heat, AQI and freshness checks are unknown (never guessed from climate
- * or today's values), both gaps are shown, the result is needs_verification with a recheck task,
- * and finalization is blocked. No conflict, so no specialist review.
+ * or today's values), both gaps are shown, and Planning reports needs_verification with a recheck
+ * task. Nothing fails and only forecasts are open, so the harness lets the organizer approve and lock
+ * it in as forecast pending (D-JT26-1); the record lists the pending checks. No specialist review.
  */
 
 export const SNAPSHOT_ID = "snap-case-10";
@@ -32,17 +33,18 @@ export const expected: ExpectedOutcome = {
   title: "The event falls outside available forecast coverage",
   known_feasible: false,
   specialists_run: false,
-  final_status: "needs_verification",
+  final_status: "draft",
   overall: "unknown",
   checks: { "heat.max_temperature": "unknown", "air_quality.max_aqi": "unknown", "freshness.conditions": "unknown" },
-  finalize: "blocked",
-  gate_failures: ["current_evidence", "hard_constraints"],
+  finalize: "allowed",
+  gate_failures: [],
   required_gaps: [NWS_GAP, AQI_GAP],
   max_revision_rounds: 0,
   agent_error: null,
   notes: [
     "No temperature or AQI value is invented, estimated from climate, or copied from another date",
     "Organizer task says when to recheck (once the forecast covers the event)",
+    "A lock-in is labeled forecast pending and lists heat, AQI and freshness as still to check (D-JT26-1)",
   ],
 };
 

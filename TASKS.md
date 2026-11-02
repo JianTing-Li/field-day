@@ -51,6 +51,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [x] **JT-18** Logistics + Reviewer eval cases (#20) · Thu
 - [ ] **JT-23** Eval fixes found by the first real run: grade single on check_plan, raise the Logistics/Reviewer output limit; README eval results (follow-up to JT-17, no issue) · Wed · needs: JT-17
 - [ ] **JT-25** Demo polish from Yadan's review: no-option message, one weather button, "Waiting on forecast" for far dates, a locked-in sample event (no issue) · Mon
+- [ ] **JT-26** Forecast-pending lock-in: lock in when only an unpublished forecast is missing, check it when due (no issue) · Mon
 - [ ] **JT-27** Repair old demo events that an old copy of the app writes after a reset (no issue) · Mon
 - [ ] **JT-24** Audit fixes: confirmations only for space/surface/permit, harness-owned checks, full workflow on Generate, input and rate limits, form and workspace UX (no issue) · Thu
 - [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20

@@ -697,6 +697,8 @@ describe("confirmations", () => {
 
   it("a stored heat confirmation never turns missing heat data into a pass, at approval or at the gate", async () => {
     const e = await approvedCase1();
+    // Within the weather forecast range, so missing heat data is a gap, not a forecast still to come (D-JT26-1).
+    vi.setSystemTime(new Date("2026-10-27T12:00:00Z"));
     const { getStore } = await import("@/server/store");
     const stored = (await getStore().getEvent(e.id))!;
     const plan = cur(stored).plan!;
@@ -909,6 +911,79 @@ describe("finalize idempotency", () => {
     });
     const next = await svc.finalize(e.id, { version: 3, idempotency_key: "k2" });
     expect(next.event.finalized).toMatchObject({ version: 3, idempotency_key: "k2" });
+  });
+});
+
+describe("forecast-pending lock-in (D-JT26-1)", () => {
+  /** Air quality for the event day isn't published yet, as AirNow posts only today's. */
+  const noAirForecast = (r: CheckPlanResult): CheckPlanResult => ({
+    ...r,
+    overall: "unknown",
+    blockers: ["air_quality.max_aqi", "freshness.conditions"],
+    checks: r.checks.map((c) =>
+      c.check_id === "air_quality.max_aqi" || c.check_id === "freshness.conditions"
+        ? { ...c, status: "unknown", reason: "No AirNow forecast for this day yet", evidence_ids: [] }
+        : c,
+    ),
+  });
+
+  beforeEach(() => vi.setSystemTime(new Date("2026-10-28T16:00:00Z"))); // the day before Case 1
+
+  it("locks in a plan the day before when only the air-quality forecast is missing, and records it", async () => {
+    hooks.checks = noAirForecast;
+    const e = await readyCase1();
+    expect(cur(e).status).toBe("ready_for_approval");
+    await svc.approve(e.id, { version: e.current_version, evidence_snapshot_id: snap(e) });
+    const r = await svc.finalize(e.id, { version: e.current_version, idempotency_key: "k1" });
+    expect(r.finalized).toBe(true);
+    expect(r.gate.every((g) => g.status === "pass")).toBe(true);
+    expect(r.gate.find((g) => g.id === "hard_constraints")!.reason).toContain("Forecast not out yet");
+    expect(r.event.finalized?.pending_checks).toEqual(["air_quality.max_aqi", "freshness.conditions"]);
+    expect((await svc.listEvents()).events.find((x) => x.id === e.id)?.waiting_on_forecast).toBe(true);
+  });
+
+  it("still blocks on the event day, when the forecast should be out", async () => {
+    vi.setSystemTime(new Date("2026-10-29T11:00:00Z"));
+    hooks.checks = noAirForecast;
+    const e = await readyCase1();
+    expect(cur(e).status).toBe("needs_verification");
+  });
+
+  it("still blocks a failed check, whatever is pending", async () => {
+    hooks.checks = (r) => {
+      const n = noAirForecast(r);
+      return { ...n, overall: "fail", checks: n.checks.map((c) => (c.check_id === "space_surface.space" ? { ...c, status: "fail" } : c)) };
+    };
+    expect(cur(await readyCase1()).status).not.toBe("ready_for_approval");
+  });
+
+  it("keeps it locked in when the forecast comes out and passes, and unlocks it when it fails", async () => {
+    hooks.checks = noAirForecast;
+    let e = await readyCase1();
+    await svc.approve(e.id, { version: e.current_version, evidence_snapshot_id: snap(e) });
+    e = (await svc.finalize(e.id, { version: e.current_version, idempotency_key: "k1" })).event;
+    const locked = e.current_version;
+
+    // The forecast is out and passes: same plan, new evidence, locked in again with nothing pending.
+    hooks.checks = null;
+    hooks.snapshot = (s) => ({ ...s, id: "snap-forecast-out" });
+    e = (await svc.recheck(e.id, { version: locked })).event;
+    expect(cur(e).status).toBe("finalized");
+    expect(e.current_version).toBe(locked + 1);
+    expect(e.finalized).toMatchObject({ version: locked + 1, evidence_snapshot_id: "snap-forecast-out" });
+    expect(e.finalized?.pending_checks).toBeUndefined();
+
+    // A later forecast fails: the lock-in is cleared and the problem shows.
+    hooks.checks = (r) => ({
+      ...r,
+      overall: "fail",
+      blockers: ["air_quality.max_aqi"],
+      checks: r.checks.map((c) => (c.check_id === "air_quality.max_aqi" ? { ...c, status: "fail", reason: "AQI 130" } : c)),
+    });
+    hooks.snapshot = (s) => ({ ...s, id: "snap-forecast-bad" });
+    e = (await svc.recheck(e.id, { version: locked + 1 })).event;
+    expect(cur(e).status).not.toBe("finalized");
+    expect(e.finalized?.version).toBe(locked + 1);
   });
 });
 

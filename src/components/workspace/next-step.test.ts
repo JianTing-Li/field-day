@@ -203,3 +203,33 @@ describe("next step from the harness's own checks (JT-24)", () => {
     expect(nextStep({ ...base(), status: "finalized" }, null, null, { demoOnly: true }).body).toContain("aren't reviewed");
   });
 });
+
+describe("forecast-pending lock-in (D-JT26-1)", () => {
+  const plan = { ...base().plan!, park_id: "park-a", start_time: "2026-11-12T09:00" };
+  const air = [check("air_quality.max_aqi", "unknown"), check("freshness.conditions", "unknown")];
+  const both = [check("heat.max_temperature", "unknown"), ...air];
+
+  it("offers to lock in now and says when the forecast comes out", () => {
+    const v = { ...withChecks({ ...base(), plan }, both), status: "ready_for_approval" as const };
+    const step = nextStep(v, null, null, { today: "2026-10-28" });
+    expect(step).toMatchObject({ title: "Nothing fails. Lock it in now", action: "approve_and_lock" });
+    expect(step.body).toContain("The weather and air-quality forecasts aren't out yet for Thu, Nov 12");
+    expect(step.body).toContain("around Fri, Nov 6");
+    expect(step.body).toContain("afternoon of Wed, Nov 11");
+  });
+
+  it("reminds a locked-in plan to check, with no button until the forecast is due", () => {
+    const v = { ...withChecks({ ...base(), plan }, air), status: "finalized" as const };
+    expect(nextStep(v, null, null, { today: "2026-11-05" })).toMatchObject({ title: "Locked in: forecast still to check", action: null });
+    expect(nextStep(v, null, null, { today: "2026-11-11" })).toMatchObject({
+      title: "Locked in: check the forecast now",
+      action: "recheck",
+      label: "Check the forecast",
+    });
+  });
+
+  it("is a plain lock-in once nothing is pending", () => {
+    const v = { ...withChecks({ ...base(), plan }, [check("air_quality.max_aqi", "pass")]), status: "finalized" as const };
+    expect(nextStep(v, null, null, { today: "2026-11-11" }).title).toBe("Locked in");
+  });
+});

@@ -1,4 +1,4 @@
-import type { CheckId, FieldDayEvent, GateCheck, PlanVersion } from "@/contracts";
+import { pendingForecastChecks, WEATHER_FORECAST_DAYS, type CheckId, type FieldDayEvent, type GateCheck, type PlanVersion } from "@/contracts";
 import { daysFrom, formatEventDate, FORECAST_DAYS } from "../format";
 import { aboutCurrentPlan, confirmable } from "./ApprovalFlow";
 import { plainIds, type ConfirmItem } from "./logic";
@@ -122,8 +122,21 @@ export function nextStep(
       label: null,
     };
   }
+  const pending = forecastStillToCheck(v, ctx.today);
   switch (v.status) {
     case "finalized":
+      if (pending) {
+        // Locked in before the forecast was out (D-JT26-1): say when to look, and check it once it's due.
+        return {
+          tone: "success",
+          title: pending.due ? "Locked in: check the forecast now" : "Locked in: forecast still to check",
+          body: pending.due
+            ? `${pending.what} ${pending.plural ? "are" : "is"} due about now. Check it: if it passes, the plan stays locked in; if not, FieldDay shows what to fix.`
+            : `${pending.when} Open this event then to check it.`,
+          action: pending.due ? "recheck" : null,
+          label: pending.due ? "Check the forecast" : null,
+        };
+      }
       return {
         tone: "success",
         title: "Locked in",
@@ -142,6 +155,15 @@ export function nextStep(
         label: "Lock it in",
       };
     case "ready_for_approval":
+      if (pending) {
+        return {
+          tone: "success",
+          title: "Nothing fails. Lock it in now",
+          body: `${pending.when} You can lock it in now and check it then.`,
+          action: "approve_and_lock",
+          label: "Approve and lock in",
+        };
+      }
       return {
         tone: "success",
         title: "Everything checks out",
@@ -273,6 +295,32 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
     body: "See what's missing below. Nothing can be approved until it's confirmed.",
     action: null,
     label: null,
+  };
+}
+
+/**
+ * The forecasts a lock-ready or locked-in plan still waits on (D-JT26-1): what they are, when they
+ * come out, and whether that day has come. Null when nothing is pending.
+ */
+function forecastStillToCheck(v: PlanVersion, today: string | null | undefined) {
+  const ids = pendingForecastChecks(v.checks);
+  const date = v.plan?.start_time?.slice(0, 10);
+  if (ids.length === 0 || !date) return null;
+  const weather = ids.includes("heat.max_temperature") || ids.includes("weather.rain");
+  const air = ids.includes("air_quality.max_aqi");
+  const weatherDay = addDays(date, -WEATHER_FORECAST_DAYS);
+  const airDay = addDays(date, -1);
+  const what = weather && air ? "The weather and air-quality forecasts" : weather ? "The weather forecast" : "The air-quality forecast";
+  const notOut = weather && air ? "aren't" : "isn't";
+  const comesOut = [
+    weather && `The weather forecast comes out around ${shortDate(weatherDay)}.`,
+    air && `Air quality usually comes out the afternoon of ${shortDate(airDay)}.`,
+  ].filter(Boolean);
+  return {
+    what,
+    when: `${what} ${notOut} out yet for ${shortDate(date)}. ${comesOut.join(" ")}`,
+    plural: weather && air,
+    due: !!today && today >= (air ? airDay : weatherDay),
   };
 }
 
