@@ -89,14 +89,12 @@ export const CONDITION_CHECK_IDS = [
 ] as const satisfies readonly CheckId[];
 
 /**
- * Nothing fails, but the weather or air quality isn't known yet, usually because the event is beyond
- * the forecast range (D-JT25-2). The plan is saved and waits; it still can't be locked in.
+ * The forecast is the only thing left: nothing fails, and every open critical check is weather or air
+ * quality, usually because the event is beyond the forecast range (D-JT25-2). The plan is saved and
+ * waits; it still can't be locked in. While the organizer still has something to confirm, it isn't.
  */
 export function isWaitingOnForecast(result: { checks: Pick<CheckResult, "check_id" | "status" | "critical">[] } | null): boolean {
   if (!result) return false;
-  const critical = result.checks.filter((c) => c.critical);
-  return (
-    !critical.some((c) => c.status === "fail") &&
-    critical.some((c) => c.status === "unknown" && (CONDITION_CHECK_IDS as readonly CheckId[]).includes(c.check_id))
-  );
+  const open = result.checks.filter((c) => c.critical && c.status !== "pass");
+  return open.length > 0 && open.every((c) => c.status === "unknown" && (CONDITION_CHECK_IDS as readonly CheckId[]).includes(c.check_id));
 }
