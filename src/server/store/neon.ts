@@ -85,7 +85,12 @@ export function createNeonStore(query: Query): EventStore {
       return rows[0] ? EvidenceSnapshot.parse(rows[0].data) : null;
     },
     saveSnapshot: async (s) => {
-      await q(`INSERT INTO snapshots (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING`, [s.id, json(s)]);
+      // Overwrites, like the memory store (D-JT27-1): a live ID is a hash of its evidence, so only a demo
+      // snapshot (a fixed ID) can change, and then the current code's version is the right one.
+      await q(`INSERT INTO snapshots (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data`, [
+        s.id,
+        json(s),
+      ]);
     },
     recordFinalized: async (eventId, record) => {
       const rows = await q(

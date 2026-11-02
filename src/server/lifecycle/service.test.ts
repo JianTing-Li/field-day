@@ -986,3 +986,42 @@ describe("forecast-pending lock-in (D-JT26-1)", () => {
     expect(e.finalized?.version).toBe(locked + 1);
   });
 });
+
+describe("repairing old demo events (D-JT27-1)", () => {
+  /** Turns a seeded demo event back into what pre-JT-24 code seeded: the fixture name and date. */
+  async function makeLegacy(id: "evt-case-01" | "evt-case-02") {
+    const { getStore } = await import("@/server/store");
+    const { case02 } = await import("@fixtures/scenarios");
+    const scenario = id === "evt-case-01" ? case01 : case02;
+    const stored = (await getStore().getEvent(id))!;
+    const legacy = { ...stored, brief: { ...stored.brief, title: scenario.brief.title, date: scenario.brief.date } };
+    expect(await getStore().saveEvent(legacy, stored.updated_at)).toBe(true);
+  }
+
+  it("replaces old seeds with plain names, and Case 1 locked in, on the next list", async () => {
+    vi.setSystemTime(new Date("2026-11-02T16:00:00Z"));
+    await svc.listEvents();
+    await makeLegacy("evt-case-01");
+    await makeLegacy("evt-case-02");
+    const { events } = await svc.listEvents();
+    const byId = Object.fromEntries(events.map((e) => [e.id, e]));
+    expect(byId["evt-case-01"]).toMatchObject({ title: "Morning bodyweight class", status: "finalized" });
+    expect(byId["evt-case-02"].title).toBe("Run club intervals");
+    expect(events.some((e) => e.title.includes("fixture"))).toBe(false);
+  });
+
+  it("replaces an old seed opened directly", async () => {
+    vi.setSystemTime(new Date("2026-11-02T16:00:00Z"));
+    await svc.listEvents();
+    await makeLegacy("evt-case-02");
+    expect((await svc.getEvent("evt-case-02")).event.brief.title).toBe("Run club intervals");
+  });
+
+  it("leaves demo events that are already current alone", async () => {
+    vi.setSystemTime(new Date("2026-11-02T16:00:00Z"));
+    await svc.listEvents();
+    const before = (await svc.getEvent("evt-case-02")).event;
+    await svc.listEvents();
+    expect((await svc.getEvent("evt-case-02")).event.updated_at).toBe(before.updated_at);
+  });
+});
