@@ -10,6 +10,7 @@ import { case03, evalCases, type ExpectedOutcome } from "@fixtures/scenarios";
 import { agentKinds, selectAgents, type AgentMode } from "@/server/orchestrator/agents";
 import { runPlanning, runWorkflow } from "@/server/orchestrator";
 import { deriveStatus } from "@/server/lifecycle/transitions";
+import { toLocalDateTime } from "@/server/time";
 import { tools } from "@/server/tools";
 
 /**
@@ -145,11 +146,7 @@ export async function runRules(c: EvalCase): Promise<Outcome> {
   const best = scored[0];
   const final_status: FinalStatus = !best
     ? "needs_verification"
-    : best.checks.overall === "pass"
-      ? "draft"
-      : best.checks.overall === "unknown"
-        ? "needs_verification"
-        : "no_feasible_option";
+    : harnessStatus(best.plan, best.checks, best.checks.overall === "fail" ? "no_feasible_option" : "needs_verification", snapshot);
   return {
     architecture: "rules",
     case_number: c.expected.case_number,
@@ -171,10 +168,16 @@ export async function runRules(c: EvalCase): Promise<Outcome> {
 
 /**
  * The status the app would give this result: the lifecycle's own `deriveStatus`, so passing checks
- * win over the agent's status (D-JT23-1). Ready for approval is graded as "draft".
+ * win over the agent's status (D-JT23-1). Ready for approval is graded as "draft". "Today" is the
+ * day the case's evidence was gathered, so a forecast-pending case (D-JT26-1) never depends on the clock.
  */
-export function harnessStatus(plan: CandidatePlan | null, checks: CheckPlanResult | null, agentStatus: string): FinalStatus {
-  const s = deriveStatus(plan, checks, agentStatus);
+export function harnessStatus(
+  plan: CandidatePlan | null,
+  checks: CheckPlanResult | null,
+  agentStatus: string,
+  snapshot: EvidenceSnapshot,
+): FinalStatus {
+  const s = deriveStatus(plan, checks, agentStatus, toLocalDateTime(snapshot.created_at).slice(0, 10));
   return s === "ready_for_approval" ? "draft" : s === "no_feasible_option" ? "no_feasible_option" : "needs_verification";
 }
 
@@ -204,7 +207,7 @@ export async function runSingle(c: EvalCase, mode: AgentMode): Promise<Outcome> 
   const checks = await harnessChecks(c, args.snapshot, r.output.plan);
   return {
     ...base,
-    final_status: harnessStatus(r.output.plan, checks, r.output.status),
+    final_status: harnessStatus(r.output.plan, checks, r.output.status, args.snapshot),
     plan: r.output.plan,
     checks,
     agent_error: null,
@@ -233,7 +236,7 @@ export async function runMulti(c: EvalCase, mode: AgentMode): Promise<Outcome> {
   if (!r.review) {
     return {
       ...base,
-      final_status: harnessStatus(r.planning.plan, r.checks, r.planning.status),
+      final_status: harnessStatus(r.planning.plan, r.checks, r.planning.status, args.snapshot),
       plan: r.planning.plan,
       checks: r.checks,
       specialists_run: false,
@@ -253,7 +256,7 @@ export async function runMulti(c: EvalCase, mode: AgentMode): Promise<Outcome> {
   const checks = chosen ? await harnessChecks(c, args.snapshot, chosen.plan) : null;
   return {
     ...base,
-    final_status: harnessStatus(chosen?.plan ?? null, checks, review.status),
+    final_status: harnessStatus(chosen?.plan ?? null, checks, review.status, args.snapshot),
     plan: chosen?.plan ?? null,
     checks,
     specialists_run: true,
@@ -287,7 +290,8 @@ export function gradeOutcome(c: EvalCase, o: Outcome): Grade {
       const got = o.checks?.checks.find((x) => x.check_id === id)?.status ?? null;
       if (got !== status) failures.push(`${id} ${got}, expected ${status}`);
     }
-    const finalize = o.final_status === "draft" && overall === "pass" ? "allowed" : "blocked";
+    // "draft" is ready for approval: every check passes, or only forecasts not out yet (D-JT26-1).
+    const finalize = o.final_status === "draft" ? "allowed" : "blocked";
     if (finalize !== e.finalize) failures.push(`finalize ${finalize}, expected ${e.finalize}`);
   }
 

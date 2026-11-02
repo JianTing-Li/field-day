@@ -21,7 +21,9 @@ earlier time, confirm space and ground, lock it in, then report a storm.</sub>
   Reviewer) return Zod-validated JSON through read-only tools. A deterministic harness owns all state, runs every
   safety check and holds the final save gate, so no model output can lock in an unsafe plan.
 - **"Unknown" is never "pass."** Each check is pass, fail or unknown. Missing weather, a stale forecast or unverified
-  space blocks lock-in. A gentler workout never makes a heat, rain or air-quality problem acceptable.
+  space blocks lock-in. The one exception: a forecast that isn't published yet for a later day can be locked in as
+  "forecast pending", and the event asks you to check it when it's due. A gentler workout never makes a heat, rain
+  or air-quality problem acceptable.
 - **Every fact shows its evidence:** source, retrieval time, valid period, where it applies, and whether it's live,
   recorded or the organizer's word. An organizer's confirmation covers one check at one park and time, never more.
 - **Measured, not vibes.** 12 scenario evals (written before the first agent run) compare a rules-only baseline,
@@ -210,8 +212,9 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
 ## Limitations and open decisions
 <!-- Both: add as you go -->
 - Conditions data is recorded (fixture mode, covering Oct 27–Nov 2, 2026 for weather and Oct 27–28 for air quality) or
-  live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 7 days ahead for weather and 1–2 days for air quality,
-  so an event further out stays "waiting on weather data" until then (D-JT24-8).
+  live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 6 days ahead for weather, and AirNow publishes air
+  quality for today only, so an event further out can be locked in as "forecast pending" and checked once the
+  forecast is out (D-JT26-1).
 - Sessions run 30, 35 or 45 minutes and use one of 4 workouts (bodyweight, walk-run intervals, resistance bands, yoga),
   all pending instructor review; other activities need a reviewed workout first (D-JT24-7).
 - Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support

@@ -2,6 +2,7 @@ import {
   EventBrief,
   isConfirmableCheck,
   isWaitingOnForecast,
+  pendingForecastChecks,
   REPORTABLE_CHECK_IDS,
   ZERO_USAGE,
   type ApiRequest,
@@ -26,7 +27,7 @@ import { getStore, type EventStore } from "@/server/store";
 import { applyConfirmations, applyReports, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
 import { refreshedSnapshot, SCENARIO_EVENTS, seedBrief, snapshotFor } from "./snapshots";
-import { assertCanStart, deriveStatus, transition } from "./transitions";
+import { assertCanStart, deriveStatus, lockReady, transition } from "./transitions";
 
 /**
  * Lifecycle service (owner: JT, tasks JT-07, JT-09, JT-14). One function per API endpoint.
@@ -273,12 +274,12 @@ let seeded: Promise<void> | null = null;
 /** Demo events seeded already locked in, so the demo shows a finished plan too (D-JT25-3). */
 const SEED_LOCKED_IN = new Set<string>(["evt-case-01"]);
 
-/** Approves and locks in a seeded event's current plan, through the same gate as the organizer. */
-async function lockIn(store: EventStore, event: FieldDayEvent) {
+/** Approves and locks in an event's current plan, through the same gate as the organizer. */
+async function lockIn(store: EventStore, event: FieldDayEvent, key = `seed-${event.id}`) {
   const v = current(event);
   if (v.status !== "ready_for_approval" || !v.evidence_snapshot_id) return;
   await approveIn(store, event.id, { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id });
-  await finalizeIn(store, event.id, { version: v.version, idempotency_key: `seed-${event.id}` });
+  await finalizeIn(store, event.id, { version: v.version, idempotency_key: key });
 }
 
 /**
@@ -291,9 +292,11 @@ async function lockIn(store: EventStore, event: FieldDayEvent) {
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
     for (const id of Object.keys(SCENARIO_EVENTS) as (keyof typeof SCENARIO_EVENTS)[]) {
-      if (await store.getEvent(id)) continue;
+      const stored = await store.getEvent(id);
+      if (stored && !isLegacySeed(stored)) continue;
       try {
-        const event = await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
+        // A legacy seed is replaced in place (D-JT27-1); otherwise the insert only succeeds if it's still missing.
+        const event = await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), stored?.updated_at ?? null);
         if (SEED_LOCKED_IN.has(id)) await lockIn(store, event);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
@@ -304,6 +307,22 @@ function ensureSeeded(store: EventStore): Promise<void> {
     throw e;
   });
   return seeded;
+}
+
+/**
+ * A demo event seeded by code from before JT-24 (D-JT27-1): it still has the scenario's fixture name,
+ * like "Thursday bodyweight class (Case 1 fixture)", with July dates and weather. An old deployment or
+ * checkout that shares the database writes these after a reset; the current code replaces them.
+ */
+function isLegacySeed(event: FieldDayEvent): boolean {
+  const scenario = (SCENARIO_EVENTS as Record<string, (typeof SCENARIO_EVENTS)[keyof typeof SCENARIO_EVENTS]>)[event.id];
+  return !!scenario && event.brief.title === scenario.brief.title;
+}
+
+/** Seeds again, for legacy seeds written after this server seeded (an old copy of the app shares the database). */
+async function reseed(store: EventStore) {
+  seeded = null;
+  await ensureSeeded(store);
 }
 
 async function withStore() {
@@ -321,7 +340,7 @@ function summary(e: FieldDayEvent): EventSummary {
     current_version: e.current_version,
     finalized_version: e.finalized?.version ?? null,
     updated_at: e.updated_at,
-    waiting_on_forecast: current(e).status === "needs_verification" && isWaitingOnForecast(current(e).checks),
+    waiting_on_forecast: isWaitingOnForecast(current(e).checks),
   };
 }
 
@@ -329,7 +348,11 @@ function summary(e: FieldDayEvent): EventSummary {
 
 export async function listEvents(): Promise<ApiResponse<"listEvents">> {
   const store = await withStore();
-  const events = await store.listEvents();
+  let events = await store.listEvents();
+  if (events.some(isLegacySeed)) {
+    await reseed(store);
+    events = await store.listEvents();
+  }
   return { events: events.map(summary).sort((a, b) => b.updated_at.localeCompare(a.updated_at)) };
 }
 
@@ -341,7 +364,11 @@ export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiRe
 
 export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   const store = await withStore();
-  const event = await load(store, id);
+  let event = await load(store, id);
+  if (isLegacySeed(event)) {
+    await reseed(store);
+    event = await load(store, id);
+  }
   const snapId = current(event).evidence_snapshot_id;
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
@@ -476,7 +503,9 @@ function pushRecheckVersion(event: FieldDayEvent, v: PlanVersion, snapshot: Evid
 
 /**
  * Refreshes evidence. Unchanged evidence leaves the plan as is. New evidence revalidates the
- * current plan with check_plan as a new version and clears approval.
+ * current plan with check_plan as a new version and clears approval. A locked-in plan that the new
+ * evidence still allows is locked in again on it (D-JT26-2): the organizer already approved this
+ * exact plan, and only the forecast changed. If the new forecast fails, it stays unlocked.
  */
 export async function recheck(id: string, req: ApiRequest<"recheck">): Promise<ApiResponse<"recheck">> {
   const store = await withStore();
@@ -494,11 +523,16 @@ export async function recheck(id: string, req: ApiRequest<"recheck">): Promise<A
   const snapshot = await refreshedSnapshot(event, next);
   await store.saveSnapshot(snapshot);
   pushRecheckVersion(event, v, snapshot, harnessChecks(event, v.plan, snapshot, next));
+  const relock = v.status === "finalized" && current(event).status === "ready_for_approval";
   event.last_run = run("completed", [
     "Refreshed park, weather and air-quality evidence",
     `Revalidated the plan against snapshot ${snapshot.id}`,
+    ...(relock ? ["Nothing fails on the new evidence, so the plan is locked in again"] : []),
   ]);
-  return { event: await commit(store, event, base) };
+  const saved = await commit(store, event, base);
+  if (!relock) return { event: saved };
+  await lockIn(store, saved, `recheck-${saved.id}-v${next}`);
+  return { event: await load(store, id) };
 }
 
 async function review(
@@ -716,7 +750,7 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
     // Re-check from scratch, so a confirmation that supersedes a report takes effect too.
     v.checks = harnessChecks(event, v.plan, snapshot, v.version);
     v.concerns = concernsFrom(v.checks);
-    if (v.status === "needs_verification" && v.checks.overall === "pass") {
+    if (v.status === "needs_verification" && lockReady(v.plan, v.checks)) {
       transition(v, "ready_for_approval", "add_confirmation");
     }
   }
@@ -835,7 +869,7 @@ async function finalizeIn(store: EventStore, id: string, req: ApiRequest<"finali
   let evidenceNote = `Evidence unchanged since approval (snapshot ${approvedSnapshot.id})`;
   if (fresh) {
     const freshChecks = harnessChecks(event, v.plan, fresh, v.version);
-    if (freshChecks.overall !== "pass") {
+    if (!lockReady(v.plan, freshChecks)) {
       const next = await refreshedSnapshot(event, v.version + 1);
       await store.saveSnapshot(next);
       pushRecheckVersion(event, v, next, harnessChecks(event, v.plan, next, v.version + 1));
@@ -855,15 +889,22 @@ async function finalizeIn(store: EventStore, id: string, req: ApiRequest<"finali
 
   const checks = harnessChecks(event, v.plan, snapshot, v.version);
   const freshness = checks.checks.find((c) => c.check_id === "freshness.conditions");
+  // Forecasts not published yet for a later day don't block; the record lists them (D-JT26-1).
+  const pending = lockReady(v.plan, checks) ? pendingForecastChecks(checks) : [];
+  const waiting = `Forecast not out yet, to check closer to the day: ${pending.join(", ")}`;
   gate.push(
     freshness?.status === "pass"
       ? pass("current_evidence", evidenceNote)
-      : fail("current_evidence", `Weather and air-quality data are not current for the whole event: ${freshness?.reason ?? "no freshness check"}. Recheck conditions.`),
+      : pending.includes("freshness.conditions")
+        ? pass("current_evidence", `${evidenceNote}. ${waiting}`)
+        : fail("current_evidence", `Weather and air-quality data are not current for the whole event: ${freshness?.reason ?? "no freshness check"}. Recheck conditions.`),
   );
   gate.push(
     checks.overall === "pass"
       ? pass("hard_constraints", "check_plan passes every critical check for this park, time and workout")
-      : fail("hard_constraints", `Critical checks failed or unknown: ${checks.blockers.join(", ")}`),
+      : pending.length > 0
+        ? pass("hard_constraints", `Nothing fails for this park, time and workout. ${waiting}`)
+        : fail("hard_constraints", `Critical checks failed or unknown: ${checks.blockers.join(", ")}`),
   );
   const layout = planLayout(v.plan, snapshot.workout_templates);
   const confirmed = (c: (typeof checks.checks)[number]) =>
@@ -890,6 +931,7 @@ async function finalizeIn(store: EventStore, id: string, req: ApiRequest<"finali
     // Saved, but not for real-world use while anything it rests on is unreviewed (D-JT24-2).
     demo_only:
       POLICY_CONFIG.review_status === "unreviewed_demo_policy" || template?.review.status !== "reviewed" || snapshot.origin === "fixture",
+    ...(pending.length > 0 && { pending_checks: pending }),
   };
   const saved = (await store.recordFinalized(event.id, record)) ? record : await store.getFinalized(event.id, v.version);
   applyFinalized(event, saved ?? record);

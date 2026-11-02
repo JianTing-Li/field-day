@@ -11,7 +11,9 @@ import {
   ReviewerOutput,
   WorkoutOutput,
   WorkoutTemplate,
+  isForecastPending,
 } from "@/contracts";
+import { toLocalDateTime } from "@/server/time";
 import parks from "@/server/content/parks.json";
 import workouts from "@/server/content/workouts.json";
 import {
@@ -158,7 +160,9 @@ describe.each(cases.map((s) => [s.expected.case_number, s] as const))("Case %i f
     const e = s.expected;
     if (e.final_status === null) return; // Case 11: nothing may be accepted; covered below.
     const o = outputs(s);
-    expect(o.reviewer?.status ?? o.planning.status).toBe(e.final_status);
+    // An agent reports a forecast-pending plan as needs_verification; the harness lifts it (D-JT26-1).
+    const pending = e.final_status === "draft" && e.overall === "unknown";
+    expect(o.reviewer?.status ?? o.planning.status).toBe(pending ? "needs_verification" : e.final_status);
     const checks = finalChecks(s);
     expect(checks?.overall ?? null).toBe(e.overall);
     for (const [id, status] of Object.entries(e.checks)) {
@@ -169,7 +173,10 @@ describe.each(cases.map((s) => [s.expected.case_number, s] as const))("Case %i f
 
   it("only allows finalize when the final result is a passing draft", () => {
     const e = s.expected;
-    const passing = e.final_status === "draft" && e.overall === "pass";
+    // Ready for approval: every check passes, or only forecasts not out yet on the day the evidence was gathered.
+    const gathered = toLocalDateTime(s.snapshot("evt-eval", 1).created_at).slice(0, 10);
+    const pending = isForecastPending(finalChecks(s), `${s.brief.date}T00:00`, gathered);
+    const passing = e.final_status === "draft" && (e.overall === "pass" || pending);
     expect(e.finalize === "allowed").toBe(passing);
     if (e.finalize === "allowed") expect(e.gate_failures).toEqual([]);
     expect(e.max_revision_rounds).toBeLessThanOrEqual(1);

@@ -207,7 +207,7 @@ export function dateHint(date: string, today: string): string | null {
   const days = daysFrom(today, date);
   if (days < 0) return null;
   if (days > FORECAST_DAYS) {
-    return `Forecasts only reach about ${FORECAST_DAYS} days ahead, so the weather and air checks will say “unknown” until closer to the day. You can still plan now and check again later.`;
+    return `Forecasts only reach about ${FORECAST_DAYS} days ahead, so the weather and air checks will say “unknown” until closer to the day. You can still plan and lock it in now, then check the forecast closer to the day.`;
   }
   return null;
 }
