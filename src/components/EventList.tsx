@@ -86,7 +86,7 @@ function EventRow({ event: e }: { event: EventSummary }) {
           {formatEventDate(e.date)}
         </span>
         <span className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={e.status} />
+          <StatusBadge status={e.status} waiting={e.waiting_on_forecast} />
           {e.finalized_version !== null && e.status !== "finalized" && (
             <span className="text-xs text-ink-2">🔒 An earlier plan is locked in</span>
           )}

@@ -1,6 +1,7 @@
 import {
   EventBrief,
   isConfirmableCheck,
+  isWaitingOnForecast,
   REPORTABLE_CHECK_IDS,
   ZERO_USAGE,
   type ApiRequest,
@@ -77,6 +78,14 @@ function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = 
         : [],
     ),
   ];
+  // Safety limits can only be stricter than the policy (D-JT24-6); the form says so, and now the API does too.
+  const { max_temperature_f: heat, max_aqi: aqi } = brief.instructor_limits;
+  if (heat != null && (heat > POLICY_CONFIG.heat.max_value || heat < 0)) {
+    problems.push(`the max temperature must be 0 to ${POLICY_CONFIG.heat.max_value}°F`);
+  }
+  if (aqi != null && (aqi > POLICY_CONFIG.air_quality.max_aqi || aqi < 0)) {
+    problems.push(`the max AQI must be 0 to ${POLICY_CONFIG.air_quality.max_aqi}`);
+  }
   if (checkParks && brief.allowed_park_ids.length > L.parks_per_event) {
     problems.push(`pick at most ${L.parks_per_event} parks`);
   }
@@ -88,6 +97,14 @@ function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = 
     throw new ServiceError("invalid_request", "The event date is in the past; pick today or a later date");
   }
 }
+/**
+ * The checks a new brief must pass, run by the route before it takes one of the visitor's
+ * new-event slots, so a refused brief never counts against the limit (JT-25).
+ */
+export function checkNewBrief(brief: EventBrief): void {
+  assertBriefInRange(brief, true);
+}
+
 const newId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 
 function current(event: FieldDayEvent): PlanVersion {
@@ -253,8 +270,20 @@ async function plan(store: EventStore, event: FieldDayEvent, opts: RunOptions = 
 
 let seeded: Promise<void> | null = null;
 
+/** Demo events seeded already locked in, so the demo shows a finished plan too (D-JT25-3). */
+const SEED_LOCKED_IN = new Set<string>(["evt-case-01"]);
+
+/** Approves and locks in a seeded event's current plan, through the same gate as the organizer. */
+async function lockIn(store: EventStore, event: FieldDayEvent) {
+  const v = current(event);
+  if (v.status !== "ready_for_approval" || !v.evidence_snapshot_id) return;
+  await approveIn(store, event.id, { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id });
+  await finalizeIn(store, event.id, { version: v.version, idempotency_key: `seed-${event.id}` });
+}
+
 /**
- * Seeds the demo events (Cases 1, 2 and 3) that are missing, once per server process. With Neon
+ * Seeds the demo events (Cases 1, 2 and 3) that are missing, once per server process; Case 1 is
+ * seeded locked in. With Neon
  * they are seeded once and then persist; if two servers seed at once, the second insert is
  * dropped. A failed seed is retried on the next request. Seeding always uses the fixture-backed
  * stub agents, so the demo is the same every time and a page view never spends model credits.
@@ -264,7 +293,8 @@ function ensureSeeded(store: EventStore): Promise<void> {
     for (const id of Object.keys(SCENARIO_EVENTS) as (keyof typeof SCENARIO_EVENTS)[]) {
       if (await store.getEvent(id)) continue;
       try {
-        await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
+        const event = await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
+        if (SEED_LOCKED_IN.has(id)) await lockIn(store, event);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
       }
@@ -291,6 +321,7 @@ function summary(e: FieldDayEvent): EventSummary {
     current_version: e.current_version,
     finalized_version: e.finalized?.version ?? null,
     updated_at: e.updated_at,
+    waiting_on_forecast: current(e).status === "needs_verification" && isWaitingOnForecast(current(e).checks),
   };
 }
 
@@ -694,7 +725,10 @@ export async function addConfirmation(id: string, req: ApiRequest<"addConfirmati
 
 /** Approves the exact current version + evidence snapshot. Repeating the same approval is a no-op. */
 export async function approve(id: string, req: ApiRequest<"approve">): Promise<ApiResponse<"approve">> {
-  const store = await withStore();
+  return approveIn(await withStore(), id, req);
+}
+
+async function approveIn(store: EventStore, id: string, req: ApiRequest<"approve">): Promise<ApiResponse<"approve">> {
   const event = await load(store, id);
   const base = event.updated_at;
   requireCurrent(event, req.version);
@@ -745,7 +779,10 @@ function applyFinalized(event: FieldDayEvent, record: FinalizedRecord) {
  * save stored the record but not the event (an uncertain outcome), the next request reconciles.
  */
 export async function finalize(id: string, req: ApiRequest<"finalize">): Promise<ApiResponse<"finalize">> {
-  const store = await withStore();
+  return finalizeIn(await withStore(), id, req);
+}
+
+async function finalizeIn(store: EventStore, id: string, req: ApiRequest<"finalize">): Promise<ApiResponse<"finalize">> {
   const event = await load(store, id);
   const base = event.updated_at;
   const done = event.finalized;
