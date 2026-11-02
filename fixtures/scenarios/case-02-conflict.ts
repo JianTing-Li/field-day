@@ -281,7 +281,7 @@ export function reviewerOutput(event_version: number): ReviewerOutput {
           { field: "start_time", from: original.start_time, to: A_0800.start_time },
           { field: "adaptation", from: null, to: ADAPT },
         ],
-        tradeoffs: ["Keeps Park A (organizer priority)", "Stationary circuit replaces running intervals"],
+        tradeoffs: ["Keeps your park", "Stationary circuit replaces running intervals"],
         evidence_ids: ["ev-c2-temp-0800-park-a", "ev-c2-aqi"],
         checks: checksFor(event_version, A_0800, true),
         unknowns: ["Stationary space at Park A is not confirmed"],

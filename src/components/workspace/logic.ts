@@ -9,6 +9,7 @@ import {
   type LifecycleStatus,
   type PlanVersion,
 } from "@/contracts";
+import { POLICY_CONFIG } from "@/server/rules/policy-config";
 import { formatClock, formatEventDate } from "../format";
 
 /**
@@ -266,16 +267,13 @@ export function gapSummary(gaps: string[], snapshot: EvidenceSnapshot | null): s
   ];
 }
 
-/**
- * The forecast behind the verdicts, in one line (JT-24): "82°F · 10% rain · wind 6 mph · air quality 45 (good)".
- * Highest value of each during the session at the plan's park; null when there's no plan or no forecast yet.
- */
-export function conditionsLine(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]): string | null {
+/** The highest forecast value of each metric during the session at the plan's park (JT-24). */
+function conditionsDuring(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]) {
   if (!snapshot || !plan?.park_id || !plan.start_time || !plan.duration_minutes) return null;
   const start = plan.start_time;
   const end = new Date(new Date(`${start}:00Z`).getTime() + plan.duration_minutes * 60_000).toISOString().slice(0, 16);
-  const during = (metric: string) =>
-    snapshot.items.filter(
+  const max = (metric: string) => {
+    const items = snapshot.items.filter(
       (e) =>
         e.metric === metric &&
         e.evidence_type !== "organizer_confirmation" &&
@@ -284,19 +282,87 @@ export function conditionsLine(snapshot: EvidenceSnapshot | null, plan: PlanVers
         (e.valid_to === null || e.valid_to > start) &&
         typeof e.value === "number",
     );
-  const max = (metric: string) => {
-    const items = during(metric);
     return items.length ? items.reduce((a, b) => ((b.value as number) > (a.value as number) ? b : a)) : null;
   };
   const temp = max("temperature");
   const rain = max("precipitation_probability");
   const wind = max("wind_speed");
   const aqi = max("aqi");
+  return {
+    temp: temp && {
+      value: Math.round(temp.value as number),
+      unit: (temp.unit ?? "F").replace("°", "").toUpperCase().startsWith("C") ? "C" : "F",
+    },
+    rain: rain && Math.round(rain.value as number),
+    wind: wind && { value: Math.round(wind.value as number), unit: wind.unit === "km/h" ? "km/h" : "mph" },
+    aqi: aqi && { value: Math.round(aqi.value as number), category: aqi.category?.toLowerCase() ?? null },
+    hour: Number(start.slice(11, 13)),
+  };
+}
+
+/** An icon that matches the forecast: rain first, then night, then sun (JT-28). */
+export function weatherIcon(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]): string {
+  const c = conditionsDuring(snapshot, plan);
+  if (!c) return "🌤";
+  if (c.rain !== null && c.rain >= 50) return "🌧";
+  if (c.rain !== null && c.rain >= 20) return "🌦";
+  if (c.hour >= 18 || c.hour < 6) return "🌙";
+  return c.temp && c.temp.value >= 85 ? "🔆" : "☀️";
+}
+
+/**
+ * The forecast behind the verdicts, in one line (JT-24): "82°F · 10% rain · wind 6 mph · air quality 45 (good)".
+ * Highest value of each during the session at the plan's park; null when there's no plan or no forecast yet.
+ */
+export function conditionsLine(snapshot: EvidenceSnapshot | null, plan: PlanVersion["plan"]): string | null {
+  const c = conditionsDuring(snapshot, plan);
+  if (!c) return null;
   const parts = [
-    temp && `${Math.round(temp.value as number)}°${(temp.unit ?? "F").replace("°", "").toUpperCase().startsWith("C") ? "C" : "F"}`,
-    rain && `${Math.round(rain.value as number)}% rain`,
-    wind && `wind ${Math.round(wind.value as number)} ${wind.unit === "km/h" ? "km/h" : "mph"}`,
-    aqi && `air quality ${Math.round(aqi.value as number)}${aqi.category ? ` (${aqi.category.toLowerCase()})` : ""}`,
+    c.temp && `${c.temp.value}°${c.temp.unit}`,
+    c.rain !== null && `${c.rain}% rain`,
+    c.wind && `wind ${c.wind.value} ${c.wind.unit}`,
+    c.aqi && `air quality ${c.aqi.value}${c.aqi.category ? ` (${c.aqi.category})` : ""}`,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** One forecast number next to the limit it's checked against (JT-28). */
+export interface WeatherFact {
+  icon: string;
+  label: string;
+  value: string;
+  /** "limit 90°F"; null when nothing is checked against it (wind). */
+  limit: string | null;
+  /** Over the limit; null when there's no limit or no forecast. */
+  over: boolean | null;
+}
+
+/**
+ * The forecast for the session as separate facts, each with its limit (JT-28): the temperature and
+ * air quality against the stricter of the policy and the organizer's own limits, rain against the
+ * policy's. A missing forecast says so instead of disappearing.
+ */
+export function weatherFacts(
+  snapshot: EvidenceSnapshot | null,
+  plan: PlanVersion["plan"],
+  limits: { max_temperature_f: number | null; max_aqi: number | null },
+): WeatherFact[] {
+  const c = conditionsDuring(snapshot, plan);
+  if (!c) return [];
+  const heat = Math.min(POLICY_CONFIG.heat.max_value, limits.max_temperature_f ?? Infinity);
+  const air = Math.min(POLICY_CONFIG.air_quality.max_aqi, limits.max_aqi ?? Infinity);
+  const rain = POLICY_CONFIG.rain.max_probability_percent;
+  const facts: WeatherFact[] = [
+    c.temp
+      ? { icon: "🌡", label: "Temperature", value: `${c.temp.value}°${c.temp.unit}`, limit: `limit ${heat}°F`, over: c.temp.unit === "F" ? c.temp.value > heat : null }
+      : { icon: "🌡", label: "Temperature", value: "Not out yet", limit: null, over: null },
+    c.rain !== null
+      ? { icon: c.rain >= 50 ? "🌧" : c.rain >= 20 ? "🌦" : "☀️", label: "Chance of rain", value: `${c.rain}%`, limit: `limit ${rain}%`, over: c.rain > rain }
+      : { icon: "🌦", label: "Chance of rain", value: "Not out yet", limit: null, over: null },
+    c.aqi
+      ? { icon: "🌬", label: "Air quality", value: `${c.aqi.value}${c.aqi.category ? ` ${c.aqi.category}` : ""}`, limit: `limit ${air}`, over: c.aqi.value > air }
+      : { icon: "🌬", label: "Air quality", value: "Not out yet", limit: null, over: null },
+  ];
+  if (c.wind) facts.push({ icon: "💨", label: "Wind", value: `${c.wind.value} ${c.wind.unit}`, limit: null, over: null });
+  return facts;
 }

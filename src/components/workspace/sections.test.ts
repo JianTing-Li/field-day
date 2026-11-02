@@ -48,11 +48,29 @@ describe("event page in plain words (JT-24)", () => {
     expect(summary).toContain("Too hot:");
   });
 
-  it("puts one suggested fix up front and the rest behind one button", () => {
+  it("shows every option side by side, FieldDay's pick first, with what each one changes (JT-28)", () => {
     const fix = html(createElement(SuggestedFix, { version, snapshot, busy: false, canApply: true, onApply: () => {} }));
-    expect(fix).toContain("Suggested fix");
-    expect(fix.match(/Use this plan/g)).toHaveLength(1);
-    expect(fix).toContain("Other options (1)");
+    expect(fix).toContain("Best fix");
+    expect(fix).toContain("Option 2");
+    expect(fix).not.toContain("Other options");
+    expect(fix).toContain("8:00 AM, not 10:00 AM");
+    expect(fix).not.toContain("(placeholder)");
+    expect(fix).not.toContain("organizer priority");
+  });
+
+  it("puts each forecast number next to its limit, with an icon that matches the rain (JT-28)", () => {
+    const summary = html(
+      createElement(PlanSummary, {
+        event,
+        version,
+        snapshot,
+        step: { tone: "warning", title: "x", body: "y", action: null, label: null },
+        busy: null,
+        onAction: () => {},
+      }),
+    );
+    expect(summary).toContain("limit 40%");
+    expect(summary).toContain("limit 90°F");
   });
 
   it("shows check results as OK, Problem or To check, never a question mark", () => {
@@ -63,20 +81,22 @@ describe("event page in plain words (JT-24)", () => {
     expect(checks).not.toContain("Unknown");
   });
 
-  it("offers every kind of change right on the page, including rain", () => {
+  it("takes changes in the organizer's own words, with shortcuts for the common ones (JT-28)", () => {
     const changed = html(
       createElement(SomethingChanged, {
         event,
         version,
         snapshot,
         busy: false,
-        onReport: async () => true,
-        onEditBrief: async () => true,
+        onRead: async () => ({ ok: true as const, items: [] }),
+        onApply: async () => true,
         onRemove: () => {},
       }),
     );
-    for (const label of ["Space is closed", "Ground is wet or unsafe", "Rain or storm", "Time doesn&#x27;t work", "Equipment missing", "Group size changed", "Something else"]) {
+    expect(changed).toContain("as many things as you like");
+    for (const label of ["Space is closed", "Ground is wet", "Rain or storm", "New time", "Equipment missing", "Group size changed"]) {
       expect(changed).toContain(label);
     }
+    expect(changed).toContain("Nothing changes until you confirm");
   });
 });

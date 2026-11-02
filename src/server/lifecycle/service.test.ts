@@ -1025,3 +1025,60 @@ describe("repairing old demo events (D-JT27-1)", () => {
     expect((await svc.getEvent("evt-case-02")).event.updated_at).toBe(before.updated_at);
   });
 });
+
+describe("applying confirmed changes (JT-28, D-JT28-1)", () => {
+  it("saves brief changes and reports together, then drafts one new plan", async () => {
+    const e = await readyCase1();
+    const before = e.current_version;
+    const { event } = await svc.applyChanges(e.id, {
+      version: before,
+      items: [
+        { type: "group_size", group_size: 30, said: "30 people came" },
+        { type: "report", what: "rain", said: "it's pouring" },
+      ],
+    });
+    expect(event.brief.group_size).toBe(30);
+    expect(event.current_version).toBe(before + 2);
+    expect(cur(event).source).toBe("planning");
+    expect(event.change_reports?.at(-1)).toMatchObject({ check_id: "weather.rain", start_time: cur(e).plan!.start_time });
+    expect(cur(event).checks?.checks.find((c) => c.check_id === "weather.rain")?.status).toBe("fail");
+  });
+
+  it("re-checks the plan and looks for a fix when there are only reports", async () => {
+    const e = await readyCase1();
+    const { event } = await svc.applyChanges(e.id, {
+      version: e.current_version,
+      items: [{ type: "report", what: "space", said: "the lawn is fenced off" }],
+    });
+    expect(event.current_version).toBe(e.current_version + 1);
+    expect(cur(event).checks?.checks.find((c) => c.check_id === "space_surface.space")?.status).toBe("fail");
+    expect(event.last_run?.progress.map((p) => p.message).join(" ")).toMatch(/alternative|review/i);
+  });
+
+  it("keeps a note with FieldDay's answer and leaves the plan as it is", async () => {
+    const e = await readyCase1();
+    const { event } = await svc.applyChanges(e.id, {
+      version: e.current_version,
+      items: [{ type: "note", said: "I have no money", reply: "FieldDay doesn't handle money." }],
+    });
+    expect(event.current_version).toBe(e.current_version);
+    expect(event.change_reports?.at(-1)).toMatchObject({ kind: "other", description: "I have no money", reply: "FieldDay doesn't handle money." });
+  });
+
+  it("refuses to drop the only park, and a stale version", async () => {
+    const e = await readyCase1();
+    await expect(
+      svc.applyChanges(e.id, { version: e.current_version, items: [{ type: "avoid_park", park_id: e.brief.allowed_park_ids[0], said: "skip it" }] }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    await expect(
+      svc.applyChanges(e.id, { version: 1, items: [{ type: "note", said: "x", reply: "y" }] }),
+    ).rejects.toMatchObject({ code: "stale_version" });
+  });
+
+  it("reads typed text without changing the event", async () => {
+    const e = await readyCase1();
+    const r = await svc.readChangeText(e.id, { version: e.current_version, text: "30 people now, and it's raining" });
+    expect(r.items.map((i) => i.type)).toEqual(["group_size", "report"]);
+    expect((await svc.getEvent(e.id)).event.updated_at).toBe(e.updated_at);
+  });
+});

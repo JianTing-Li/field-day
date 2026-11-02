@@ -7,6 +7,8 @@ import {
   ZERO_USAGE,
   type ApiRequest,
   type ApiResponse,
+  type ChangeItem,
+  type ChangeReportRecord,
   type CheckPlanResult,
   type EvidenceSnapshot,
   type EventSummary,
@@ -27,7 +29,8 @@ import { getStore, type EventStore } from "@/server/store";
 import { applyConfirmations, applyReports, confirmationLayout, confirmationMatches, planLayout } from "./confirmations";
 import { ServiceError } from "./errors";
 import { refreshedSnapshot, SCENARIO_EVENTS, seedBrief, snapshotFor } from "./snapshots";
-import { assertCanStart, deriveStatus, lockReady, transition } from "./transitions";
+import { readChanges, type ReadContext } from "./change-reader";
+import { assertCanStart, deriveStatus, lockReady, todayInNewYork, transition } from "./transitions";
 
 /**
  * Lifecycle service (owner: JT, tasks JT-07, JT-09, JT-14). One function per API endpoint.
@@ -540,7 +543,7 @@ async function review(
   version: number,
   description: string,
   action: "report_change" | "request_review",
-  change?: ApiRequest<"reportChange">["change"],
+  changes: NewReport[] = [],
 ) {
   const store = await withStore();
   const event = await load(store, id);
@@ -554,27 +557,11 @@ async function review(
   const snapshot = await store.getSnapshot(v.evidence_snapshot_id);
   if (!snapshot) throw new ServiceError("internal", "Evidence snapshot missing");
   let target = v;
-  if (action === "report_change" && change) {
+  if (action === "report_change" && changes.length > 0) {
     // A report is new information (D-JT24-12): it's kept on the event, the check it names fails at
     // that park and time from now on, and the plan is re-checked as a new version, so a locked-in
     // or approved version is never changed in place.
-    const layout = ["space_surface.space", "space_surface.surface"].includes(change.check_id ?? "")
-      ? planLayout(v.plan, snapshot.workout_templates)
-      : null;
-    event.change_reports = [
-      ...(event.change_reports ?? []),
-      {
-        id: newId("report"),
-        at: now(),
-        version: v.version,
-        kind: change.kind,
-        description: change.description,
-        check_id: change.check_id ?? null,
-        park_id: change.park_id ?? null,
-        start_time: change.start_time ?? null,
-        layout,
-      },
-    ];
+    event.change_reports = [...(event.change_reports ?? []), ...changes.map((c) => reportRecord(c, v, snapshot))];
     const next = v.version + 1;
     const checks = harnessChecks(event, v.plan, snapshot, next);
     pushVersion(event, {
@@ -619,7 +606,151 @@ export async function reportChange(id: string, req: ApiRequest<"reportChange">):
   if (check && !(REPORTABLE_CHECK_IDS as readonly string[]).includes(check)) {
     throw new ServiceError("invalid_request", `${check} can't be reported; only space, surface, rain and start time can (D-JT24-12)`);
   }
-  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", req.change);
+  return review(id, req.version, `${req.change.kind}: ${req.change.description}`, "report_change", [req.change]);
+}
+
+type NewReport = ApiRequest<"reportChange">["change"] & { reply?: string | null };
+
+/** A report as kept on the event, with the workout layout it was about for space and surface. */
+function reportRecord(change: NewReport, v: PlanVersion, snapshot: EvidenceSnapshot | null): ChangeReportRecord {
+  const layout =
+    v.plan && snapshot && ["space_surface.space", "space_surface.surface"].includes(change.check_id ?? "")
+      ? planLayout(v.plan, snapshot.workout_templates)
+      : null;
+  return {
+    id: newId("report"),
+    at: now(),
+    version: v.version,
+    kind: change.kind,
+    description: change.description,
+    check_id: change.check_id ?? null,
+    park_id: change.park_id ?? null,
+    start_time: change.start_time ?? null,
+    layout,
+    ...(change.reply ? { reply: change.reply } : {}),
+  };
+}
+
+/** Context for reading "Something changed?" text: the brief, the plan, and the allowed parks' names. */
+async function readContext(store: EventStore, event: FieldDayEvent): Promise<ReadContext> {
+  const v = current(event);
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  const name = (id: string) => snapshot?.park_candidates.find((p) => p.id === id)?.name ?? id;
+  return {
+    brief: event.brief,
+    plan: v.plan ? { park_id: v.plan.park_id, start_time: v.plan.start_time } : null,
+    parks: event.brief.allowed_park_ids.map((id) => ({ id, name: name(id) })),
+    today: todayInNewYork(),
+  };
+}
+
+/** Reads what the organizer typed into a list of changes (JT-28, D-JT28-1). Changes nothing. */
+export async function readChangeText(id: string, req: ApiRequest<"readChanges">): Promise<ApiResponse<"readChanges">> {
+  const store = await withStore();
+  const event = await load(store, id);
+  requireCurrent(event, req.version);
+  return readChanges(req.text, await readContext(store, event));
+}
+
+const REPORT_FOR: Record<Extract<ChangeItem, { type: "report" }>["what"], { kind: NewReport["kind"]; check_id: NonNullable<NewReport["check_id"]>; scope: "park" | "time" }> = {
+  space: { kind: "park_issue", check_id: "space_surface.space", scope: "park" },
+  ground: { kind: "park_issue", check_id: "space_surface.surface", scope: "park" },
+  rain: { kind: "conditions", check_id: "weather.rain", scope: "time" },
+  time: { kind: "time_unavailable", check_id: "event_constraints.start_window", scope: "time" },
+};
+
+/** The brief with the confirmed brief changes applied; null when none of the items changes the brief. */
+export function briefWithChanges(brief: EventBrief, items: ChangeItem[]): EventBrief | null {
+  let next: EventBrief = brief;
+  for (const i of items) {
+    switch (i.type) {
+      case "start_window":
+        next = { ...next, start_window: { earliest: i.earliest, latest: i.latest } };
+        break;
+      case "date":
+        next = { ...next, date: i.date };
+        break;
+      case "group_size":
+        next = { ...next, group_size: i.group_size };
+        break;
+      case "duration":
+        next = { ...next, duration_minutes: i.duration_minutes };
+        break;
+      case "equipment_missing":
+        next = { ...next, equipment_available: next.equipment_available.filter((e) => !i.equipment.includes(e)) };
+        break;
+      case "avoid_exercises":
+        next = { ...next, exercise_exclusions: [...new Set([...next.exercise_exclusions, ...i.exercises])] };
+        break;
+      case "avoid_park": {
+        const allowed = next.allowed_park_ids.filter((p) => p !== i.park_id);
+        if (allowed.length === 0) throw new ServiceError("invalid_request", "That's the only park on the list; add another one first");
+        next = { ...next, allowed_park_ids: allowed, preferred_park_id: next.preferred_park_id === i.park_id ? null : next.preferred_park_id };
+        break;
+      }
+    }
+  }
+  return next === brief ? null : next;
+}
+
+/**
+ * Applies the changes the organizer confirmed, in one go (JT-28, D-JT28-1). Brief changes (time,
+ * date, group, length, equipment, exercises, parks) save the brief and draft one new plan; reports
+ * (space, ground, rain, time) are kept and re-check the plan, then look for a fix; notes are only
+ * kept, with FieldDay's answer. Reports still count when a brief change re-plans.
+ */
+export async function applyChanges(id: string, req: ApiRequest<"applyChanges">): Promise<ApiResponse<"applyChanges">> {
+  for (const i of req.items) {
+    const long = tooLong("A change", i.said, 1000);
+    if (long.length > 0) throw new ServiceError("invalid_request", long[0]);
+  }
+  const store = await withStore();
+  const event = await load(store, id);
+  const base = event.updated_at;
+  requireCurrent(event, req.version);
+  const v = current(event);
+  const p = v.plan;
+  const reports: NewReport[] = req.items.flatMap((i): NewReport[] => {
+    if (i.type === "note") return [{ kind: "other", description: i.said, reply: i.reply }];
+    if (i.type !== "report") return [];
+    if (!p) throw new ServiceError("invalid_request", "Draft a plan before reporting a problem with it");
+    const r = REPORT_FOR[i.what];
+    return [
+      {
+        kind: r.kind,
+        description: i.said,
+        check_id: r.check_id,
+        park_id: r.scope === "park" ? p.park_id : null,
+        start_time: r.scope === "time" ? p.start_time : null,
+      },
+    ];
+  });
+  const brief = briefWithChanges(event.brief, req.items);
+
+  if (brief) {
+    assertCanStart("update_brief", v);
+    const checked = EventBrief.safeParse(brief);
+    if (!checked.success) throw new ServiceError("invalid_request", checked.error.issues[0]?.message ?? "Invalid change");
+    assertBriefInRange(checked.data, checked.data.date !== event.brief.date, false);
+    const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+    if (reports.length > 0) {
+      event.change_reports = [...(event.change_reports ?? []), ...reports.map((r) => reportRecord(r, v, snapshot))];
+    }
+    if (isMaterialEdit(event.brief, checked.data)) event.confirmations = [];
+    event.brief = checked.data;
+    pushVersion(event, emptyVersion(event.current_version + 1, event.current_version, "organizer_edit"));
+    return { event: await commit(store, await plan(store, event), base) };
+  }
+
+  if (reports.some((r) => r.check_id)) {
+    const description = reports.map((r) => `${r.kind}: ${r.description}`).join("\n");
+    return review(id, req.version, description, "report_change", reports);
+  }
+
+  // Only notes: kept with FieldDay's answer, and the plan is unchanged.
+  const snapshot = v.evidence_snapshot_id ? await store.getSnapshot(v.evidence_snapshot_id) : null;
+  event.change_reports = [...(event.change_reports ?? []), ...reports.map((r) => reportRecord(r, v, snapshot))];
+  return { event: await commit(store, event, base) };
 }
 
 /**

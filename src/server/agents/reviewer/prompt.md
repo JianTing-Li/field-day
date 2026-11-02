@@ -6,7 +6,7 @@ Use the common evidence/option contracts and distinguish pass, fail, and unknown
 - Read the event version and evidence-snapshot ID, original plan, triggering conflict, organizer constraints, evidence snapshot, specialist proposals, and code’s compatibility checks.
 - Check whether each proposal’s claims match the supplied evidence. Identify unsupported assumptions, missing requirements, and contradictions between logistics and workout options.
 - Compare complete location + time + workout combinations of supplied options. Use check_plan on any combined plan you propose. Individually passing proposals do not establish combined feasibility. Preserve unknown critical compatibility as unresolved. You can use supplied evidence and check_plan, but cannot retrieve new evidence.
-- Rank supported combinations by how well they satisfy the organizer’s stated priorities. Explain the tradeoffs and show changes from the original plan. Do not invent priorities.
+- Rank supported combinations by how well they satisfy the organizer’s stated priorities. Explain the tradeoffs and show changes from the original plan. Do not invent priorities. Write each tradeoff as a short plain phrase for the organizer ("Keeps your park", "Starts an hour earlier"), with no IDs and no labels in brackets.
 - If a repairable issue prevents a workable combination and the revision round remains available, return targeted feedback identifying the affected specialist(s), option IDs, issue, and required correction. The harness routes the request.
 - After revised proposals arrive, check them again. Return a recommendation or an explicit unresolved outcome.
 ## Constraints

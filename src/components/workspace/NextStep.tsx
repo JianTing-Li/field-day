@@ -3,7 +3,7 @@ import { isWaitingOnForecast, type EvidenceSnapshot, type FieldDayEvent, type Pl
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Button, TONE_BG } from "../ui";
-import { conditionsLine, formatLocal, parkName, templateName } from "./logic";
+import { formatLocal, parkName, templateName, weatherFacts, weatherIcon } from "./logic";
 import type { NextStep } from "./next-step";
 
 /**
@@ -59,13 +59,7 @@ export function PlanSummary({
             {p.duration_minutes && ` · ${p.duration_minutes} min`}
           </p>
         )}
-        {p && (
-          <p className="mt-2 text-sm font-bold text-ink">
-            <span aria-hidden="true">☀ </span>
-            {conditionsLine(snapshot, p) ?? "No forecast for this time yet"}
-            {snapshot?.origin === "fixture" && <span className="font-normal text-ink-2"> · recorded demo data</span>}
-          </p>
-        )}
+        {p && <Forecast snapshot={snapshot} plan={p} limits={event.brief.instructor_limits} />}
         {problems.length > 0 && (
           <div className="clay-sm animate-enter mt-5 rounded-disclosure bg-danger px-5 py-4 text-sm text-ink">
             <p className="font-bold">This plan won&apos;t work as it is</p>
@@ -122,6 +116,59 @@ export function PlanSummary({
   );
 }
 
+/**
+ * The forecast for the session (JT-28): each number next to the limit it's checked against, so
+ * "80% rain" reads as a problem at a glance, with an icon that matches the weather.
+ */
+function Forecast({
+  snapshot,
+  plan,
+  limits,
+}: {
+  snapshot: EvidenceSnapshot | null;
+  plan: NonNullable<PlanVersion["plan"]>;
+  limits: FieldDayEvent["brief"]["instructor_limits"];
+}) {
+  const facts = weatherFacts(snapshot, plan, limits);
+  const end = plan.start_time && plan.duration_minutes
+    ? new Date(new Date(`${plan.start_time}:00Z`).getTime() + plan.duration_minutes * 60_000).toISOString().slice(0, 16)
+    : null;
+  const span = plan.start_time && end ? `${formatLocal(plan.start_time).split(" · ")[1]}–${formatLocal(end).split(" · ")[1]}` : null;
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-bold text-ink">
+        <span aria-hidden="true">{weatherIcon(snapshot, plan)} </span>
+        Forecast{span && ` for ${span}`}
+        {snapshot?.origin === "fixture" && <span className="font-normal text-ink-2"> · recorded demo data</span>}
+      </p>
+      {facts.length === 0 ? (
+        <p className="mt-1 text-sm text-ink-2">No forecast for this time yet.</p>
+      ) : (
+        <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {facts.map((f) => (
+            <li
+              key={f.label}
+              className={`clay-sm rounded-disclosure px-3 py-2 text-ink ${f.over ? "bg-danger" : f.over === false ? "bg-mint" : "bg-ground"}`}
+            >
+              <p className="text-xs text-ink-2">
+                <span aria-hidden="true">{f.icon} </span>
+                {f.label}
+              </p>
+              <p className="text-lg leading-tight font-bold">{f.value}</p>
+              {f.limit && (
+                <p className="text-xs text-ink-2">
+                  {f.over ? "Over the " : ""}
+                  {f.limit}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** What each slow action is doing and how long it usually takes. */
 const WORK: Record<string, string> = {
   "Drafting a plan":
@@ -135,6 +182,8 @@ const WORK: Record<string, string> = {
   "Finding a fix":
     "Checking the plan again with what changed, then looking for other times, parks and workouts. Usually 1 to 4 minutes.",
   "Switching to this plan": "Checking the new park, time and workout.",
+  "Re-planning": "Saving your changes, then drafting a new plan and checking it. Usually 1 to 4 minutes.",
+  "Saving your note": "Saving what you told FieldDay.",
 };
 
 /** Shows that FieldDay is working, for how long, and what it's doing, so nobody clicks twice. */

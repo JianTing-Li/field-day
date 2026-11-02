@@ -129,6 +129,10 @@ on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live we
   organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1). A reported change
   (space, ground, rain, start time) fails that check at that park or time until a newer confirmation clears it
   (D-JT24-12).
+- **Something changed?** (D-JT28-1): the organizer types what changed, as many things as they like, or taps a
+  shortcut. `changes/read` turns it into a list (one model call with real agents, rules otherwise, rules again for
+  anything the model refuses); the organizer confirms it, and `changes/apply` saves brief changes and re-plans once,
+  re-checks reports, and keeps anything FieldDay can't act on as a note with its answer.
 - **API** (`src/app/api/`): the UI talks to the harness only through the endpoints in `src/contracts/api.ts`.
 
 ## Features and status

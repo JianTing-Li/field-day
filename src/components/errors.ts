@@ -28,15 +28,15 @@ export function describeError(e: ApiFailure, action = "That"): ErrorView {
       return { title: `${action} is blocked`, body: `${e.message}. Nothing was saved.`, reload: false, tone: "warning" };
     case "upstream_unavailable":
       return {
-        title: "Weather, air-quality or park data is unavailable right now",
-        body: "Nothing was saved. Try again in a moment. FieldDay never fills missing data with guesses.",
+        title: "Weather or park data is down right now",
+        body: "Nothing was saved. Try again in a moment; FieldDay never guesses missing data.",
         reload: false,
         tone: "warning",
       };
     case "budget_exhausted":
       return {
-        title: "The planning run hit its limit",
-        body: "Nothing was saved: the agents used up their allowed time or calls before finishing. Try again.",
+        title: "FieldDay ran out of time",
+        body: "Nothing was saved. The planner hit its time limit before finishing. Try again.",
         reload: false,
         tone: "warning",
       };

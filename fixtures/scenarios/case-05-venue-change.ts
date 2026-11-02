@@ -224,7 +224,7 @@ export function reviewerOutput(event_version: number): ReviewerOutput {
         park_time_candidate_id: B_0800.id,
         plan: plan(B_0800, false),
         changes_from_original: [{ field: "park", from: "park-a", to: "park-b" }],
-        tradeoffs: ["Moves to Park B", "Keeps running intervals (organizer priority)"],
+        tradeoffs: ["Moves to Park B", "Keeps the running intervals you asked for"],
         evidence_ids: ["ev-c5-temp-park-b", "ev-c5-aqi", "ev-c5-lane-b-confirm", "ev-c5-surface-b-confirm"],
         checks: checksFor(event_version, B_0800, false),
         unknowns: [],
