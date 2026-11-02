@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { case01 } from "@fixtures/scenarios";
-import type { FieldDayEvent, FinalizedRecord } from "@/contracts";
+import type { EvidenceSnapshot, FieldDayEvent, FinalizedRecord } from "@/contracts";
 import { createMemoryStore } from "./memory";
 import { createNeonStore, isConnectionError, RETRY_DELAYS_MS, SCHEMA, withRetries, type Query } from "./neon";
 
@@ -94,6 +94,14 @@ describe("Neon store (JT-08)", () => {
     expect(await s.saveEvent(event(), null)).toBe(false);
     const insert = f.calls.find((c) => c.text.startsWith("INSERT INTO events"))!;
     expect(insert.text).toContain("ON CONFLICT (id) DO NOTHING");
+  });
+
+  it("overwrites a snapshot with the same ID, like the memory store (D-JT27-1)", async () => {
+    const f = fakeQuery();
+    const s = createNeonStore(f.query);
+    await s.saveSnapshot({ id: "snap-case-01" } as EvidenceSnapshot);
+    const insert = f.calls.find((c) => c.text.startsWith("INSERT INTO snapshots"))!;
+    expect(insert.text).toContain("ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data");
   });
 
   it("updates an event only when updated_at still matches", async () => {

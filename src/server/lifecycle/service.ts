@@ -291,9 +291,11 @@ async function lockIn(store: EventStore, event: FieldDayEvent) {
 function ensureSeeded(store: EventStore): Promise<void> {
   seeded ??= (async () => {
     for (const id of Object.keys(SCENARIO_EVENTS) as (keyof typeof SCENARIO_EVENTS)[]) {
-      if (await store.getEvent(id)) continue;
+      const stored = await store.getEvent(id);
+      if (stored && !isLegacySeed(stored)) continue;
       try {
-        const event = await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), null);
+        // A legacy seed is replaced in place (D-JT27-1); otherwise the insert only succeeds if it's still missing.
+        const event = await commit(store, await plan(store, newEvent(id, seedBrief(id)), { agents: STUB_AGENTS }), stored?.updated_at ?? null);
         if (SEED_LOCKED_IN.has(id)) await lockIn(store, event);
       } catch (e) {
         if (!(e instanceof ServiceError && e.code === "stale_version")) throw e;
@@ -304,6 +306,22 @@ function ensureSeeded(store: EventStore): Promise<void> {
     throw e;
   });
   return seeded;
+}
+
+/**
+ * A demo event seeded by code from before JT-24 (D-JT27-1): it still has the scenario's fixture name,
+ * like "Thursday bodyweight class (Case 1 fixture)", with July dates and weather. An old deployment or
+ * checkout that shares the database writes these after a reset; the current code replaces them.
+ */
+function isLegacySeed(event: FieldDayEvent): boolean {
+  const scenario = (SCENARIO_EVENTS as Record<string, (typeof SCENARIO_EVENTS)[keyof typeof SCENARIO_EVENTS]>)[event.id];
+  return !!scenario && event.brief.title === scenario.brief.title;
+}
+
+/** Seeds again, for legacy seeds written after this server seeded (an old copy of the app shares the database). */
+async function reseed(store: EventStore) {
+  seeded = null;
+  await ensureSeeded(store);
 }
 
 async function withStore() {
@@ -329,7 +347,11 @@ function summary(e: FieldDayEvent): EventSummary {
 
 export async function listEvents(): Promise<ApiResponse<"listEvents">> {
   const store = await withStore();
-  const events = await store.listEvents();
+  let events = await store.listEvents();
+  if (events.some(isLegacySeed)) {
+    await reseed(store);
+    events = await store.listEvents();
+  }
   return { events: events.map(summary).sort((a, b) => b.updated_at.localeCompare(a.updated_at)) };
 }
 
@@ -341,7 +363,11 @@ export async function createEvent(req: ApiRequest<"createEvent">): Promise<ApiRe
 
 export async function getEvent(id: string): Promise<ApiResponse<"getEvent">> {
   const store = await withStore();
-  const event = await load(store, id);
+  let event = await load(store, id);
+  if (isLegacySeed(event)) {
+    await reseed(store);
+    event = await load(store, id);
+  }
   const snapId = current(event).evidence_snapshot_id;
   return { event, snapshot: snapId ? await store.getSnapshot(snapId) : null };
 }
