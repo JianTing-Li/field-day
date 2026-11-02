@@ -42,6 +42,14 @@ export const WAITING_ON_FORECAST: StatusStyle = {
   tone: "info",
 };
 
+/** Locked in before its forecast was out (D-JT26-1). Shown in place of "Finalized" until it's checked. */
+export const FINALIZED_FORECAST_PENDING: StatusStyle = {
+  label: "Finalized, forecast pending",
+  hint: "Locked in; the weather or air-quality forecast wasn't out yet, so check it closer to the day",
+  icon: "🔒",
+  tone: "final",
+};
+
 /** "2026-10-29" -> "Thu, Oct 29, 2026". Read as a calendar date so no time zone can shift the day. */
 export function formatEventDate(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);

@@ -1,4 +1,5 @@
-import type { CandidatePlan, CheckPlanResult, LifecycleStatus, PlanVersion } from "@/contracts";
+import { isForecastPending, type CandidatePlan, type CheckPlanResult, type LifecycleStatus, type PlanVersion } from "@/contracts";
+import { toLocalDateTime } from "../time";
 import { ServiceError } from "./errors";
 
 /**
@@ -92,18 +93,36 @@ export function transition(v: PlanVersion, to: LifecycleStatus, action: Lifecycl
   v.status = to;
 }
 
+/** Today in New York ("YYYY-MM-DD"), the calendar event dates are in. */
+export const todayInNewYork = () => toLocalDateTime(new Date()).slice(0, 10);
+
 /**
- * Status of a newly created version. The harness decides (D-JT23-1): passing checks give
+ * Whether a plan can be approved and locked in: every critical check passes, or the only open ones
+ * are forecasts not published yet for a later day (forecast-pending lock-in, D-JT26-1). A failed
+ * check, or any other unknown, always blocks.
+ */
+export function lockReady(
+  plan: Pick<CandidatePlan, "start_time"> | null | undefined,
+  checks: CheckPlanResult | null | undefined,
+  today: string = todayInNewYork(),
+): boolean {
+  if (!plan || !checks) return false;
+  return checks.overall === "pass" || isForecastPending(checks, plan.start_time, today);
+}
+
+/**
+ * Status of a newly created version. The harness decides (D-JT23-1): a lock-ready plan gives
  * ready_for_approval whatever the agent's status says; the agent's concerns stay on the version
- * for the organizer. Unknown or failed critical checks never give ready_for_approval; there the
- * agent's no_feasible_option is kept.
+ * for the organizer. Failed critical checks, and unknowns other than a pending forecast, never give
+ * ready_for_approval; there the agent's no_feasible_option is kept.
  */
 export function deriveStatus(
   plan: CandidatePlan | null,
   checks: CheckPlanResult | null,
   agentStatus?: string,
+  today?: string,
 ): LifecycleStatus {
-  if (plan && checks?.overall === "pass") return "ready_for_approval";
+  if (lockReady(plan, checks, today)) return "ready_for_approval";
   if (agentStatus === "no_feasible_option") return "no_feasible_option";
   if (!plan) return "draft";
   return "needs_verification";
