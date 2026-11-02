@@ -90,7 +90,8 @@ These rules keep open PRs from conflicting with each other. Never add entries at
 - The harness owns all state. Agents return validated JSON; they never write state directly.
 - Agent tools are read-only and read the evidence snapshot. Only the harness calls external APIs.
 - `check_plan` returns pass / fail / unknown for each check. Unknown is never treated as pass.
-  An unknown or failed critical check blocks finalization. Check IDs come only from `CheckId`.
+  An unknown or failed critical check blocks finalization, except a weather or air-quality forecast not yet
+  published for a later day (forecast-pending lock-in, D-JT26-1). Check IDs come only from `CheckId`.
 - An organizer confirmation resolves one check at one park (and time). It never carries over to another park.
 - Lowering workout intensity never makes a blocked heat or AQI condition acceptable.
 - Every fact carries the evidence contract: ID, source, retrieval time, valid period,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ZERO_USAGE } from "@/contracts";
-import { case01, case03 } from "@fixtures/scenarios";
+import { case01, case03, case10 } from "@fixtures/scenarios";
 import { multiAgentValue, summarize, toMarkdown } from "./compare";
 import { ALL_CASES, allPlans, applicable, finalValidation, gradeOutcome, harnessStatus, runEvals, runRules, snapshotFor, type Outcome } from "./runner";
 
@@ -40,14 +40,23 @@ describe("rules-only baseline", () => {
 describe("harnessStatus (D-JT23-1)", () => {
   const out = case01.planningOutput(1);
   const pass = out.rule_checks!;
+  const snap = snapshotFor(byNumber(1));
 
   it("grades passing checks as a draft even when the agent says needs_verification", () => {
-    expect(harnessStatus(out.plan, pass, "needs_verification")).toBe("draft");
+    expect(harnessStatus(out.plan, pass, "needs_verification", snap)).toBe("draft");
   });
   it("never grades unknown or failed checks as a draft, whatever the agent says", () => {
-    expect(harnessStatus(out.plan, { ...pass, overall: "unknown" }, "draft")).toBe("needs_verification");
-    expect(harnessStatus(out.plan, { ...pass, overall: "fail" }, "no_feasible_option")).toBe("no_feasible_option");
-    expect(harnessStatus(null, null, "revision_requested")).toBe("needs_verification");
+    expect(harnessStatus(out.plan, { ...pass, overall: "unknown" }, "draft", snap)).toBe("needs_verification");
+    expect(harnessStatus(out.plan, { ...pass, overall: "fail" }, "no_feasible_option", snap)).toBe("no_feasible_option");
+    expect(harnessStatus(null, null, "revision_requested", snap)).toBe("needs_verification");
+  });
+  it("grades a plan waiting only on unpublished forecasts as a draft, as of the evidence date (D-JT26-1)", () => {
+    const c = byNumber(10);
+    const p = case10.planningOutput(1);
+    expect(harnessStatus(p.plan, p.rule_checks, p.status, snapshotFor(c))).toBe("draft");
+    // The same plan, gathered on the event day itself: the forecast should exist, so it blocks.
+    const sameDay = { ...snapshotFor(c), created_at: "2026-11-12T12:00:00Z" };
+    expect(harnessStatus(p.plan, p.rule_checks, p.status, sameDay)).toBe("needs_verification");
   });
 });
 
