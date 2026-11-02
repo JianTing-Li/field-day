@@ -79,3 +79,24 @@ export interface RuleInput {
  * check_plan combines the results of all rule modules.
  */
 export type RuleFn = (input: RuleInput) => CheckResult[];
+
+/** Checks that need a forecast or an air-quality reading, which no organizer can confirm. */
+export const CONDITION_CHECK_IDS = [
+  "heat.max_temperature",
+  "weather.rain",
+  "air_quality.max_aqi",
+  "freshness.conditions",
+] as const satisfies readonly CheckId[];
+
+/**
+ * Nothing fails, but the weather or air quality isn't known yet, usually because the event is beyond
+ * the forecast range (D-JT25-2). The plan is saved and waits; it still can't be locked in.
+ */
+export function isWaitingOnForecast(result: { checks: Pick<CheckResult, "check_id" | "status" | "critical">[] } | null): boolean {
+  if (!result) return false;
+  const critical = result.checks.filter((c) => c.critical);
+  return (
+    !critical.some((c) => c.status === "fail") &&
+    critical.some((c) => c.status === "unknown" && (CONDITION_CHECK_IDS as readonly CheckId[]).includes(c.check_id))
+  );
+}

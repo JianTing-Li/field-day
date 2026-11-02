@@ -270,7 +270,8 @@ export function Workspace({
         footer={
           v.plan && !busy ? (
             <>
-              {actions.recheck && (
+              {/* Not when the next step is already "Check the latest weather" (D-JT25-1). */}
+              {actions.recheck && step.action !== "recheck" && (
                 <Button variant="ghost" className="px-0" onClick={recheck}>
                   Check the weather again
                 </Button>

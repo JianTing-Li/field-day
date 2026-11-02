@@ -174,5 +174,7 @@ export const EventSummary = z.object({
   current_version: z.number().int().positive(),
   finalized_version: z.number().int().positive().nullable(),
   updated_at: Timestamp,
+  /** Saved, but the weather or air quality isn't out yet (D-JT25-2). */
+  waiting_on_forecast: z.boolean().optional(),
 });
 export type EventSummary = z.infer<typeof EventSummary>;

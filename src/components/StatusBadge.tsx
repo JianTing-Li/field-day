@@ -1,5 +1,5 @@
 import type { LifecycleStatus } from "@/contracts";
-import { STATUS } from "./format";
+import { STATUS, WAITING_ON_FORECAST } from "./format";
 
 const TONE: Record<string, string> = {
   neutral: "bg-lavender text-ink",
@@ -11,8 +11,8 @@ const TONE: Record<string, string> = {
 };
 
 /** A lifecycle status in words. Color only reinforces the text. */
-export function StatusBadge({ status }: { status: LifecycleStatus }) {
-  const s = STATUS[status];
+export function StatusBadge({ status, waiting = false }: { status: LifecycleStatus; waiting?: boolean }) {
+  const s = waiting && status === "needs_verification" ? WAITING_ON_FORECAST : STATUS[status];
   return (
     <span
       title={s.hint}

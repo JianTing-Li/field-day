@@ -52,12 +52,22 @@ describe("nextStep", () => {
     expect(nextStep(v)).toMatchObject({ action: "alternatives", label: "See alternatives" });
   });
 
+  it("says no option avoids the rain when every option still fails, instead of offering them (D-JT25-1)", () => {
+    const review = case02.reviewerOutput(1);
+    const rainy = review.ranked_options.map((o) => ({
+      ...o,
+      checks: { ...o.checks, checks: [...o.checks.checks, check("weather.rain", "fail")] },
+    }));
+    const v = { ...withChecks(base(), [check("weather.rain", "fail")]), alternatives: { ...review, ranked_options: rainy } };
+    expect(nextStep(v)).toMatchObject({ title: "No option avoids the rain", action: "edit", label: "Edit the brief" });
+  });
+
   it("sends the organizer to the brief when the review found nothing that works", () => {
     const none = { ...case02.reviewerOutput(1), status: "no_feasible_option" as const, ranked_options: [] };
     const v = { ...withChecks(base(), [check("heat.max_temperature", "fail")]), alternatives: none };
     expect(nextStep(v)).toMatchObject({
       tone: "danger",
-      title: "It's too hot, and nothing in your brief fixes it",
+      title: "No option avoids the heat",
       action: "edit",
       label: "Edit the brief",
     });
@@ -177,9 +187,11 @@ describe("next step from the harness's own checks (JT-24)", () => {
     expect(step.title).toBe("2 things left to check");
   });
 
-  it("says it's too early for a forecast when the event is far away", () => {
+  it("says a far-off event is saved and names the day its forecast comes out (D-JT25-2)", () => {
     const v = withChecks({ ...base(), plan: { ...plan, start_time: "2026-12-15T08:00" } }, [check("heat.max_temperature", "unknown")]);
-    expect(nextStep(v, null, null, { confirm: [], today: "2026-10-29" }).body).toContain("too early for a forecast");
+    const step = nextStep(v, null, null, { confirm: [], today: "2026-10-29" });
+    expect(step).toMatchObject({ title: "Saved. Waiting on the forecast", action: null });
+    expect(step.body).toContain("for Tue, Dec 15 comes out around Tue, Dec 8");
   });
 
   it("labels a demo lock-in as not for real use", () => {

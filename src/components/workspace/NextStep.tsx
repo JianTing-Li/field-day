@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { EvidenceSnapshot, FieldDayEvent, PlanVersion } from "@/contracts";
+import { isWaitingOnForecast, type EvidenceSnapshot, type FieldDayEvent, type PlanVersion } from "@/contracts";
 import { StatusBadge } from "../StatusBadge";
 import { formatUpdated } from "../format";
 import { Button, TONE_BG } from "../ui";
@@ -40,7 +40,7 @@ export function PlanSummary({
     <>
       <section aria-labelledby="plan-summary" className="clay rounded-surface bg-cream p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-3">
-          <StatusBadge status={v.status} />
+          <StatusBadge status={v.status} waiting={isWaitingOnForecast(v.checks)} />
           <span className="text-xs text-ink-2">Updated {formatUpdated(event.updated_at)}</span>
         </div>
         <h2 id="plan-summary" className="mt-4 text-2xl leading-tight font-bold tracking-tight text-ink sm:text-3xl">
