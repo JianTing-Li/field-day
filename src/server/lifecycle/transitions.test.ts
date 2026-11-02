@@ -76,7 +76,8 @@ describe("assertCanStart", () => {
 
   it("keeps the finalized version read-only except for new versions", () => {
     const f = version("finalized");
-    for (const action of ["add_confirmation", "approve", "request_review", "report_change"] as const) {
+    // report_change is allowed: it adds a new version and leaves the finalized one as it was (D-JT24-12).
+    for (const action of ["add_confirmation", "approve", "request_review"] as const) {
       expect(() => assertCanStart(action, f)).toThrow(/finalized/);
     }
   });

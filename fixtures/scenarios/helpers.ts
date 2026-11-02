@@ -6,6 +6,7 @@ import type {
   CheckStatus,
   EvidenceItem,
   EvidenceMetric,
+  EvidenceSnapshot,
   EvidenceType,
   ParkCandidate,
   PolicyArea,
@@ -49,6 +50,19 @@ interface EvidenceArgs {
   confirms_check_id?: CheckId | null;
   /** Defaults to FIXTURE_RETRIEVED_AT. Set it when a case needs retrieval close to its own date. */
   retrieved_at?: string;
+}
+
+/**
+ * Adds a dry-weather rain forecast (10% chance) for every recorded temperature hour (D-JT24-11).
+ * The scenarios were written before the rain rule existed; this keeps every case's expected outcome
+ * the same instead of turning rain into an unknown blocker. A case that tests rain sets its own.
+ */
+export function withDryForecasts(snapshot: EvidenceSnapshot): EvidenceSnapshot {
+  const rain = snapshot.items
+    .filter((e) => e.metric === "temperature" && e.evidence_type === "forecast")
+    .filter((t) => !snapshot.items.some((e) => e.metric === "precipitation_probability" && e.applies_to.park_id === t.applies_to.park_id && e.valid_from === t.valid_from))
+    .map((t) => ({ ...t, id: `${t.id}-rain`, metric: "precipitation_probability" as const, value: 10, unit: "percent" }));
+  return rain.length === 0 ? snapshot : { ...snapshot, items: [...snapshot.items, ...rain] };
 }
 
 export function evidence(a: EvidenceArgs): EvidenceItem {
@@ -181,4 +195,21 @@ export function candidatePlan(a: PlanArgs): CandidatePlan {
     adaptation_ids: a.adaptation_ids ?? [],
     session_outline: a.session_outline,
   };
+}
+
+/**
+ * Moves a scenario value (snapshot, agent output) from its fixture date to another date: every
+ * "YYYY-MM-DD" in it moves by the same number of days (a forecast that runs to the next midnight moves
+ * too), times of day unchanged. The seeded demo events use it so their dates are upcoming rather than
+ * in the past (D-JT24-14); the eval cases never do.
+ */
+export function shiftDate<T>(value: T, from: string, to: string): T {
+  // Nothing recorded (a stub with no answer for this version) stays nothing.
+  if (from === to || value === undefined || value === null) return value;
+  const day = 86_400_000;
+  const offset = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / day);
+  const json = JSON.stringify(value).replace(/\b(\d{4}-\d{2}-\d{2})(?=[T"])/g, (d) =>
+    new Date(Date.parse(`${d}T00:00:00Z`) + offset * day).toISOString().slice(0, 10),
+  );
+  return JSON.parse(json) as T;
 }

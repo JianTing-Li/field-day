@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { case02 } from "@fixtures/scenarios";
-import { EMPTY_FORM, dateHint, equipmentId, equipmentLabel, fromBrief, toBrief, type BriefFormValues } from "./brief-form";
+import {
+  EMPTY_FORM,
+  activityHint,
+  dateHint,
+  equipmentId,
+  equipmentLabel,
+  fromBrief,
+  lengthList,
+  toBrief,
+  type BriefFormValues,
+} from "./brief-form";
 
 const filled: BriefFormValues = {
   ...EMPTY_FORM,
@@ -116,5 +126,35 @@ describe("dates", () => {
     expect(dateHint("2026-11-02", "2026-10-29")).toBeNull();
     expect(dateHint("2026-11-20", "2026-10-29")).toContain("Forecasts only reach about 7 days ahead");
     expect(dateHint("", "2026-10-29")).toBeNull();
+  });
+});
+
+describe("lengths, limits and activities (JT-24)", () => {
+  it("only accepts a length the workouts can run (D-JT24-7)", () => {
+    const r = toBrief({ ...filled, duration_minutes: "90" }, undefined, [30, 35, 45]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.duration_minutes).toContain("30, 35 or 45");
+    expect(toBrief({ ...filled, duration_minutes: "45" }, undefined, [30, 35, 45]).ok).toBe(true);
+  });
+
+  it("refuses a safety limit looser than the default (D-JT24-6)", () => {
+    const r = toBrief({ ...filled, max_temperature_f: "100", max_aqi: "150" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.max_temperature_f).toContain("90°F or lower");
+      expect(r.errors.max_aqi).toContain("0 to 100");
+    }
+    expect(toBrief({ ...filled, max_temperature_f: "85", max_aqi: "80" }).ok).toBe(true);
+  });
+
+  it("notes when the name asks for an activity FieldDay doesn't have", () => {
+    expect(activityHint("Sunrise pilates at Fort Greene", ["Beginner bodyweight circuit"])).toContain("doesn't have a pilates session");
+    expect(activityHint("Sunrise yoga at Fort Greene", ["Beginner outdoor yoga flow"])).toBeNull();
+    expect(activityHint("Saturday bootcamp", ["Beginner bodyweight circuit"])).toBeNull();
+  });
+
+  it("lists lengths in plain words", () => {
+    expect(lengthList([45, 30, 35])).toBe("30, 35 or 45");
+    expect(lengthList([45])).toBe("45");
   });
 });

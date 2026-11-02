@@ -19,6 +19,7 @@ export const CRITICAL_CHECKS: Record<CheckId, boolean> = {
   "equipment.available": true,
   "duration.fits": true,
   "heat.max_temperature": true,
+  "weather.rain": true,
   "air_quality.max_aqi": true,
   "freshness.conditions": true,
   "space_surface.space": true,

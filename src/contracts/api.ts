@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CheckId, Id, LocalDateTime } from "./common";
 import { EventBrief } from "./brief";
 import { EvidenceSnapshot } from "./evidence";
-import { EventSummary, FieldDayEvent, GateCheck } from "./event";
+import { ChangeKind, EventSummary, FieldDayEvent, GateCheck } from "./event";
 
 /**
  * HTTP API between the UI (Yadan) and the harness (JT). Routes live in src/app/api/.
@@ -30,10 +30,17 @@ export type ApiError = z.infer<typeof ApiError>;
 
 const EventResponse = z.object({ event: FieldDayEvent });
 
-/** Organizer's "Something changed" report. */
+/**
+ * Organizer's "Something changed" report. With `check_id` it is a fact the checks use (D-JT24-12):
+ * that check fails at `park_id` (null = every park) and `start_time` (null = any time). Without it,
+ * it is context for the agents only.
+ */
 export const ChangeReport = z.object({
-  kind: z.enum(["time_unavailable", "park_issue", "workout_issue", "conditions", "other"]),
+  kind: ChangeKind,
   description: z.string().min(1),
+  check_id: CheckId.nullable().optional(),
+  park_id: Id.nullable().optional(),
+  start_time: LocalDateTime.nullable().optional(),
 });
 export type ChangeReport = z.infer<typeof ChangeReport>;
 
@@ -92,6 +99,13 @@ export const Api = {
     method: "POST",
     path: "/api/events/:id/review",
     request: z.object({ version: z.number().int().positive() }),
+    response: EventResponse,
+  },
+  /** POST /api/events/:id/changes/remove — withdraws a report; the plan is checked again as a new version. */
+  removeReport: {
+    method: "POST",
+    path: "/api/events/:id/changes/remove",
+    request: z.object({ version: z.number().int().positive(), report_id: Id }),
     response: EventResponse,
   },
   /** POST /api/events/:id/apply-option — adopts a reviewed combined option as a new draft version. */

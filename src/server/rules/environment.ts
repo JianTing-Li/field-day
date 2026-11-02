@@ -4,7 +4,7 @@ import { aqiCategoryRange } from "@/server/evidence/freshness";
 import { POLICY_CONFIG } from "./policy-config";
 
 /**
- * Heat and air-quality policies (owner: JT, task JT-04).
+ * Heat, rain (JT-24) and air-quality policies (owner: JT, task JT-04).
  * Limits come from policy-config.ts; an instructor limit in the brief can only make them stricter.
  * Only fresh evidence counts (freshness is assessed by the snapshot builder, JT-03). Missing or
  * stale evidence is unknown, never pass. A known reading over the limit fails even when other
@@ -101,6 +101,47 @@ export function heatCheck(input: RuleInput): CheckResult {
   );
 }
 
+/** Probability of precipitation in percent, or null when the unit is not one we can read. */
+function percent(item: EvidenceItem): number | null {
+  if (typeof item.value !== "number") return null;
+  const unit = (item.unit ?? "").trim().toLowerCase();
+  return unit === "%" || unit === "percent" ? item.value : null;
+}
+
+/**
+ * Rain (D-JT24-11): the NWS hourly chance of precipitation during the event. Same shape as heat: a
+ * known hour over the limit fails even when other hours are missing; missing hours are unknown.
+ * Like heat, a workout change never fixes it; only another time or place can.
+ */
+export function rainCheck(input: RuleInput): CheckResult {
+  const check = (status: CheckStatus, reason: string, ids: string[] = []) =>
+    result(input, "weather.rain", "rain", status, reason, ids);
+  const window = planWindow(input.plan);
+  if (window === null) return check("unknown", "Park, start time or duration is not set");
+
+  const limit = POLICY_CONFIG.rain.max_probability_percent;
+  const readings = freshOverlapping(input, "precipitation_probability", window.startMs, window.endMs)
+    .filter((e) => e.evidence_type === "forecast")
+    .map((e) => ({ item: e, pct: percent(e) }))
+    .filter((r): r is { item: EvidenceItem; pct: number } => r.pct !== null);
+
+  const wet = readings.filter((r) => r.pct > limit);
+  if (wet.length > 0) {
+    const worst = Math.max(...wet.map((r) => r.pct));
+    return check("fail", `${Math.round(worst)}% chance of rain during the event, above the ${limit}% limit`, wet.map((r) => r.item.id));
+  }
+  const missing = uncoveredText(readings.map((r) => r.item), window.startMs, window.endMs);
+  if (missing !== null) {
+    return check("unknown", `No current rain forecast for ${missing}`, readings.map((r) => r.item.id));
+  }
+  const highest = Math.max(...readings.map((r) => r.pct));
+  return check(
+    "pass",
+    `Highest chance of rain during the event is ${Math.round(highest)}%, within the ${limit}% limit`,
+    readings.map((r) => r.item.id),
+  );
+}
+
 type AqiVerdict = "within" | "over" | "undecided";
 
 /** Compares one AQI item with the limit; a category-only item uses its category's AQI range. */
@@ -154,4 +195,4 @@ export function airQualityCheck(input: RuleInput): CheckResult {
   );
 }
 
-export const environmentRules: RuleFn = (input) => [heatCheck(input), airQualityCheck(input)];
+export const environmentRules: RuleFn = (input) => [heatCheck(input), rainCheck(input), airQualityCheck(input)];

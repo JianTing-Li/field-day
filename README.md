@@ -1,14 +1,57 @@
 # FieldDay
 
 <!-- Owner: shared -->
-FieldDay is a multi-agent app that helps NYC organizers plan outdoor fitness events and resolve conflicts
-across locations, schedules, and workouts, with independent review and organizer approval.
+**Plan outdoor group workouts in New York City parks, and know they're safe before anyone shows up.**
 
-It turns an event brief into a checked plan (park, time, conditions, workout), shows the evidence and the
-unknowns behind every fact, and compares combined alternatives when something conflicts. FieldDay never
-books, files permits, or messages anyone.
+FieldDay turns an event brief (date, group size, start window, parks, type of session) into a checked plan: a park,
+a time and a workout, with weather, rain, air quality, space and equipment checked against the evidence. When
+something conflicts, four Claude agents propose fixes and an independent reviewer ranks them. The organizer
+confirms what only they can check, approves, and locks it in.
 
-**Demo:** not deployed yet.
+**[Live demo →](https://field-day-sepia.vercel.app)** · built by Jian Ting Li and Yadan Taino
+
+![FieldDay demo: a conflicted run club plan gets a suggested fix, two confirmations, then is locked in; a rain report then flags it again while keeping the locked-in plan](docs/media/fieldday-demo.gif)
+
+<sub>Recorded on the local build with recorded weather data: open a plan that runs too hot, take the suggested
+earlier time, confirm space and ground, lock it in, then report a storm.</sub>
+
+## What's interesting about it
+
+- **Agents propose, code decides.** Four agents (Planning, Event Logistics, Workout Adaptation, Independent
+  Reviewer) return Zod-validated JSON through read-only tools. A deterministic harness owns all state, runs every
+  safety check and holds the final save gate, so no model output can lock in an unsafe plan.
+- **"Unknown" is never "pass."** Each check is pass, fail or unknown. Missing weather, a stale forecast or unverified
+  space blocks lock-in. A gentler workout never makes a heat, rain or air-quality problem acceptable.
+- **Every fact shows its evidence:** source, retrieval time, valid period, where it applies, and whether it's live,
+  recorded or the organizer's word. An organizer's confirmation covers one check at one park and time, never more.
+- **Measured, not vibes.** 12 scenario evals (written before the first agent run) compare a rules-only baseline,
+  Planning alone and the full 4-agent workflow. The agents resolved 2 more conflicts than Planning alone (5 of 5),
+  at 2.6× the latency. [Results below](#eval-results).
+- **Bounded.** At most 7 agent runs and 1 revision round per request, caps on tokens, cost and time, rate limits per
+  visitor, and stale results from an older plan version are rejected.
+- **700+ tests**, none of them calling a live API or the model.
+
+```mermaid
+flowchart LR
+  B[Event brief] --> P[Planning agent]
+  P --> C{check_plan}
+  C -- all clear --> O[Organizer confirms<br/>and approves]
+  C -- conflict --> L[Logistics agent] & W[Workout agent]
+  L & W --> X[Combination checks] --> R[Independent reviewer]
+  R --> O
+  O --> G{Final save gate} --> F[Locked in]
+  E[(Evidence snapshot:<br/>NWS · AirNow · NYC Parks)] -.read only.-> P & L & W & R & C
+```
+
+**Stack:** Next.js 16 (App Router, cache components, view transitions) · React 19 · TypeScript · Zod · Tailwind 4 ·
+Anthropic API (Claude) · Neon Postgres · Vercel · Vitest. Data: National Weather Service, AirNow, NYC Parks Open
+Data (29 curated parks, searchable by name, borough, zip code or "near me").
+
+**Out of scope on purpose:** FieldDay never books a venue, files a permit, takes payment or messages attendees.
+
+---
+
+# For the team
 
 ## How we work
 <!-- Owner: shared -->
@@ -51,16 +94,22 @@ npm run dev                  # http://localhost:3000
 | `npm run db:reset` | Empty the hosted database after typing `RESET` (also a manual "Reset database" GitHub Action) |
 
 ### Deployed demo
-https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with fixture data
-and real agents on shared demo credits.
+https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with real agents
+on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live weather and air quality (live since
+2026-10-29); the seeded demo events always use their recorded scenarios.
 
-- **Rate limit (D-JT19-1):** with `FIELDDAY_AGENTS=real`, Generate, Something changed and Request review allow 18 agent
-  runs per visitor per hour and 180 per day in total. Over the limit, the API answers 429 `rate_limited` and nothing
-  runs. Counts are kept in memory per server instance.
+- **Rate limit (D-JT19-1, D-JT24-10):** with `FIELDDAY_AGENTS=real`, Draft a plan, Report a problem and Find
+  alternatives allow 18 agent runs per visitor per hour and 180 per day in total. A malformed request is refused before
+  it counts. Creating events has its own limit in every mode: 20 per visitor per hour, 300 a day. Over a limit, the
+  API answers 429 `rate_limited` and nothing runs. Counts are kept in memory per server instance.
 - **Spend limit:** set a monthly spend limit on the Anthropic workspace that owns the deployed key. It is the backstop
   for anything the in-memory rate limit misses.
-- **Demo labeling (D-JT19-2):** the "Demo data" banner says the data is recorded and, with real agents, that plans are
-  drafted by Claude on shared demo credits.
+- **Demo labeling (D-JT19-2, D-JT24-2):** the "Demo" banner shows in every mode: recorded data, or live data with
+  safety limits and workouts not yet reviewed, and (with real agents) that Claude drafts plans on shared demo credits.
+  A locked-in plan says it's for the demo only while anything it rests on is unreviewed.
+- **Reset:** GitHub → Actions → "Reset database" → Run workflow → type `RESET`. It needs the `DATABASE_URL`
+  repository secret (Settings → Secrets and variables → Actions). The next page view seeds the demo events again with
+  the stub agents, so it costs no credits.
 - **Time limit (D-JT19-3):** every event route sets `maxDuration = 300`; the run budget stops agents at 240 s.
 
 ## Architecture
@@ -71,7 +120,13 @@ and real agents on shared demo credits.
 - **Agents** (`src/server/agents/`): Planning, Event Logistics, Workout Adaptation, Independent Reviewer.
   They read evidence through read-only tools and return validated JSON.
 - **Workflow:** initial plan → conflict check → Logistics + Workout Adaptation in parallel → combination
-  checks → independent review → at most 1 revision → organizer approval → final save gate → save.
+  checks → independent review → at most 1 revision → organizer approval → final save gate → save. Draft a plan runs
+  all of it in one request when the draft fails a critical check (D-JT24-4); Report a problem and Find alternatives
+  run the review on the current plan.
+- **Checks:** every version's checks come from the harness's `check_plan`, never from an agent (D-JT24-3). An
+  organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1). A reported change
+  (space, ground, rain, start time) fails that check at that park or time until a newer confirmation clears it
+  (D-JT24-12).
 - **API** (`src/app/api/`): the UI talks to the harness only through the endpoints in `src/contracts/api.ts`.
 
 ## Features and status
@@ -116,7 +171,9 @@ First real run: 2026-10-28, all four agents real, `claude-haiku-5-5`, fixture in
 real-world results). Full report: [`evals/results/2026-10-28T22-38-08-324Z-real.md`](evals/results/2026-10-28T22-38-08-324Z-real.md).
 Targets are in the PRD §2c. The 12 cases' expected outcomes (`expected` in each `fixtures/scenarios/` file) were
 written before any agent run and were not changed after it; cases 4–8 are the 5 known-feasible conflicts.
-How to run it: [`evals/README.md`](evals/README.md).
+How to run it: [`evals/README.md`](evals/README.md). The evals grade the full workflow (`runWorkflow`), which the app
+now runs on Draft a plan too (D-JT24-4). This run predates JT-24's shorter specialist and Reviewer answers
+(D-JT24-3); rerun before quoting latency or tokens.
 
 | Metric (PRD §2c) | Target | Rules only | Planning alone | 4 agents |
 |---|---|---|---|---|
@@ -152,8 +209,13 @@ blocked plans that passed every check (D-JT23-1, D-JT23-2).
 
 ## Limitations and open decisions
 <!-- Both: add as you go -->
-- All conditions data is fixture-backed until integrations pass their feasibility checks.
-- Environmental thresholds are unreviewed demo values and cannot support real-world finalization.
+- Conditions data is recorded (fixture mode, covering Oct 27–Nov 2, 2026 for weather and Oct 27–28 for air quality) or
+  live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 7 days ahead for weather and 1–2 days for air quality,
+  so an event further out stays "waiting on weather data" until then (D-JT24-8).
+- Sessions run 30, 35 or 45 minutes and use one of 4 workouts (bodyweight, walk-run intervals, resistance bands, yoga),
+  all pending instructor review; other activities need a reviewed workout first (D-JT24-7).
+- Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support
+  real-world finalization. The rain rule was added to the PRD on 2026-10-30 (D-JT24-11).
   The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
 - In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
 - Approval does not establish venue permission, usable space, or guaranteed conditions.

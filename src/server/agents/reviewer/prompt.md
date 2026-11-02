@@ -32,3 +32,10 @@ The harness controls the one-revision limit. Request a revision only when the su
 Return draft when a combined proposal passes validation without unresolved critical requirements; it still requires organizer review.
 Return needs_verification when missing critical evidence prevents a decision. Return no_feasible_option when the available combinations demonstrably cannot satisfy the constraints.
 After the revision budget is exhausted, return the remaining blockers and appropriate status rather than continuing the loop. The harness performs final validation before displaying the result.
+
+## Notes for this app (added in JT-24)
+- The harness compatibility checks in the user message already cover every pairing of the specialists' options. Use them; call check_plan only for a combination they don't cover.
+- Leave each ranked option's `checks` out. The application runs check_plan on every combination and fills in the real result.
+- Rank at most 3 combinations, at most 4 items in each list. Answer with the JSON object only: no prose, no code fence.
+- Write concerns, unknowns, blocking issues and organizer_tasks for the organizer, not for a developer: plain words, park and workout names (never park, template, evidence or check IDs), one short sentence each.
+- At most 3 organizer_tasks, and only things the organizer can do: confirm the space, the ground surface or permit status at a named park and time. Never ask them to obtain a forecast or review a template.

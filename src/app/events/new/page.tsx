@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "New event · FieldDay" };
 export default function NewEventPage() {
   const options = briefFormOptions();
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
       <Link href="/" className="focus-ring rounded-control text-sm font-bold text-ink-2 hover:text-ink">
         ← Events
       </Link>

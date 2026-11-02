@@ -3,11 +3,11 @@ import { LifecycleStatus } from "@/contracts";
 import { STATUS, daysFrom, formatClock, formatEventDate, formatUpdated, startWindowText, todayInNewYork, versionText } from "./format";
 
 describe("STATUS", () => {
-  it("has a label, hint and icon for every lifecycle status", () => {
+  it("has a label and hint for every lifecycle status, and no symbol except the lock", () => {
     for (const s of LifecycleStatus.options) {
       expect(STATUS[s].label.length).toBeGreaterThan(0);
       expect(STATUS[s].hint.length).toBeGreaterThan(0);
-      expect(STATUS[s].icon.length).toBeGreaterThan(0);
+      expect(STATUS[s].icon).toBe(s === "finalized" ? "🔒" : undefined);
     }
   });
 
