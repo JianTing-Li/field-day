@@ -84,10 +84,9 @@ function OptionCard({
     .filter((c) => c.critical && c.status === "unknown" && isConfirmableCheck(c.check_id))
     .map((c) => checkName(c.check_id).toLowerCase());
   const stillWrong = problemLines({ checks: o.checks } as PlanVersion, snapshot);
-  const notes = [
-    ...o.tradeoffs.slice(0, 2).map((t) => plainText(t, snapshot)),
-    ...(toCheck.length > 0 ? [`you'll confirm the ${toCheck.join(" and ")}`] : []),
-  ];
+  // One short line: the reviewer's first tradeoff, first sentence only (agents write paragraphs).
+  const lead = o.tradeoffs[0] ? firstSentence(plainText(o.tradeoffs[0], snapshot)) : null;
+  const notes = [...(lead ? [lead] : []), ...(toCheck.length > 0 ? [`you'll confirm the ${toCheck.join(" and ")}`] : [])];
   return (
     <div className={`clay-sm rounded-disclosure p-5 ${featured ? "bg-mint" : "bg-cream"}`}>
       {label && <p className="text-xs font-bold tracking-wide text-ink uppercase">{label}</p>}
@@ -101,11 +100,20 @@ function OptionCard({
       {conditionsLine(snapshot, p) && <p className="mt-1 text-sm text-ink">☀ {conditionsLine(snapshot, p)}</p>}
       {notes.length > 0 && <p className="mt-1 text-sm text-ink-2">{notes.join(" · ")}</p>}
       {stillWrong.length > 0 && <p className="mt-1 text-sm font-bold text-ink">Still a problem: {stillWrong.join("; ")}</p>}
-      <Button variant={featured ? "surface" : "primary"} className="mt-4" disabled={busy || !canApply} onClick={() => onApply(o)}>
-        Use this plan
-      </Button>
+      {/* An option that still fails a critical check can't be approved, so it isn't offered (D-JT25-1). */}
+      {stillWrong.length === 0 && (
+        <Button variant={featured ? "surface" : "primary"} className="mt-4" disabled={busy || !canApply} onClick={() => onApply(o)}>
+          Use this plan
+        </Button>
+      )}
     </div>
   );
+}
+
+/** "Keeps the 8:00 AM start. Moves to Sunset Park." -> "Keeps the 8:00 AM start." */
+function firstSentence(text: string): string {
+  const m = /^(.+?[.!?])(\s|$)/.exec(text.trim());
+  return (m ? m[1] : text.trim()).replace(/[.!?]$/, "");
 }
 
 /** "Replace the running intervals with a stationary circuit (high knees, …)" -> the part before the list. */

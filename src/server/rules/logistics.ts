@@ -51,7 +51,7 @@ export function allowedParkCheck(input: RuleInput): CheckResult {
     return check("fail", `Park ${plan.park_id} is not one of the organizer's allowed parks`);
   }
   const park = snapshot.park_candidates.find((p) => p.id === plan.park_id);
-  return check("pass", `Park ${plan.park_id} is one of the organizer's allowed parks`, park ? [park.evidence_id] : []);
+  return check("pass", `${plan.park_id} is one of your allowed parks`, park ? [park.evidence_id] : []);
 }
 
 export function startWindowCheck(input: RuleInput): CheckResult {
@@ -104,14 +104,12 @@ export function permitReviewCheck(input: RuleInput): CheckResult {
   if (size >= group_size_flag) {
     return check(
       "unknown",
-      `Group of ${size} meets the ${group_size_flag}-or-more permit-review flag (${source}); review permission before the event. ` +
-        "This is a conservative warning, not a permit determination",
+      `Groups of ${group_size_flag} or more may need a permit (${source}). Check before the event; this is a warning, not a decision`,
     );
   }
   return check(
     "unknown",
-    `Group of ${size} is below the ${group_size_flag}-or-more permit-review flag; ` +
-      "group size alone does not show whether permission is needed, and permit status is not recorded",
+    `Not recorded. Groups under ${group_size_flag} usually don't need one, but group size alone can't tell`,
   );
 }
 

@@ -9,6 +9,7 @@ import {
   type LifecycleStatus,
   type PlanVersion,
 } from "@/contracts";
+import { formatClock, formatEventDate } from "../format";
 
 /**
  * Pure helpers for the event workspace (owner: Yadan, tasks YT-09 to YT-12). Kept out of the
@@ -138,10 +139,26 @@ export function plainIds(text: string): string {
  */
 export function plainText(text: string, snapshot: EvidenceSnapshot | null): string {
   const template = (id: string) => snapshot?.workout_templates.find((t) => t.id === id)?.name;
-  return plainIds(withParkNames(text, snapshot))
-    .replace(/\s*\((tpl-[a-z0-9-]+)\)/g, (m, id: string) => (template(id) ? "" : m))
-    .replace(/\btpl-[a-z0-9-]+\b/g, (id) => template(id) ?? id)
-    .replace(/\s*\(unreviewed demo policy\)/g, "");
+  return plainTimes(
+    plainIds(withParkNames(text, snapshot))
+      .replace(/\s*\((tpl-[a-z0-9-]+)\)/g, (m, id: string) => (template(id) ? "" : m))
+      .replace(/\btpl-[a-z0-9-]+\b/g, (id) => template(id) ?? id)
+      .replace(/\s*\(unreviewed demo policy\)/g, ""),
+  );
+}
+
+/**
+ * Rule text uses machine dates and times ("2026-11-03T08:00", "08:00–10:00 on 2026-11-03
+ * (America/New_York)", "exercise_mat"); the page shows "8:00 AM", "Tue, Nov 3" and "exercise mat".
+ */
+export function plainTimes(text: string): string {
+  const day = (d: string) => formatEventDate(d).replace(/, \d{4}$/, "");
+  return text
+    .replace(/\s*\(America\/New_York\)/g, "")
+    .replace(/\b(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?\b/g, (_, _d: string, t: string) => formatClock(t))
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, day)
+    .replace(/\b([01]\d|2[0-3]):([0-5]\d)\b/g, (t) => formatClock(t))
+    .replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (w) => w.replace(/_/g, " "));
 }
 
 /** The overall result in a few plain words: "All clear", "2 to check", "1 problem". */

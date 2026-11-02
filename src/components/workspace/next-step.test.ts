@@ -104,6 +104,11 @@ describe("nextStep", () => {
     expect(nextStep(v)).toMatchObject({ action: "recheck", title: "Waiting on weather data" });
   });
 
+  it("says only the air-quality forecast is missing when the weather is in (JT-25)", () => {
+    const v = withChecks(base(), [check("air_quality.max_aqi", "unknown"), check("freshness.conditions", "unknown")]);
+    expect(nextStep(v)).toMatchObject({ action: "recheck", title: "Waiting on the air-quality forecast" });
+  });
+
   it("stops offering Lock it in after the final checks failed, and says why", () => {
     const gate = [
       { id: "complete_inputs" as const, status: "pass" as const, reason: "Plan present" },

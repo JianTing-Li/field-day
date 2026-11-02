@@ -78,6 +78,14 @@ function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = 
         : [],
     ),
   ];
+  // Safety limits can only be stricter than the policy (D-JT24-6); the form says so, and now the API does too.
+  const { max_temperature_f: heat, max_aqi: aqi } = brief.instructor_limits;
+  if (heat != null && (heat > POLICY_CONFIG.heat.max_value || heat < 0)) {
+    problems.push(`the max temperature must be 0 to ${POLICY_CONFIG.heat.max_value}°F`);
+  }
+  if (aqi != null && (aqi > POLICY_CONFIG.air_quality.max_aqi || aqi < 0)) {
+    problems.push(`the max AQI must be 0 to ${POLICY_CONFIG.air_quality.max_aqi}`);
+  }
   if (checkParks && brief.allowed_park_ids.length > L.parks_per_event) {
     problems.push(`pick at most ${L.parks_per_event} parks`);
   }
@@ -89,6 +97,14 @@ function assertBriefInRange(brief: EventBrief, checkDate: boolean, checkParks = 
     throw new ServiceError("invalid_request", "The event date is in the past; pick today or a later date");
   }
 }
+/**
+ * The checks a new brief must pass, run by the route before it takes one of the visitor's
+ * new-event slots, so a refused brief never counts against the limit (JT-25).
+ */
+export function checkNewBrief(brief: EventBrief): void {
+  assertBriefInRange(brief, true);
+}
+
 const newId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 
 function current(event: FieldDayEvent): PlanVersion {

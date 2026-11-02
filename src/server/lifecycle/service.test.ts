@@ -341,6 +341,13 @@ describe("audit fixes (JT-24)", () => {
     expect(event.last_gate).toBeNull();
   });
 
+  it("refuses safety limits looser than the policy, in the API too (JT-25)", () => {
+    const limits = case01.brief.instructor_limits;
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_temperature_f: 100 } })).toThrow(/max temperature/);
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_aqi: 150 } })).toThrow(/max AQI/);
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_temperature_f: 85 } })).not.toThrow();
+  });
+
   it("rejects a past date on a new event, and a changed date in the past on an edit", async () => {
     await expect(svc.createEvent({ brief: { ...case01.brief, date: "2026-06-30" } })).rejects.toMatchObject({
       code: "invalid_request",

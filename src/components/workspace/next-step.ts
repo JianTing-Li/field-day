@@ -248,6 +248,17 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
         label: null,
       };
     }
+    // The weather is in and only air quality is missing: AirNow posts the next day in the afternoon.
+    const weatherKnown = !unknown.some((id) => id === "heat.max_temperature" || id === "weather.rain");
+    if (weatherKnown) {
+      return {
+        tone: "info",
+        title: "Waiting on the air-quality forecast",
+        body: "The weather is in, but the air-quality forecast for this day isn't out yet. It usually comes out the afternoon before. Check again then.",
+        action: "recheck",
+        label: "Check the latest weather",
+      };
+    }
     return {
       tone: "info",
       title: "Waiting on weather data",

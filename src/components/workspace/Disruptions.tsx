@@ -183,12 +183,20 @@ export function SomethingChanged({
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="primary" disabled={busy} onClick={submit}>
-              Find a fix
+              {busy ? "Working…" : "Find a fix"}
             </Button>
-            <Button variant="ghost" onClick={() => setOpen(null)}>
-              Cancel
-            </Button>
+            {!busy && (
+              <Button variant="ghost" onClick={() => setOpen(null)}>
+                Cancel
+              </Button>
+            )}
           </div>
+          {/* The page's progress note is at the top; say it here too, where the organizer is looking. */}
+          {busy && (
+            <p role="status" className="text-sm font-bold text-ink">
+              FieldDay is checking the plan and looking for a fix. This can take about a minute.
+            </p>
+          )}
         </div>
       )}
     </section>
