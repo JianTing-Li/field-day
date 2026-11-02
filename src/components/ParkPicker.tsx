@@ -59,22 +59,22 @@ export function ParkPicker({
 
   return (
     <div className="space-y-3 sm:col-span-2">
-      {selected.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="Parks you picked">
-          {selected.map((id) => (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => toggle(id)}
-                aria-label={`Remove ${nameOf(id)}`}
-                className="clay-recessed focus-ring flex items-center gap-2 rounded-control bg-mint px-3.5 py-1.5 text-sm font-bold text-ink"
-              >
-                {nameOf(id)} <span aria-hidden="true">×</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Always rendered, one row tall when empty, so picking the first park doesn't push the list down. */}
+      <ul className="flex min-h-9 flex-wrap items-center gap-2" aria-label="Parks you picked">
+        {selected.length === 0 && <li className="text-sm text-ink-2">No parks picked yet</li>}
+        {selected.map((id) => (
+          <li key={id}>
+            <button
+              type="button"
+              onClick={() => toggle(id)}
+              aria-label={`Remove ${nameOf(id)}`}
+              className="clay-recessed focus-ring flex items-center gap-2 rounded-control bg-mint px-3.5 py-1.5 text-sm font-bold text-ink"
+            >
+              {nameOf(id)} <span aria-hidden="true">×</span>
+            </button>
+          </li>
+        ))}
+      </ul>
       <p className="text-xs text-ink-2" aria-live="polite">
         {full ? `That's the most for one event (${MAX_PARKS}). Remove one to add another.` : `${selected.length} of ${MAX_PARKS} picked`}
       </p>

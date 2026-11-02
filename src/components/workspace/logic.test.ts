@@ -11,6 +11,7 @@ import {
   sortChecks,
   templateName,
   withParkNames,
+  plainTimes,
 } from "./logic";
 
 const snapshot = case02.snapshot("evt", 1);
@@ -117,5 +118,17 @@ describe("withParkNames", () => {
 
   it("leaves unknown IDs alone", () => {
     expect(withParkNames("Ask park-zzz (park-zzz)", snap)).toBe("Ask park-zzz (park-zzz)");
+  });
+});
+
+describe("plainTimes (JT-25)", () => {
+  it("turns machine dates, times and snake_case into plain words", () => {
+    expect(plainTimes("No current AQI forecast covers 2026-11-03T08:00 to 2026-11-03T08:45")).toBe(
+      "No current AQI forecast covers 8:00 AM to 8:45 AM",
+    );
+    expect(plainTimes("Start time 08:00 is within the allowed window 08:00–10:00 on 2026-11-03 (America/New_York)")).toBe(
+      "Start time 8:00 AM is within the allowed window 8:00 AM–10:00 AM on Tue, Nov 3",
+    );
+    expect(plainTimes("All equipment available: exercise_mat")).toBe("All equipment available: exercise mat");
   });
 });

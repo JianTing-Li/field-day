@@ -35,6 +35,13 @@ export const STATUS: Record<LifecycleStatus, StatusStyle> = {
   },
 };
 
+/** A plan that is saved but waits for the forecast (D-JT25-2). Shown in place of "Needs checking". */
+export const WAITING_ON_FORECAST: StatusStyle = {
+  label: "Waiting on forecast",
+  hint: "Nothing fails, but the weather or air quality for this date isn't out yet",
+  tone: "info",
+};
+
 /** "2026-10-29" -> "Thu, Oct 29, 2026". Read as a calendar date so no time zone can shift the day. */
 export function formatEventDate(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);

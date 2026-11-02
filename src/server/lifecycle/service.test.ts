@@ -126,10 +126,13 @@ function refreshedEvidenceBlocksHeat() {
 }
 
 describe("seeded events", () => {
-  it("seeds Case 1 (ready) and Case 2 (blocked)", async () => {
+  it("seeds Case 1 locked in through the save gate, and Case 2 blocked (D-JT25-3)", async () => {
     const { events } = await svc.listEvents();
     const byId = Object.fromEntries(events.map((e) => [e.id, e.status]));
-    expect(byId["evt-case-01"]).toBe("ready_for_approval");
+    expect(byId["evt-case-01"]).toBe("finalized");
+    const { event } = await svc.getEvent("evt-case-01");
+    expect(event.finalized?.gate.every((g) => g.status === "pass")).toBe(true);
+    expect(event.finalized?.demo_only).toBe(true);
     expect(byId["evt-case-02"]).toBe("needs_verification");
   });
 });
@@ -194,7 +197,7 @@ describe("audit fixes (JT-24)", () => {
     vi.setSystemTime(new Date("2026-10-30T16:00:00Z")); // all three fixture dates are past by now
     const { events } = await svc.listEvents();
     const byId = Object.fromEntries(events.map((e) => [e.id, e]));
-    expect(byId["evt-case-01"]).toMatchObject({ title: "Morning bodyweight class", date: "2026-11-01", status: "ready_for_approval" });
+    expect(byId["evt-case-01"]).toMatchObject({ title: "Morning bodyweight class", date: "2026-11-01", status: "finalized" });
     expect(byId["evt-case-02"]).toMatchObject({ title: "Run club intervals", date: "2026-11-02", status: "needs_verification" });
     expect(byId["evt-case-03"]).toMatchObject({ title: "Early bodyweight class", date: "2026-11-03" });
     const case2 = (await svc.getEvent("evt-case-02")).event;
@@ -204,10 +207,8 @@ describe("audit fixes (JT-24)", () => {
     const status = (id: string) => cur(case2).checks!.checks.find((c) => c.check_id === id)?.status;
     expect(status("weather.rain")).toBe("fail");
     expect(status("heat.max_temperature")).toBe("pass");
-    // Case 1 still locks in end to end on its new date.
-    const v = cur((await svc.getEvent("evt-case-01")).event);
-    const { event } = await svc.approve("evt-case-01", { version: v.version, evidence_snapshot_id: v.evidence_snapshot_id! });
-    expect((await svc.finalize(event.id, { version: v.version, idempotency_key: "k1" })).finalized).toBe(true);
+    // Case 1 locked in through the gate on its new date (D-JT25-3).
+    expect((await svc.getEvent("evt-case-01")).event.finalized?.gate.every((g) => g.status === "pass")).toBe(true);
   });
 
 
@@ -338,6 +339,13 @@ describe("audit fixes (JT-24)", () => {
     hooks.checks = null;
     ({ event } = await svc.generateDraft(e.id, { version: 2 }));
     expect(event.last_gate).toBeNull();
+  });
+
+  it("refuses safety limits looser than the policy, in the API too (JT-25)", () => {
+    const limits = case01.brief.instructor_limits;
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_temperature_f: 100 } })).toThrow(/max temperature/);
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_aqi: 150 } })).toThrow(/max AQI/);
+    expect(() => svc.checkNewBrief({ ...case01.brief, instructor_limits: { ...limits, max_temperature_f: 85 } })).not.toThrow();
   });
 
   it("rejects a past date on a new event, and a changed date in the past on an edit", async () => {

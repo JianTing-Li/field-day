@@ -1,5 +1,5 @@
 import type { CheckId, FieldDayEvent, GateCheck, PlanVersion } from "@/contracts";
-import { daysFrom, FORECAST_DAYS } from "../format";
+import { daysFrom, formatEventDate, FORECAST_DAYS } from "../format";
 import { aboutCurrentPlan, confirmable } from "./ApprovalFlow";
 import { plainIds, type ConfirmItem } from "./logic";
 
@@ -56,6 +56,17 @@ const PROBLEM: Record<CheckId, string> = {
   "event_constraints.allowed_park": "the park isn't one you allowed",
   "freshness.conditions": "the weather data is out of date",
   "permissions.permit_review": "a permit may be needed",
+};
+
+/** What every option would have to get around, for "No option avoids …". */
+const AVOID: Partial<Record<CheckId, string>> = {
+  "heat.max_temperature": "the heat",
+  "weather.rain": "the rain",
+  "air_quality.max_aqi": "the poor air quality",
+  "space_surface.space": "the space problem",
+  "space_surface.surface": "the ground problem",
+  "equipment.available": "the missing equipment",
+  "event_constraints.start_window": "the start-time problem",
 };
 
 const CONDITIONS: CheckId[] = ["heat.max_temperature", "weather.rain", "air_quality.max_aqi", "freshness.conditions"];
@@ -164,12 +175,15 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
   const failed = checks.filter((c) => c.critical && c.status === "fail").map((c) => c.check_id);
   if (failed.length > 0) {
     const problems = capitalize(problemSentence(failed));
-    // The review ran and nothing in the brief fixes it: say how to widen the brief, not "see alternatives".
-    if (v.alternatives && v.alternatives.ranked_options.length === 0) {
+    // The review ran and nothing in the brief fixes it (no option, or every option still fails a
+    // critical check): say how to widen the brief instead of offering plans that can't be approved.
+    const options = v.alternatives?.ranked_options ?? [];
+    const stillFails = (o: (typeof options)[number]) => o.checks.checks.some((c) => c.critical && c.status === "fail");
+    if (v.alternatives && options.every(stillFails)) {
       return {
         tone: "danger",
-        title: `${problems}, and nothing in your brief fixes it`,
-        body: "FieldDay tried the other times, parks and workouts your brief allows, and none of them work. Allow another start time or park, or pick a different date.",
+        title: `No option avoids ${AVOID[failed[0]] ?? "the problem"}`,
+        body: "FieldDay tried the other times, parks and workouts your brief allows. Try another date, or allow more parks or start times.",
         action: "edit",
         label: "Edit the brief",
       };
@@ -224,13 +238,31 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
   if (unknown.some((id) => CONDITIONS.includes(id))) {
     const date = v.plan?.start_time?.slice(0, 10);
     const ahead = date && ctx.today ? daysFrom(ctx.today, date) : null;
+    if (date && ahead !== null && ahead > FORECAST_DAYS) {
+      // Saved and waiting, with the day to come back (D-JT25-2). Checking before then can't help.
+      return {
+        tone: "info",
+        title: "Saved. Waiting on the forecast",
+        body: `The weather forecast for ${shortDate(date)} comes out around ${shortDate(addDays(date, -FORECAST_DAYS))}, and air quality the day before the event. Come back then to check it and lock it in.`,
+        action: null,
+        label: null,
+      };
+    }
+    // The weather is in and only air quality is missing: AirNow posts the next day in the afternoon.
+    const weatherKnown = !unknown.some((id) => id === "heat.max_temperature" || id === "weather.rain");
+    if (weatherKnown) {
+      return {
+        tone: "info",
+        title: "Waiting on the air-quality forecast",
+        body: "The weather is in, but the air-quality forecast for this day isn't out yet. It usually comes out the afternoon before. Check again then.",
+        action: "recheck",
+        label: "Check the latest weather",
+      };
+    }
     return {
       tone: "info",
       title: "Waiting on weather data",
-      body:
-        ahead !== null && ahead > FORECAST_DAYS
-          ? `It's too early for a forecast. Weather forecasts reach about ${FORECAST_DAYS} days ahead and air quality about 1 to 2, so check again in the last few days before the event.`
-          : "There's no current forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
+      body: "There's no current forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
       action: "recheck",
       label: "Check the latest weather",
     };
@@ -242,4 +274,16 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
     action: null,
     label: null,
   };
+}
+
+/** "2026-11-14" -> "Sat, Nov 14". */
+function shortDate(date: string): string {
+  return formatEventDate(date).replace(/, \d{4}$/, "");
+}
+
+/** "YYYY-MM-DD" plus `days`, read as a calendar date. */
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }

@@ -32,17 +32,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Shown in every mode (D-JT24-2): the limits and workouts are unreviewed even with live data. */}
         <div role="note" className="bg-butter px-4 py-2 text-center text-sm text-ink">
           <strong className="font-bold">Demo:</strong>{" "}
-          {fixture
-            ? "weather, air quality and parks are recorded samples, not live data."
-            : "live weather and air quality, but the safety limits and workouts aren't reviewed by an instructor yet."}{" "}
-          Don&apos;t use it to run a real event.
-          {realAgents && (
-            <>
-              {" "}
-              Plans are drafted by Claude on shared demo credits, limited to {AGENT_RUN_LIMITS.per_visitor_per_hour} agent
-              runs per visitor per hour.
-            </>
-          )}
+          {/* Phones get one line; the full note shows from the sm breakpoint up. */}
+          <span className="sm:hidden">not for running real events.</span>
+          <span className="hidden sm:inline">
+            {fixture
+              ? "weather, air quality and parks are recorded samples, not live data."
+              : "live weather and air quality, but the safety limits and workouts aren't reviewed by an instructor yet."}{" "}
+            Don&apos;t use it to run a real event.
+            {realAgents && (
+              <>
+                {" "}
+                Plans are drafted by Claude on shared demo credits, limited to {AGENT_RUN_LIMITS.per_visitor_per_hour} agent
+                runs per visitor per hour.
+              </>
+            )}
+          </span>
         </div>
         {/* Same width and side padding as every page's <main>, so the bar lines up with the content. */}
         <header className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6">

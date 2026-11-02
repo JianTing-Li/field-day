@@ -78,12 +78,12 @@ describe("permitReviewCheck", () => {
   it("warns (unknown) at 20 or more with no record", () => {
     const r = permitReviewCheck(input({}, { group_size: 20 }, noRecords));
     expect(r.status).toBe("unknown");
-    expect(r.reason).toMatch(/meets the 20-or-more/);
+    expect(r.reason).toMatch(/Groups of 20 or more may need a permit/);
   });
   it("is unknown, not pass, below 20 with no record", () => {
     const r = permitReviewCheck(input({}, { group_size: 19 }, noRecords));
     expect(r.status).toBe("unknown");
-    expect(r.reason).toMatch(/below the 20-or-more/);
+    expect(r.reason).toMatch(/Groups under 20 usually/);
   });
   it("passes with an organizer record for the same park", () => {
     const r = permitReviewCheck(input({}, { group_size: 25 }, [...noRecords, permit("park-a", true)]));
