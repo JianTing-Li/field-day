@@ -10,10 +10,11 @@ confirms what only they can check, approves, and locks it in.
 
 **[Live demo →](https://field-day-sepia.vercel.app)** · built by Jian Ting Li and Yadan Taino
 
-![FieldDay demo: a conflicted run club plan gets a suggested fix, two confirmations, then is locked in; a rain report then flags it again while keeping the locked-in plan](docs/media/fieldday-demo.gif)
+![FieldDay demo: a run club plan with rain and no room shows its forecast and two ways to fix it; the best fix is taken, space and ground are confirmed and it is locked in; then the organizer types two changes at once, FieldDay lists what it understood, and the storm flags the plan again while the locked-in plan stays saved and the money note gets an answer](docs/media/fieldday-demo.gif)
 
-<sub>Recorded on the local build with recorded weather data: open a plan that runs too hot, take the suggested
-earlier time, confirm space and ground, lock it in, then report a storm.</sub>
+<sub>Recorded on the local build with recorded weather data and stub agents: open a plan with rain and no room, take
+the best of two fixes, confirm space and ground, lock it in, then type "Storms are coming in, and there's no money
+for water" and confirm what FieldDay understood.</sub>
 
 ## What's interesting about it
 
@@ -29,6 +30,9 @@ earlier time, confirm space and ground, lock it in, then report a storm.</sub>
 - **Measured, not vibes.** 12 scenario evals (written before the first agent run) compare a rules-only baseline,
   Planning alone and the full 4-agent workflow. The agents resolved 2 more conflicts than Planning alone (5 of 5),
   at 2.6× the latency. [Results below](#eval-results).
+- **Say what changed, in your own words.** "Storms are coming in, 30 people now, and there's no money for water"
+  becomes a list FieldDay shows before changing anything: re-check the storm, re-plan for 30, and a one-line answer
+  for what it can't act on (money, permits, messaging). One model call reads it, with rules as the fallback.
 - **Bounded.** At most 7 agent runs and 1 revision round per request, caps on tokens, cost and time, rate limits per
   visitor, and stale results from an older plan version are rejected.
 - **700+ tests**, none of them calling a live API or the model.
@@ -100,8 +104,9 @@ https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm F
 on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live weather and air quality (live since
 2026-10-29); the seeded demo events always use their recorded scenarios.
 
-- **Rate limit (D-JT19-1, D-JT24-10):** with `FIELDDAY_AGENTS=real`, Draft a plan, Report a problem and Find
-  alternatives allow 18 agent runs per visitor per hour and 180 per day in total. A malformed request is refused before
+- **Rate limit (D-JT19-1, D-JT24-10):** with `FIELDDAY_AGENTS=real`, Draft a plan, making a change and Find
+  alternatives allow 18 agent runs per visitor per hour and 180 per day in total. Reading what changed has its own
+  limit: 40 per visitor per hour, 400 a day. A malformed request is refused before
   it counts. Creating events has its own limit in every mode: 20 per visitor per hour, 300 a day. Over a limit, the
   API answers 429 `rate_limited` and nothing runs. Counts are kept in memory per server instance.
 - **Spend limit:** set a monthly spend limit on the Anthropic workspace that owns the deployed key. It is the backstop
@@ -123,7 +128,7 @@ on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live we
   They read evidence through read-only tools and return validated JSON.
 - **Workflow:** initial plan → conflict check → Logistics + Workout Adaptation in parallel → combination
   checks → independent review → at most 1 revision → organizer approval → final save gate → save. Draft a plan runs
-  all of it in one request when the draft fails a critical check (D-JT24-4); Report a problem and Find alternatives
+  all of it in one request when the draft fails a critical check (D-JT24-4); a reported change and Find alternatives
   run the review on the current plan.
 - **Checks:** every version's checks come from the harness's `check_plan`, never from an agent (D-JT24-3). An
   organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1). A reported change
