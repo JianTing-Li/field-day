@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { isConfirmableCheck, type CombinedOption, type EvidenceSnapshot, type PlanChange, type PlanVersion } from "@/contracts";
 import { Button } from "../ui";
-import { adaptationName, checkName, conditionsLine, formatLocal, parkName, plainText, problemLines, templateName } from "./logic";
+import { adaptationName, checkName, conditionsLine, formatLocal, parkName, problemLines, templateName, weatherIcon } from "./logic";
 
 /**
- * The fix for a conflict, shown where the problem is (YT-10, reworked in JT-24): the reviewer's
- * recommendation (or best-ranked option) up front with one button, the others one tap away.
+ * The fix for a conflict, shown where the problem is (YT-10, reworked in JT-24 and JT-28): every
+ * option side by side, the reviewer's recommendation (or best-ranked option) first.
  */
 
 export function SuggestedFix({
@@ -23,33 +22,35 @@ export function SuggestedFix({
   canApply: boolean;
   onApply: (option: CombinedOption) => void;
 }) {
-  const [showOthers, setShowOthers] = useState(false);
   const review = version.alternatives;
   if (!review || review.ranked_options.length === 0) return null;
   const options = [...review.ranked_options].sort((a, b) => rank(a) - rank(b));
   const best = options.find((o) => o.combined_option_id === review.recommendation?.combined_option_id) ?? options[0];
-  const others = options.filter((o) => o !== best);
+  const ordered = [best, ...options.filter((o) => o !== best)];
+  const working = ordered.filter((o) => o.checks.overall !== "fail").length;
 
+  // Every option is on screen side by side (JT-28): a hidden "Other options" button was easy to miss.
   return (
-    <div id="alternatives" className="animate-enter mt-6 scroll-mt-24 space-y-3">
-      <OptionCard
-        option={best}
-        snapshot={snapshot}
-        label={best.checks.overall === "fail" ? "Closest option" : "Suggested fix"}
-        featured={best.checks.overall !== "fail"}
-        busy={busy}
-        canApply={canApply}
-        onApply={onApply}
-      />
-      {others.length > 0 && (
-        <Button variant="ghost" onClick={() => setShowOthers((s) => !s)} aria-expanded={showOthers}>
-          {showOthers ? "Hide other options" : `Other options (${others.length})`}
-        </Button>
-      )}
-      {showOthers &&
-        others.map((o) => (
-          <OptionCard key={o.combined_option_id} option={o} snapshot={snapshot} busy={busy} canApply={canApply} onApply={onApply} />
+    <div id="alternatives" className="animate-enter mt-6 scroll-mt-24">
+      <p className="text-lg font-bold text-ink">
+        {working === 0 ? "No option fixes everything" : working === 1 ? "1 way to fix it" : `${working} ways to fix it`}
+      </p>
+      {ordered.length > 1 && <p className="text-sm text-ink-2">The first one is FieldDay&apos;s pick.</p>}
+      <div className={`mt-3 grid gap-3 ${ordered.length > 1 ? "lg:grid-cols-2" : ""}`}>
+        {ordered.map((o, n) => (
+          <OptionCard
+            key={o.combined_option_id}
+            option={o}
+            current={version.plan}
+            snapshot={snapshot}
+            label={n === 0 ? (o.checks.overall === "fail" ? "Closest option" : "Best fix") : `Option ${n + 1}`}
+            featured={n === 0 && o.checks.overall !== "fail"}
+            busy={busy}
+            canApply={canApply}
+            onApply={onApply}
+          />
         ))}
+      </div>
     </div>
   );
 }
@@ -60,8 +61,31 @@ function rank(o: CombinedOption): number {
   return critical.filter((c) => c.status === "fail").length * 10 + critical.filter((c) => c.status === "unknown").length;
 }
 
+/** What an option changes from the current plan, in short phrases: "8:00 AM, not 10:00 AM". */
+export function optionChanges(o: CombinedOption, current: PlanVersion["plan"], snapshot: EvidenceSnapshot | null): string[] {
+  if (!current) return [];
+  const p = o.plan;
+  const clock = (t: string | null) => formatLocal(t).split(" · ").at(-1);
+  const day = (t: string | null) => formatLocal(t).split(" · ")[0];
+  const out: string[] = [];
+  if (p.start_time && current.start_time && p.start_time.slice(0, 10) !== current.start_time.slice(0, 10)) {
+    out.push(`${day(p.start_time)}, not ${day(current.start_time)}`);
+  }
+  if (p.start_time !== current.start_time && clock(p.start_time) !== clock(current.start_time)) {
+    out.push(`${clock(p.start_time)}, not ${clock(current.start_time)}`);
+  }
+  if (p.park_id !== current.park_id) out.push(`${parkName(snapshot, p.park_id)}, not ${parkName(snapshot, current.park_id)}`);
+  else out.push("Same park");
+  if (p.workout_template_id !== current.workout_template_id) out.push(`New workout: ${templateName(snapshot, p.workout_template_id)}`);
+  if (p.duration_minutes && current.duration_minutes && p.duration_minutes !== current.duration_minutes) {
+    out.push(`${p.duration_minutes} min, not ${current.duration_minutes}`);
+  }
+  return out;
+}
+
 function OptionCard({
   option: o,
+  current,
   snapshot,
   label,
   featured = false,
@@ -70,8 +94,9 @@ function OptionCard({
   onApply,
 }: {
   option: CombinedOption;
+  current: PlanVersion["plan"];
   snapshot: EvidenceSnapshot | null;
-  label?: string;
+  label: string;
   featured?: boolean;
   busy: boolean;
   canApply: boolean;
@@ -84,36 +109,47 @@ function OptionCard({
     .filter((c) => c.critical && c.status === "unknown" && isConfirmableCheck(c.check_id))
     .map((c) => checkName(c.check_id).toLowerCase());
   const stillWrong = problemLines({ checks: o.checks } as PlanVersion, snapshot);
-  // One short line: the reviewer's first tradeoff, first sentence only (agents write paragraphs).
-  const lead = o.tradeoffs[0] ? firstSentence(plainText(o.tradeoffs[0], snapshot)) : null;
-  const notes = [...(lead ? [lead] : []), ...(toCheck.length > 0 ? [`you'll confirm the ${toCheck.join(" and ")}`] : [])];
+  const changes = optionChanges(o, current, snapshot);
+  const conditions = conditionsLine(snapshot, p);
+  const newWorkout = !!current && p.workout_template_id !== current.workout_template_id;
   return (
-    <div className={`clay-sm rounded-disclosure p-5 ${featured ? "bg-mint" : "bg-cream"}`}>
-      {label && <p className="text-xs font-bold tracking-wide text-ink uppercase">{label}</p>}
+    <div className={`clay-sm flex flex-col rounded-disclosure p-5 ${featured ? "bg-mint" : "bg-cream"}`}>
+      <p className="text-xs font-bold tracking-wide text-ink uppercase">{label}</p>
       <p className="mt-1 text-lg leading-snug font-bold text-ink">
         {time} at {parkName(snapshot, p.park_id)}
       </p>
-      <p className="text-sm text-ink">
-        {templateName(snapshot, p.workout_template_id)}
-        {adaptation && `, ${adaptation.charAt(0).toLowerCase()}${adaptation.slice(1)}`}
-      </p>
-      {conditionsLine(snapshot, p) && <p className="mt-1 text-sm text-ink">☀ {conditionsLine(snapshot, p)}</p>}
-      {notes.length > 0 && <p className="mt-1 text-sm text-ink-2">{notes.join(" · ")}</p>}
+      {changes.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="What changes">
+          {changes.map((c) => (
+            <li key={c} className={`rounded-control px-2.5 py-0.5 text-xs font-bold text-ink ${featured ? "bg-cream/70" : "bg-ground"}`}>
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* A new workout is already named in its chip; say it once. */}
+      {(!newWorkout || adaptation) && (
+        <p className="mt-2 text-sm text-ink">
+          {!newWorkout && templateName(snapshot, p.workout_template_id)}
+          {adaptation && <span className="block text-ink-2">Swap: {adaptation.charAt(0).toLowerCase()}{adaptation.slice(1)}</span>}
+        </p>
+      )}
+      {conditions && (
+        <p className="mt-1 text-sm text-ink">
+          <span aria-hidden="true">{weatherIcon(snapshot, p)} </span>
+          {conditions}
+        </p>
+      )}
+      {toCheck.length > 0 && <p className="mt-1 text-sm text-ink-2">You&apos;ll check: {toCheck.join(", ")}</p>}
       {stillWrong.length > 0 && <p className="mt-1 text-sm font-bold text-ink">Still a problem: {stillWrong.join("; ")}</p>}
       {/* An option that still fails a critical check can't be approved, so it isn't offered (D-JT25-1). */}
       {stillWrong.length === 0 && (
-        <Button variant={featured ? "surface" : "primary"} className="mt-4" disabled={busy || !canApply} onClick={() => onApply(o)}>
+        <Button variant={featured ? "surface" : "primary"} className="mt-4 self-start" disabled={busy || !canApply} onClick={() => onApply(o)}>
           Use this plan
         </Button>
       )}
     </div>
   );
-}
-
-/** "Keeps the 8:00 AM start. Moves to Sunset Park." -> "Keeps the 8:00 AM start." */
-function firstSentence(text: string): string {
-  const m = /^(.+?[.!?])(\s|$)/.exec(text.trim());
-  return (m ? m[1] : text.trim()).replace(/[.!?]$/, "");
 }
 
 /** "Replace the running intervals with a stationary circuit (high knees, …)" -> the part before the list. */

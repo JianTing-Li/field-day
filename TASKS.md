@@ -53,6 +53,7 @@ Format: `- [ ] **ID** Title (#issue) · target day · needs: IDs`.
 - [ ] **JT-25** Demo polish from Yadan's review: no-option message, one weather button, "Waiting on forecast" for far dates, a locked-in sample event (no issue) · Mon
 - [ ] **JT-26** Forecast-pending lock-in: lock in when only an unpublished forecast is missing, check it when due (no issue) · Mon
 - [ ] **JT-27** Repair old demo events that an old copy of the app writes after a reset (no issue) · Mon
+- [ ] **JT-28** "Something changed?" in your own words, all options on screen, forecast next to its limits, shorter wording (no issue) · Mon
 - [ ] **JT-24** Audit fixes: confirmations only for space/surface/permit, harness-owned checks, full workflow on Generate, input and rate limits, form and workspace UX (no issue) · Thu
 - [ ] **JT-19** Deploy to Vercel: env vars, demo mode, Anthropic spend cap, rate limit (#21) · Thu AM · needs: JT-20
 - [ ] **JT-20** Early deploy of the stub app to Vercel, to find hosting issues (time limits, env vars, store resets) (#40) · Tue

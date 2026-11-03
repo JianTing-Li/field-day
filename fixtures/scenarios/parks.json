@@ -1,7 +1,7 @@
 [
   {
     "id": "park-a",
-    "name": "Park A (placeholder)",
+    "name": "Park A",
     "borough": "Placeholder",
     "acreage": null,
     "location": null,
@@ -14,7 +14,7 @@
   },
   {
     "id": "park-b",
-    "name": "Park B (placeholder)",
+    "name": "Park B",
     "borough": "Placeholder",
     "acreage": null,
     "location": null,

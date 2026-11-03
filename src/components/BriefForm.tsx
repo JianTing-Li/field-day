@@ -196,7 +196,7 @@ export function BriefForm(props: Props) {
 
   if (loadError) {
     return (
-      <Alert tone="danger" role="alert" title="This event could not be loaded.">
+      <Alert tone="danger" role="alert" title="Couldn't load this event">
         <p>{loadError}.</p>
         <Link href="/" className={buttonClass("surface", "mt-3")}>
           Back to events
@@ -257,7 +257,7 @@ export function BriefForm(props: Props) {
       <Section
         title="The event"
         tag="Required"
-        hint="Name, date, group size, start window and parks are all FieldDay needs to draft a plan."
+        hint="Name, date, group size, start time and parks: that's all FieldDay needs."
       >
         <Field id="title" label="Event name" error={errors.title} className="sm:col-span-2">
           <input
@@ -363,7 +363,7 @@ export function BriefForm(props: Props) {
           </fieldset>
       </Section>
 
-      <Section title="When can it start?" tag="Required" hint="FieldDay picks the best start time inside this window. New York time.">
+      <Section title="When can it start?" tag="Required" hint="FieldDay picks the best time in this window (New York time).">
         <div className="flex flex-wrap gap-2 sm:col-span-2" role="group" aria-label="Quick start windows">
           {START_PRESETS.map((p) => {
             const active = values.earliest === p.earliest && values.latest === p.latest;
@@ -405,7 +405,7 @@ export function BriefForm(props: Props) {
         </Field>
       </Section>
 
-      <Section title="Where?" tag="Required" hint={`Pick up to ${MAX_PARKS} parks you'd be happy with. FieldDay only considers these.`}>
+      <Section title="Where?" tag="Required" hint={`Pick up to ${MAX_PARKS} parks you'd be happy with. FieldDay only plans in these.`}>
         <ParkPicker
           parks={parks}
           selected={values.allowed_park_ids}
@@ -473,7 +473,7 @@ export function BriefForm(props: Props) {
 
           <Section
             title="Stricter safety limits"
-            hint="FieldDay always checks heat (90°F) and air quality (AQI 100). Fill these in only if your instructor wants a stricter limit."
+            hint="FieldDay always checks heat (90°F) and air quality (AQI 100). Set a lower limit only if your instructor wants one."
           >
             <Field id="max_temperature_f" label="Max temperature (°F)" error={errors.max_temperature_f}>
               <input

@@ -131,6 +131,8 @@ export const ChangeReportRecord = z.object({
   start_time: LocalDateTime.nullable().optional(),
   /** For space and surface: the workout layout the report was about, like confirmations (D-JT22-1). */
   layout: WorkoutTemplate.shape.space.shape.layout.nullable().optional(),
+  /** For something FieldDay can't act on (JT-28): what it told the organizer. */
+  reply: z.string().nullable().optional(),
 });
 
 /** The checks an organizer report can fail (D-JT24-12): things a person can see or know first. */
