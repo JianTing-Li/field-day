@@ -33,7 +33,7 @@ export function EventList({ initial = null }: { initial?: EventSummary[] | null 
 
   if (!result.ok) {
     return (
-      <Alert tone="danger" role="alert" title="Events could not be loaded.">
+      <Alert tone="danger" role="alert" title="Couldn't load your events">
         <p>{describeError(result, "Loading events").title}. Nothing was changed.</p>
         <Button variant="surface" className="mt-3" onClick={load}>
           Try again

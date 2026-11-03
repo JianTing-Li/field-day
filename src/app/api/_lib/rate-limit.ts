@@ -31,6 +31,9 @@ export interface RateLimiter {
 /** New events per visitor and per day, in every mode: creating is free, so it's the cheap way to fill the database (F-09). */
 export const EVENT_CREATION_LIMITS: RateLimits = { per_visitor_per_hour: 20, global_per_day: 300 };
 
+/** Readings of "Something changed?" text (JT-28): one small model call each, with real agents only. */
+export const CHANGE_READ_LIMITS: RateLimits = { per_visitor_per_hour: 40, global_per_day: 400 };
+
 /** `what` names the counted thing in the refusal message, e.g. "agent runs". */
 export function createRateLimiter(limits: RateLimits = AGENT_RUN_LIMITS, what = "agent runs"): RateLimiter {
   const runs = new Map<string, number[]>();
@@ -78,6 +81,7 @@ export function visitorOf(request: Request): string {
 const globalForLimiter = globalThis as unknown as {
   __fieldDayRateLimiter?: RateLimiter;
   __fieldDayCreateLimiter?: RateLimiter;
+  __fieldDayReadLimiter?: RateLimiter;
 };
 
 function limiter(): RateLimiter {
@@ -116,5 +120,17 @@ export async function limitAgentRuns(
 ): Promise<Response> {
   if (!(deps.real ?? agentMode() === "real")) return run();
   const r = (deps.limiter ?? limiter()).take(visitorOf(request), (deps.now ?? Date.now)());
+  return r.ok ? run() : refused(r);
+}
+
+/** Wraps reading "Something changed?" text with its own limit; with stub agents it runs unchecked (no model call). */
+export async function limitChangeReads(
+  request: Request,
+  run: () => Promise<Response>,
+  deps: { limiter?: RateLimiter; now?: () => number; real?: boolean } = {},
+): Promise<Response> {
+  if (!(deps.real ?? agentMode() === "real")) return run();
+  globalForLimiter.__fieldDayReadLimiter ??= createRateLimiter(CHANGE_READ_LIMITS, "change readings");
+  const r = (deps.limiter ?? globalForLimiter.__fieldDayReadLimiter).take(visitorOf(request), (deps.now ?? Date.now)());
   return r.ok ? run() : refused(r);
 }

@@ -15,22 +15,22 @@ export interface StatusStyle {
 }
 
 export const STATUS: Record<LifecycleStatus, StatusStyle> = {
-  draft: { label: "Draft", hint: "No plan generated yet, or a plan is being edited", tone: "neutral" },
+  draft: { label: "Draft", hint: "No plan yet", tone: "neutral" },
   needs_verification: {
     label: "Needs checking",
-    hint: "Some critical checks failed or are not confirmed yet",
+    hint: "Something fails, or needs you to confirm it",
     tone: "warning",
   },
   ready_for_approval: {
     label: "Ready for approval",
-    hint: "Every critical check passes; waiting for the organizer to approve",
+    hint: "Every check passes. Approve to lock it in",
     tone: "info",
   },
-  approved: { label: "Approved", hint: "The organizer approved this exact version", tone: "success" },
-  finalized: { label: "Finalized", hint: "Saved as the final event record", icon: "🔒", tone: "final" },
+  approved: { label: "Approved", hint: "Approved. Lock it in to finish", tone: "success" },
+  finalized: { label: "Locked in", hint: "Saved as your final plan", icon: "🔒", tone: "final" },
   no_feasible_option: {
-    label: "No workable option",
-    hint: "No park, time and workout satisfies the constraints",
+    label: "No option works",
+    hint: "No park, time and workout passes every check",
     tone: "danger",
   },
 };
@@ -38,14 +38,14 @@ export const STATUS: Record<LifecycleStatus, StatusStyle> = {
 /** A plan that is saved but waits for the forecast (D-JT25-2). Shown in place of "Needs checking". */
 export const WAITING_ON_FORECAST: StatusStyle = {
   label: "Waiting on forecast",
-  hint: "Nothing fails, but the weather or air quality for this date isn't out yet",
+  hint: "Nothing fails; the forecast isn't out yet",
   tone: "info",
 };
 
-/** Locked in before its forecast was out (D-JT26-1). Shown in place of "Finalized" until it's checked. */
+/** Locked in before its forecast was out (D-JT26-1). Shown in place of "Locked in" until it's checked. */
 export const FINALIZED_FORECAST_PENDING: StatusStyle = {
-  label: "Finalized, forecast pending",
-  hint: "Locked in; the weather or air-quality forecast wasn't out yet, so check it closer to the day",
+  label: "Locked in, forecast to check",
+  hint: "Locked in before the forecast was out. Check it closer to the day",
   icon: "🔒",
   tone: "final",
 };

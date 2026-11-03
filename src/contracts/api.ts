@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CheckId, Id, LocalDateTime } from "./common";
+import { CheckId, Id, IsoDate, LocalDateTime, LocalTime } from "./common";
 import { EventBrief } from "./brief";
 import { EvidenceSnapshot } from "./evidence";
 import { ChangeKind, EventSummary, FieldDayEvent, GateCheck } from "./event";
@@ -43,6 +43,29 @@ export const ChangeReport = z.object({
   start_time: LocalDateTime.nullable().optional(),
 });
 export type ChangeReport = z.infer<typeof ChangeReport>;
+
+/**
+ * One change read from what the organizer typed under "Something changed?" (JT-28, D-JT28-1).
+ * `said` is the part of their words it came from. A `note` is something FieldDay can't act on;
+ * `reply` says so in plain words. The organizer sees the whole list and confirms before anything
+ * changes.
+ */
+const said = z.string().min(1).max(300);
+export const ChangeItem = z.discriminatedUnion("type", [
+  /** Fails one reportable check at the plan's park (space, ground) or time (rain, time). */
+  z.object({ type: z.literal("report"), what: z.enum(["space", "ground", "rain", "time"]), said }),
+  z.object({ type: z.literal("start_window"), earliest: LocalTime, latest: LocalTime, said }),
+  z.object({ type: z.literal("date"), date: IsoDate, said }),
+  z.object({ type: z.literal("group_size"), group_size: z.number().int().positive(), said }),
+  z.object({ type: z.literal("duration"), duration_minutes: z.number().int().positive(), said }),
+  /** Values from the brief's equipment list. */
+  z.object({ type: z.literal("equipment_missing"), equipment: z.array(z.string().min(1)).min(1).max(20), said }),
+  z.object({ type: z.literal("avoid_exercises"), exercises: z.array(z.string().min(1).max(100)).min(1).max(10), said }),
+  /** One of the brief's allowed parks, dropped from the list. */
+  z.object({ type: z.literal("avoid_park"), park_id: Id, said }),
+  z.object({ type: z.literal("note"), said, reply: z.string().min(1).max(300) }),
+]);
+export type ChangeItem = z.infer<typeof ChangeItem>;
 
 export const Api = {
   /** GET /api/events */
@@ -92,6 +115,26 @@ export const Api = {
     method: "POST",
     path: "/api/events/:id/changes",
     request: z.object({ version: z.number().int().positive(), change: ChangeReport }),
+    response: EventResponse,
+  },
+  /**
+   * POST /api/events/:id/changes/read — reads what the organizer typed into a list of changes
+   * (JT-28). Changes nothing; the organizer confirms the list with applyChanges.
+   */
+  readChanges: {
+    method: "POST",
+    path: "/api/events/:id/changes/read",
+    request: z.object({ version: z.number().int().positive(), text: z.string().min(1).max(1000) }),
+    response: z.object({ items: z.array(ChangeItem), read_by: z.enum(["model", "rules"]) }),
+  },
+  /**
+   * POST /api/events/:id/changes/apply — applies confirmed changes in one go (JT-28): brief changes
+   * re-plan once, reports re-check and look for a fix, and notes are only kept.
+   */
+  applyChanges: {
+    method: "POST",
+    path: "/api/events/:id/changes/apply",
+    request: z.object({ version: z.number().int().positive(), items: z.array(ChangeItem).min(1).max(20) }),
     response: EventResponse,
   },
   /** POST /api/events/:id/review — organizer requests conflict review without a new change. */

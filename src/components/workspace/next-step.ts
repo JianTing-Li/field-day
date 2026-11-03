@@ -85,9 +85,9 @@ export function draftFailure(run: NonNullable<FieldDayEvent["last_run"]>): strin
   }
   const last = run.progress[run.progress.length - 1]?.message ?? "";
   if (/fixture/i.test(last)) {
-    return "This demo's practice planner only has plans for the sample events, so it can't plan a new one. Try a sample event, or ask your admin to turn on the real planner.";
+    return "This demo's practice planner only has plans for the sample events. Try a sample event, or turn on the real planner.";
   }
-  return "Something went wrong while drafting, and nothing was saved. Try again; if it keeps happening, edit the brief or contact support.";
+  return "Something went wrong and nothing was saved. Try again, or edit the brief.";
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -117,7 +117,7 @@ export function nextStep(
     return {
       tone: "danger",
       title: "Can't lock it in yet",
-      body: `The final checks found: ${failedGate.map((g) => plainIds(g.reason)).join("; ")}. See "Approve and lock in" below for details.`,
+      body: `Final checks found: ${failedGate.map((g) => plainIds(g.reason)).join("; ")}.`,
       action: null,
       label: null,
     };
@@ -141,8 +141,8 @@ export function nextStep(
         tone: "success",
         title: "Locked in",
         body: ctx.demoOnly
-          ? "Saved as your final plan in this demo. The safety limits and workouts aren't reviewed for real use yet, so don't run a real event on it. Nothing was booked or sent."
-          : "This is your final plan. Nothing was booked or sent: share it with your group when you're ready.",
+          ? "Saved as your final plan. Demo only: the safety limits and workouts aren't reviewed, so don't run a real event on it. Nothing was booked or sent."
+          : "Your final plan. Nothing was booked or sent; share it with your group when you're ready.",
         action: null,
         label: null,
       };
@@ -150,7 +150,7 @@ export function nextStep(
       return {
         tone: "success",
         title: "Approved: one step left",
-        body: "Lock it in to run the final safety checks and save it as your final plan.",
+        body: "Lock it in to run the final checks and save it.",
         action: "finalize",
         label: "Lock it in",
       };
@@ -167,7 +167,7 @@ export function nextStep(
       return {
         tone: "success",
         title: "Everything checks out",
-        body: "Every safety check passes for this park, time and workout. Approving runs one last safety check and saves it as your final plan.",
+        body: "Every check passes for this park, time and workout. One last check runs when you lock it in.",
         action: "approve_and_lock",
         label: "Approve and lock in",
       };
@@ -175,7 +175,7 @@ export function nextStep(
       return {
         tone: "danger",
         title: "No safe option found",
-        body: "FieldDay couldn't find a park, time and workout that pass every check. See what's blocking below, then change the brief.",
+        body: "No park, time and workout passes every check. Change the brief to open up more options.",
         action: "edit",
         label: "Edit the brief",
       };
@@ -183,7 +183,7 @@ export function nextStep(
       return {
         tone: "neutral",
         title: v.plan ? "Draft a fresh plan" : "Start with a plan",
-        body: "FieldDay picks a park, time and workout from your brief and checks them against the weather and air quality.",
+        body: "FieldDay picks a park, time and workout from your brief, then checks the weather and air quality.",
         action: "generate",
         label: "Draft a plan",
       };
@@ -205,7 +205,7 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
       return {
         tone: "danger",
         title: `No option avoids ${AVOID[failed[0]] ?? "the problem"}`,
-        body: "FieldDay tried the other times, parks and workouts your brief allows. Try another date, or allow more parks or start times.",
+        body: "FieldDay tried every time, park and workout your brief allows. Try another date, or allow more parks or start times.",
         action: "edit",
         label: "Edit the brief",
       };
@@ -214,14 +214,14 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
       ? {
           tone: "warning",
           title: "Pick one of the alternatives",
-          body: `${problems} for this plan, so FieldDay found other options. Compare them below.`,
+          body: `${problems} here. Pick one of the options below.`,
           action: "alternatives",
           label: "See alternatives",
         }
       : {
           tone: "danger",
           title: `${problems}`,
-          body: "This plan won't work as is. FieldDay can look for a different time, park or workout that fixes it.",
+          body: "FieldDay can look for another time, park or workout that fixes it.",
           action: "review",
           label: "Find alternatives",
         };
@@ -276,7 +276,7 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
       return {
         tone: "info",
         title: "Waiting on the air-quality forecast",
-        body: "The weather is in, but the air-quality forecast for this day isn't out yet. It usually comes out the afternoon before. Check again then.",
+        body: "Weather's in. Air quality usually comes out the afternoon before. Check again then.",
         action: "recheck",
         label: "Check the latest weather",
       };
@@ -284,7 +284,7 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
     return {
       tone: "info",
       title: "Waiting on weather data",
-      body: "There's no current forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
+      body: "No forecast for this time yet, so FieldDay can't call it safe. Check again closer to the day.",
       action: "recheck",
       label: "Check the latest weather",
     };
@@ -292,7 +292,7 @@ function needsVerification(v: PlanVersion, ctx: NextStepContext): NextStep {
   return {
     tone: "warning",
     title: "Some checks aren't confirmed yet",
-    body: "See what's missing below. Nothing can be approved until it's confirmed.",
+    body: "Nothing can be approved until these are confirmed.",
     action: null,
     label: null,
   };

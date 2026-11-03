@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { z } from "zod";
-import { Api, type EventBrief, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
+import { Api, type ChangeItem, type EvidenceSnapshot, type FieldDayEvent, type GateCheck } from "@/contracts";
 import { apiGet, apiSend, type ApiResult } from "../api-client";
 import { describeError, type ApiFailure } from "../errors";
 import { AUTODRAFT_KEY } from "../BriefForm";
@@ -12,6 +12,7 @@ import { todayInNewYork } from "../format";
 import { Alert, Button, buttonClass } from "../ui";
 import { SuggestedFix } from "./Alternatives";
 import { ConfirmPanel } from "./ApprovalFlow";
+import { applyWork } from "./changes";
 import { SomethingChanged } from "./Disruptions";
 import { availableActions, confirmItems, currentVersion, finalizeKey, problemLines } from "./logic";
 import { PlanSummary } from "./NextStep";
@@ -202,28 +203,13 @@ export function Workspace({
     }
   };
 
-  /**
-   * Equipment and group-size changes edit the brief, then draft again straight away, so "Something
-   * changed?" is one click whatever the change is.
-   */
-  const editAndReplan = async (patch: Partial<EventBrief>): Promise<boolean> => {
-    setBusy("Finding a fix");
-    setActionError(null);
-    const edited = await apiSend(
-      "PUT",
-      `${base}/brief`,
-      { brief: { ...event.brief, ...patch }, based_on_version: v.version },
-      Api.updateBrief.response,
-    );
-    const drafted = edited.ok
-      ? await apiSend("POST", `${base}/generate`, { version: edited.data.event.current_version }, Api.generateDraft.response)
-      : edited;
-    if (!drafted.ok) setActionError({ label: "Finding a fix", error: drafted });
-    setGate(null);
-    await load();
-    setBusy(null);
-    return drafted.ok;
+  /** Reads "Something changed?" text into a list of changes (JT-28); nothing is saved yet. */
+  const readChanges = async (text: string) => {
+    const r = await apiSend("POST", `${base}/changes/read`, { ...version, text }, Api.readChanges.response);
+    return r.ok ? { ok: true as const, items: r.data.items } : { ok: false as const, message: describeError(r, "Reading your changes").body };
   };
+  const applyChanges = async (items: ChangeItem[]) =>
+    (await act(applyWork(items), "changes/apply", { ...version, items }, Api.applyChanges.response)).ok;
 
   const date = new Date(`${event.brief.date}T12:00:00Z`).toLocaleDateString("en-US", {
     weekday: "short",
@@ -327,8 +313,8 @@ export function Workspace({
         version={v}
         snapshot={snapshot}
         busy={!!busy}
-        onReport={async (change) => (await act("Finding a fix", "changes", { ...version, change }, Api.reportChange.response)).ok}
-        onEditBrief={editAndReplan}
+        onRead={readChanges}
+        onApply={applyChanges}
         onRemove={(report_id) => act("Removing your report", "changes/remove", { ...version, report_id }, Api.removeReport.response)}
       />
 
