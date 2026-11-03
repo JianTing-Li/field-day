@@ -1,41 +1,29 @@
 # FieldDay
 
 <!-- Owner: shared -->
-**Plan outdoor group workouts in New York City parks, and know they're safe before anyone shows up.**
+**Plan outdoor group workouts in NYC parks, and know they're safe before anyone shows up.**
 
-FieldDay turns an event brief (date, group size, start window, parks, type of session) into a checked plan: a park,
-a time and a workout, with weather, rain, air quality, space and equipment checked against the evidence. When
-something conflicts, four Claude agents propose fixes and an independent reviewer ranks them. The organizer
-confirms what only they can check, approves, and locks it in.
+Give it a brief. FieldDay picks a park, time and workout, then checks weather, rain, air quality, space and
+equipment. When something fails, Claude agents propose fixes. You confirm what only you can see, then lock it in.
 
-**[Live demo →](https://field-day-sepia.vercel.app)** · built by Jian Ting Li and Yadan Taino
+**[Live demo →](https://field-day-sepia.vercel.app)** · by Jian Ting Li and Yadan Taino
 
-![FieldDay demo: a run club plan with rain and no room shows its forecast and two ways to fix it; the best fix is taken, space and ground are confirmed and it is locked in; then the organizer types two changes at once, FieldDay lists what it understood, and the storm flags the plan again while the locked-in plan stays saved and the money note gets an answer](docs/media/fieldday-demo.gif)
+![FieldDay demo: a run club plan with rain and no room shows two fixes; the best one is taken, confirmed and locked in; then a typed message ("Storms are coming in, and there's no money for water") becomes a storm report and a note, and the storm flags the plan again while the locked-in plan stays saved](docs/media/fieldday-demo.gif)
 
-<sub>Recorded on the local build with recorded weather data and stub agents: open a plan with rain and no room, take
-the best of two fixes, confirm space and ground, lock it in, then type "Storms are coming in, and there's no money
-for water" and confirm what FieldDay understood.</sub>
+<sub>Local build · recorded weather · stub agents</sub>
 
-## What's interesting about it
+## Highlights
 
-- **Agents propose, code decides.** Four agents (Planning, Event Logistics, Workout Adaptation, Independent
-  Reviewer) return Zod-validated JSON through read-only tools. A deterministic harness owns all state, runs every
-  safety check and holds the final save gate, so no model output can lock in an unsafe plan.
-- **"Unknown" is never "pass."** Each check is pass, fail or unknown. Missing weather, a stale forecast or unverified
-  space blocks lock-in. The one exception: a forecast that isn't published yet for a later day can be locked in as
-  "forecast pending", and the event asks you to check it when it's due. A gentler workout never makes a heat, rain
-  or air-quality problem acceptable.
-- **Every fact shows its evidence:** source, retrieval time, valid period, where it applies, and whether it's live,
-  recorded or the organizer's word. An organizer's confirmation covers one check at one park and time, never more.
-- **Measured, not vibes.** 12 scenario evals (written before the first agent run) compare a rules-only baseline,
-  Planning alone and the full 4-agent workflow. The agents resolved 2 more conflicts than Planning alone (5 of 5),
-  at 2.6× the latency. [Results below](#eval-results).
-- **Say what changed, in your own words.** "Storms are coming in, 30 people now, and there's no money for water"
-  becomes a list FieldDay shows before changing anything: re-check the storm, re-plan for 30, and a one-line answer
-  for what it can't act on (money, permits, messaging). One model call reads it, with rules as the fallback.
-- **Bounded.** At most 7 agent runs and 1 revision round per request, caps on tokens, cost and time, rate limits per
-  visitor, and stale results from an older plan version are rejected.
-- **700+ tests**, none of them calling a live API or the model.
+- **Agents propose, code decides.** 4 Claude agents return validated JSON. A deterministic harness owns all state
+  and the final save gate.
+- **Unknown is never a pass.** Missing or stale data blocks lock-in. A gentler workout never excuses heat, rain or
+  bad air.
+- **Every fact cites its evidence:** source, time, place, and whether it's live, recorded or the organizer's word.
+- **Say what changed in plain words.** One sentence becomes a list of changes you approve before anything moves.
+- **Measured.** 12 evals written before the first run. 4 agents fixed 5 of 5 conflicts; Planning alone fixed 3.
+  [Results](#eval-results)
+- **Bounded.** At most 7 agent runs per request, with caps on tokens, cost and time, plus rate limits.
+- **700+ tests**, none calling a live API or the model.
 
 ```mermaid
 flowchart LR
@@ -49,11 +37,9 @@ flowchart LR
   E[(Evidence snapshot:<br/>NWS · AirNow · NYC Parks)] -.read only.-> P & L & W & R & C
 ```
 
-**Stack:** Next.js 16 (App Router, cache components, view transitions) · React 19 · TypeScript · Zod · Tailwind 4 ·
-Anthropic API (Claude) · Neon Postgres · Vercel · Vitest. Data: National Weather Service, AirNow, NYC Parks Open
-Data (29 curated parks, searchable by name, borough, zip code or "near me").
-
-**Out of scope on purpose:** FieldDay never books a venue, files a permit, takes payment or messages attendees.
+**Stack:** Next.js 16 · React 19 · TypeScript · Zod · Tailwind 4 · Claude API · Neon Postgres · Vercel · Vitest \
+**Data:** National Weather Service · AirNow · NYC Parks Open Data (29 parks) \
+**Never:** books venues, files permits, takes payment or messages attendees.
 
 ---
 
@@ -61,84 +47,75 @@ Data (29 curated parks, searchable by name, borough, zip code or "near me").
 
 ## How we work
 <!-- Owner: shared -->
-- **Rules for Claude:** [CLAUDE.md](CLAUDE.md) — ownership, PRD rules, done checklist. Claude Code reads it automatically.
-- **Tasks:** [TASKS.md](TASKS.md) — one section per person, each task linked to a GitHub issue.
-- **Work logs:** [worklog/](worklog/) — read the other person's log before touching or depending on their work.
-- **Decisions:** [docs/decisions.md](docs/decisions.md).
-- **Flow:** branch from `develop` → one task per PR → the other person reviews → merge. `develop` → `main` once tested.
-
-**First time setup (Yadan):** install Node 24 (`nvm use` reads `.nvmrc`), run the commands below, add your
-`git config user.name` to CLAUDE.md (YT-00a), then start Claude Code in this folder and ask for your next task.
+- [CLAUDE.md](CLAUDE.md): ownership, PRD rules, done checklist (Claude Code reads it automatically)
+- [TASKS.md](TASKS.md): tasks per person, each linked to an issue
+- [worklog/](worklog/): read the other person's log before touching their work
+- [docs/decisions.md](docs/decisions.md): decisions
+- **Flow:** branch from `develop` → one task per PR → the other person reviews → merge → `develop` to `main` once tested
 
 ## Getting started
 <!-- Owner: JT -->
-Requires Node 24 (see `.nvmrc`).
+Node 24 (`nvm use`).
 
 ```bash
 npm install
-cp .env.example .env.local   # then fill in your own keys
+cp .env.example .env.local   # add your own keys
 npm run dev                  # http://localhost:3000
 ```
 
-| Variable | Needed for | Notes |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Running real agents | Server-side only; each developer uses their own key |
-| `ANTHROPIC_MODEL` | Running real agents | Defaults to `claude-haiku-5-5` |
-| `AIRNOW_API_KEY` | Live air quality | Server-side only |
-| `NWS_USER_AGENT` | Live weather | NWS requires an identifying User-Agent |
-| `FIELDDAY_DATA_MODE` | All | `fixture` (default) or `live` |
-| `FIELDDAY_AGENTS` | Running real agents | `stub` (default: fixture outputs, no API calls) or `real`; an agent with no real version yet stays a stub, and each run reports which ran |
-| `DATABASE_URL` | Saving to the hosted database | Neon Postgres (D-JT21-1); set by Vercel's Neon integration. Without it the app uses an in-memory store that empties on restart |
+| Variable | What it does |
+|---|---|
+| `FIELDDAY_AGENTS` | `stub` (default, free) or `real` (calls Claude) |
+| `ANTHROPIC_API_KEY` | Your key, for real agents |
+| `ANTHROPIC_MODEL` | Default `claude-haiku-5-5` |
+| `FIELDDAY_DATA_MODE` | `fixture` (default, recorded) or `live` |
+| `NWS_USER_AGENT` | Live weather (NWS needs an identifying User-Agent) |
+| `AIRNOW_API_KEY` | Live air quality |
+| `DATABASE_URL` | Neon Postgres, set by Vercel. Without it, data lives in memory |
 
-| Script | What it does |
+| Script | |
 |---|---|
 | `npm run dev` | Run the app |
-| `npm test` | Unit and fixture tests (no live API calls) |
-| `npm run typecheck` | Generate route types, then type check |
+| `npm test` | Tests (no live API calls) |
+| `npm run typecheck` | Route types + type check |
 | `npm run lint` | Lint |
 | `npm run build` | Production build |
-| `npm run db:reset` | Empty the hosted database after typing `RESET` (also a manual "Reset database" GitHub Action) |
+| `npm run db:reset` | Empty the hosted database (type `RESET`) |
 
 ### Deployed demo
-https://field-day-sepia.vercel.app deploys from `develop` on Vercel (team Calm Forge, region `iad1`), with real agents
-on shared demo credits. `FIELDDAY_DATA_MODE` on Vercel picks recorded or live weather and air quality (live since
-2026-10-29); the seeded demo events always use their recorded scenarios.
+[field-day-sepia.vercel.app](https://field-day-sepia.vercel.app): Vercel (team Calm Forge, `iad1`), real agents on
+shared demo credits, live weather and air quality. Demo events always use recorded scenarios.
 
-- **Rate limit (D-JT19-1, D-JT24-10):** with `FIELDDAY_AGENTS=real`, Draft a plan, making a change and Find
-  alternatives allow 18 agent runs per visitor per hour and 180 per day in total. Reading what changed has its own
-  limit: 40 per visitor per hour, 400 a day. A malformed request is refused before
-  it counts. Creating events has its own limit in every mode: 20 per visitor per hour, 300 a day. Over a limit, the
-  API answers 429 `rate_limited` and nothing runs. Counts are kept in memory per server instance.
-- **Spend limit:** set a monthly spend limit on the Anthropic workspace that owns the deployed key. It is the backstop
-  for anything the in-memory rate limit misses.
-- **Demo labeling (D-JT19-2, D-JT24-2):** the "Demo" banner shows in every mode: recorded data, or live data with
-  safety limits and workouts not yet reviewed, and (with real agents) that Claude drafts plans on shared demo credits.
-  A locked-in plan says it's for the demo only while anything it rests on is unreviewed.
-- **Reset:** GitHub → Actions → "Reset database" → Run workflow → type `RESET`. It needs the `DATABASE_URL`
-  repository secret (Settings → Secrets and variables → Actions). The next page view seeds the demo events again with
-  the stub agents, so it costs no credits.
-- **Time limit (D-JT19-3):** every event route sets `maxDuration = 300`; the run budget stops agents at 240 s.
+- **Rate limits** (real agents; D-JT19-1, D-JT24-10). Over a limit: `429`, nothing runs. Counted in memory per server.
+
+  | | Per visitor / hour | Total / day |
+  |---|---|---|
+  | Agent runs (draft, change, alternatives) | 18 | 180 |
+  | Reading what changed | 40 | 400 |
+  | New events (every mode) | 20 | 300 |
+
+- **Spend limit:** set a monthly cap on the Anthropic workspace. It's the backstop.
+- **Demo label** (D-JT19-2, D-JT24-2): a banner on every page; locked-in plans say "demo only" while anything is
+  unreviewed.
+- **Reset:** Actions → "Reset database" → type `RESET` (needs the `DATABASE_URL` secret). Demo events come back on
+  the next server start, seeded with stub agents (no credits).
+- **Time limit** (D-JT19-3): routes allow 300 s; agents stop at 240 s.
 
 ## Architecture
 <!-- Owner: JT -->
-- **Contracts** (`src/contracts/`): shared Zod schemas and types for every handoff.
-- **Harness** (`src/server/`): owns state, builds evidence snapshots, runs `check_plan`, enforces budgets,
-  tracks approval, and runs the final save gate. It is application code, not an agent.
-- **Agents** (`src/server/agents/`): Planning, Event Logistics, Workout Adaptation, Independent Reviewer.
-  They read evidence through read-only tools and return validated JSON.
-- **Workflow:** initial plan → conflict check → Logistics + Workout Adaptation in parallel → combination
-  checks → independent review → at most 1 revision → organizer approval → final save gate → save. Draft a plan runs
-  all of it in one request when the draft fails a critical check (D-JT24-4); a reported change and Find alternatives
-  run the review on the current plan.
-- **Checks:** every version's checks come from the harness's `check_plan`, never from an agent (D-JT24-3). An
-  organizer confirmation resolves only space, surface or permit at one park and time (D-JT24-1). A reported change
-  (space, ground, rain, start time) fails that check at that park or time until a newer confirmation clears it
-  (D-JT24-12).
-- **Something changed?** (D-JT28-1): the organizer types what changed, as many things as they like, or taps a
-  shortcut. `changes/read` turns it into a list (one model call with real agents, rules otherwise, rules again for
-  anything the model refuses); the organizer confirms it, and `changes/apply` saves brief changes and re-plans once,
-  re-checks reports, and keeps anything FieldDay can't act on as a note with its answer.
-- **API** (`src/app/api/`): the UI talks to the harness only through the endpoints in `src/contracts/api.ts`.
+| Part | Where | Job |
+|---|---|---|
+| Contracts | `src/contracts/` | Zod schemas for every handoff |
+| Harness | `src/server/` | Owns state, evidence, `check_plan`, budgets, approval, final save gate. Code, not an agent |
+| Agents | `src/server/agents/` | Planning, Logistics, Workout, Reviewer. Read-only tools, validated JSON |
+| API | `src/app/api/` | The UI's only way in (endpoints in `src/contracts/api.ts`) |
+
+- **Workflow:** plan → check → Logistics + Workout in parallel → combination checks → review → ≤1 revision →
+  approval → save gate. Draft a plan runs it all when the draft fails (D-JT24-4).
+- **Checks** come only from `check_plan` (D-JT24-3). A confirmation covers space, surface or permit at one park and
+  time (D-JT24-1). A reported problem fails that check until a newer confirmation clears it (D-JT24-12).
+- **Something changed?** (D-JT28-1): `changes/read` turns text into a list (one model call, rules as fallback).
+  `changes/apply` saves brief changes and re-plans, re-checks reports, and keeps the rest as notes with an answer.
 
 ## Features and status
 <!-- Each person edits only their own rows. Status: placeholder · stub · in progress · done -->
@@ -178,58 +155,42 @@ Not started.
 
 ## Eval results
 <!-- Owner: JT -->
-First real run: 2026-10-28, all four agents real, `claude-haiku-5-5`, fixture inputs (not live data or
-real-world results). Full report: [`evals/results/2026-10-28T22-38-08-324Z-real.md`](evals/results/2026-10-28T22-38-08-324Z-real.md).
-Targets are in the PRD §2c. The 12 cases' expected outcomes (`expected` in each `fixtures/scenarios/` file) were
-written before any agent run and were not changed after it; cases 4–8 are the 5 known-feasible conflicts.
-How to run it: [`evals/README.md`](evals/README.md). The evals grade the full workflow (`runWorkflow`), which the app
-now runs on Draft a plan too (D-JT24-4). This run predates JT-24's shorter specialist and Reviewer answers
-(D-JT24-3); rerun before quoting latency or tokens.
+First real run, 2026-10-28: all four agents, `claude-haiku-5-5`, fixture inputs.
+[Full report](evals/results/2026-10-28T22-38-08-324Z-real.md) · [How to run](evals/README.md) · targets in PRD §2c.
+Expected outcomes were written before any agent run and never changed. Cases 4–8 are the 5 fixable conflicts.
+Predates JT-24's shorter answers (D-JT24-3), so rerun before quoting latency or tokens.
 
-| Metric (PRD §2c) | Target | Rules only | Planning alone | 4 agents |
+| Metric | Target | Rules only | Planning alone | 4 agents |
 |---|---|---|---|---|
 | Correct outcomes | ≥ 11 of 12 | 11 of 11 | 8 of 12 | 8 of 12 |
-| Conflicts resolved (cases 4–8) | ≥ 4 of 5 | 5 of 5 | 3 of 5 | 5 of 5 |
+| Conflicts resolved (4–8) | ≥ 4 of 5 | 5 of 5 | 3 of 5 | 5 of 5 |
 | Approvable plans breaking a hard rule | 0 | 0 | 0 | 0 |
 | Cited evidence not in the snapshot | 0 | 0 | 0 | 0 |
-| Missing-data cases shown as passing | 0 | 0 | 0 | 0 |
-| Model requests / tool calls (all 12 cases) | — | 0 / 0 | 44 / 71 | 77 / 129 |
-| Tokens in / out (all 12 cases) | — | 0 / 0 | 350k / 40k | 852k / 137k |
-| Total latency (all 12 cases) | — | 0.0 s | 172 s | 439 s |
+| Missing data shown as passing | 0 | 0 | 0 | 0 |
+| Model requests / tool calls | — | 0 / 0 | 44 / 71 | 77 / 129 |
+| Tokens in / out | — | 0 / 0 | 350k / 40k | 852k / 137k |
+| Total latency | — | 0 s | 172 s | 439 s |
 
-**Multi-agent value** (target: ≥ 2 more conflicts resolved than Planning alone, at ≤ 2× its latency): the 4-agent
-workflow resolved 2 more (Cases 6 and 8, the workout substitution and the combined revision), at 2.6× the latency.
-The conflict target is met; the latency target is not. Each agent passed all of its own eval cases (Planning 5/5,
-Workout 5/5, Logistics 6/6, Reviewer 6/6).
+**Multi-agent value:** +2 conflicts resolved over Planning alone (cases 6 and 8), meeting the target, at 2.6× the
+latency, missing the ≤ 2× target. Each agent passed its own cases (Planning 5/5, Workout 5/5, Logistics 6/6,
+Reviewer 6/6).
 
-What the failures mean:
-- **4 agents, Cases 4, 5 and 7 ("specialists did not run"):** the final plan is correct, but Planning found the time,
-  venue or session change on its own, so its plan had no failed check and the harness never triggered the
-  specialists. The case expected them to run, so these count as wrong.
-- **Case 11, both agent architectures:** the case tests that the harness rejects malformed output or an unknown
-  candidate/evidence ID. The real model returned valid output, so there was nothing to reject. The rejection
-  itself is covered by the stub-mode tests (`evals/runner.test.ts`, `src/server/orchestrator`), not by this run.
-- **Planning alone, Cases 2, 6 and 8:** it kept a plan with a failed critical check (space, equipment) where the
-  4-agent workflow reached the expected result. That is the gap the specialists exist for.
-- **Rules only scores highest** because the fixtures are small enough to try every combination. It cannot explain a
-  choice or handle anything outside the fixed rules, but it is the baseline the agents have to beat.
+Why the misses:
+- **4 agents, cases 4, 5, 7:** right plan, but Planning fixed it alone, so the specialists never ran as the case expected.
+- **Case 11:** tests rejecting malformed output. The model's output was valid, so nothing to reject (covered by stub tests).
+- **Planning alone, cases 2, 6, 8:** kept a plan with a failed critical check. That's the gap the specialists fill.
+- **Rules only wins** because the fixtures are small enough to try every combination. It's the baseline to beat.
 
-An earlier run the same day scored 6/12 (Planning alone) and 3/12 (4 agents) because of two harness problems, fixed
-in JT-23: Logistics and Reviewer answers were cut off at 4,096 output tokens, and an agent's `needs_verification`
-blocked plans that passed every check (D-JT23-1, D-JT23-2).
+An earlier run scored 6/12 and 3/12 because of two harness bugs, fixed in JT-23 (D-JT23-1, D-JT23-2).
 
-## Limitations and open decisions
+## Limitations
 <!-- Both: add as you go -->
-- Conditions data is recorded (fixture mode, covering Oct 27–Nov 2, 2026 for weather and Oct 27–28 for air quality) or
-  live, set by `FIELDDAY_DATA_MODE`. Live forecasts reach about 6 days ahead for weather, and AirNow publishes air
-  quality for today only, so an event further out can be locked in as "forecast pending" and checked once the
-  forecast is out (D-JT26-1).
-- Sessions run 30, 35 or 45 minutes and use one of 4 workouts (bodyweight, walk-run intervals, resistance bands, yoga),
-  all pending instructor review; other activities need a reviewed workout first (D-JT24-7).
-- Environmental thresholds (heat 90°F, rain chance 40%, AQI 100) are unreviewed demo values and cannot support
-  real-world finalization. The rain rule was added to the PRD on 2026-10-30 (D-JT24-11).
-  The heat check uses forecast air temperature only; humidity is not collected, so it is not a heat index.
-- In fixture mode, recorded evidence is assessed for freshness at its recording time, not against the current time.
-- Approval does not establish venue permission, usable space, or guaranteed conditions.
-- The hosted app has no sign-in, so anyone with the link can create, approve and finalize events (D-JT21-1).
-- Open decisions are tracked in [docs/decisions.md](docs/decisions.md).
+- **Forecast reach:** weather about 6 days out, air quality today only. Later events lock in as "forecast pending"
+  (D-JT26-1). Recorded data: weather Oct 27–Nov 2, air quality Oct 27–28, 2026.
+- **Workouts:** 30, 35 or 45 minutes; 4 workouts, all pending instructor review (D-JT24-7).
+- **Thresholds** (heat 90°F, rain 40%, AQI 100) are unreviewed demo values (D-JT24-11). Heat uses air temperature,
+  not heat index.
+- **Recorded data** is judged fresh at its recording time, not now.
+- **Approval** doesn't guarantee venue permission, space or conditions.
+- **No sign-in:** anyone with the link can create and lock in events (D-JT21-1).
+- Open decisions: [docs/decisions.md](docs/decisions.md).
